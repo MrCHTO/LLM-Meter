@@ -123,7 +123,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
     <div className="section">
       <div className="kpi">
         <div className="tile">
-          <div className="label">合计 tok/s</div>
+          <div className="label">合计 TPS</div>
           <div className="value mono">{snapshot ? snapshot.totals.tps.toFixed(1) : '0.0'}</div>
         </div>
         <div className="tile">
@@ -159,7 +159,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
               <th className="c-model">模型</th>
               <th className="c-url">上游地址</th>
               <th className="c-format">上游协议</th>
-              <th className="c-rate">token/s</th>
+              <th className="c-rate">TPS</th>
               <th className="c-ttft">TTFT</th>
               <th className="c-hit">缓存命中率</th>
               <th className="c-tok">输入 token</th>
@@ -197,7 +197,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                     <td className="c-rate">
                       <div className="rate">
                         <span className="mono">{m.tps.toFixed(1)}</span>
-                        <Sparkline buckets={m.buckets} tail={30} />
+                        <Sparkline buckets={m.buckets} tail={18} />
                       </div>
                     </td>
                     <td className="c-ttft mono">{fmtMs(m.lastTtftMs)}</td>

@@ -332,8 +332,13 @@ tbody tr:hover {
 .rate {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 2px;
+}
+
+.tbl th.c-rate,
+.tbl td.c-rate {
+  text-align: center;
 }
 
 .bar i {
@@ -613,11 +618,11 @@ body.overlay-body {
 }
 
 .tbl .c-model {
-  width: 17%;
+  width: 16%;
 }
 
 .tbl .c-url {
-  width: 22%;
+  width: 20%;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -625,7 +630,7 @@ body.overlay-body {
 }
 
 .tbl .c-format {
-  width: 11%;
+  width: 10%;
 }
 
 .tbl th.c-url,
@@ -688,4 +693,12 @@ tr.open > td {
 
 .ctxmenu button:hover {
   background: var(--panel-2);
+}
+
+.tbl-left thead th:nth-child(2) {
+  text-align: left;
+}
+
+.tbl-left tbody td:nth-child(2) {
+  text-align: left;
 }

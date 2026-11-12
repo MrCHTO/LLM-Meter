@@ -140,7 +140,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
         {providers.length === 0 ? (
           <div className="empty">还没有供应商</div>
         ) : (
-          <table>
+          <table className="tbl-left">
             <thead>
               <tr>
                 <th>名称</th>
@@ -211,13 +211,15 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
         {config.models.length === 0 ? (
           <div className="empty">{providers.length === 0 ? '先添加供应商' : '还没有模型'}</div>
         ) : (
-          <table>
+          <table className="tbl-left">
             <thead>
               <tr>
                 <th>别名</th>
                 <th>上游模型</th>
-                <th>入/出 单价</th>
-                <th>缓存读/写 单价</th>
+                <th title="每百万 token 单价">输入</th>
+                <th title="每百万 token 单价">输出</th>
+                <th title="每百万 token 单价">缓存读取</th>
+                <th title="每百万 token 单价">缓存写入</th>
                 <th>日预算</th>
                 <th>悬浮窗</th>
                 <th>状态</th>
@@ -231,12 +233,10 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   <td className="mono" style={{ textAlign: 'left' }}>
                     {m.upstreamModel}
                   </td>
-                  <td className="mono">
-                    {fmtMoney(m.priceIn, m.currency)} / {fmtMoney(m.priceOut, m.currency)}
-                  </td>
-                  <td className="mono">
-                    {fmtMoney(m.priceCacheRead, m.currency)} / {fmtMoney(m.priceCacheWrite, m.currency)}
-                  </td>
+                  <td className="mono">{fmtMoney(m.priceIn, m.currency)}</td>
+                  <td className="mono">{fmtMoney(m.priceOut, m.currency)}</td>
+                  <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
+                  <td className="mono">{fmtMoney(m.priceCacheWrite, m.currency)}</td>
                   <td className="mono">{m.dailyBudget ? fmtMoney(m.dailyBudget, m.currency) : '—'}</td>
                   <td>
                     <button
