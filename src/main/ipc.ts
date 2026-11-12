@@ -20,6 +20,7 @@ import { mask, open as openKey, seal } from './security/keys'
 import * as token from './security/token'
 import * as probe from './probe/runner'
 import * as proxy from './proxy/server'
+import { joinUrl } from './proxy/url'
 import * as overlayWin from './windows/overlay'
 import { showMain } from './windows/registry'
 
@@ -73,8 +74,19 @@ function needBaseUrl(raw: string): string {
   return value
 }
 
-function validateAlias(alias: string, exceptId?: string): string {
-  const value = alias.trim()
+/** 上游错误体通常是 JSON，取里面的 message，取不到就退回原文 */
+function readable(text: string, status: number): string {
+  try {
+    const parsed = JSON.parse(text) as { error?: { message?: unknown }; message?: unknown }
+    const msg = parsed.error?.message ?? parsed.message
+    if (typeof msg === 'string' && msg) return msg
+  } catch {
+    /* 不是 JSON */
+  }
+  return text.slice(0, 200) || `HTTP ${status}`
+}
+
+function validateAlias(alias: string, exceptId?: string): string {  const value = alias.trim()
   if (!value) throw new Error('别名不能为空')
   if (/\s/.test(value)) throw new Error('别名不能含空格')
   const dup = cfg.modelByAlias(value)
@@ -146,11 +158,13 @@ export function register(): void {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 20_000)
       try {
-        const res = await fetch(`${p.baseUrl}/v1/models`, { headers, signal: controller.signal })
+        // Base URL 可能已经写到 /v1，交给 joinUrl 去重
+        const res = await fetch(joinUrl(p.baseUrl, '/v1/models'), { headers, signal: controller.signal })
         const text = await res.text()
-        let message = res.ok ? '连通，Key 可读' : text.slice(0, 200) || `HTTP ${res.status}`
+        let message = res.ok ? '连通，Key 可读' : readable(text, res.status)
         if (res.status === 401 || res.status === 403) message = 'Key 被拒绝'
-        return { ok: res.ok, status: res.status, message }
+        else if (res.status === 404) message = '连通，但该站没有 /v1/models（不影响使用）'
+        return { ok: res.ok || res.status === 404, status: res.status, message }
       } catch (err) {
         return {
           ok: false,

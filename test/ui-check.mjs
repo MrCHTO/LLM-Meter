@@ -176,7 +176,11 @@ try {
   const main = await waitTarget('index.html')
   const s = await session(main)
   await s.send('Runtime.enable')
-  await sleep(1500)
+  for (let i = 0; i < 40; i++) {
+    if (await s.eval("!!document.querySelector('.tab')")) break
+    await sleep(400)
+  }
+  await sleep(800)
 
   check('主窗标题正确', (await s.eval('document.title')) === 'LLM Meter')
   check('表头三页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 3)
