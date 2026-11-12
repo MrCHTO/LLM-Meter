@@ -14,9 +14,15 @@ const TIMEOUT_MS = 120_000
 const FILLER = '温度、气压与湿度沿着海岸线缓慢变化，The quick brown fox jumps over the lazy dog。'
 
 const active = new Map<string, AbortController>()
+/** 上一次测速结束的时间，连续点多个模型时留个间隔 */
+let lastFinished = 0
+const MIN_GAP_MS = 1500
 
-/** 只测速度：一次请求，看首字与生成速率，不比对缓存。 */
-function probeBody(): Record<string, unknown> {
+/**
+ * 只测速度：一次请求，看首字与生成速率，不比对缓存。
+ * 刻意不发 temperature——有的模型只接受固定值（Kimi K3 只允许 1），发 0 会 400。
+ */
+export function probeBody(): Record<string, unknown> {
   return {
     messages: [
       {
@@ -25,7 +31,6 @@ function probeBody(): Record<string, unknown> {
       }
     ],
     max_tokens: 320,
-    temperature: 0,
     stream: true,
     stream_options: { include_usage: true }
   }
@@ -123,22 +128,44 @@ export async function run(modelId: string): Promise<ProbeResult> {
   const run: Run = { status: 0, ok: false, ttftMs: null, tps: null, inputTokens: 0, outputTokens: 0 }
 
   try {
+    // 连续点测速时先让开一点，减少自己触发限流
+    const gap = lastFinished + MIN_GAP_MS - Date.now()
+    if (gap > 0) await new Promise((r) => setTimeout(r, gap))
+
     const prepared = adapter.prepare(probeBody(), model.upstreamModel)
-    const res = await fetch(
-      joinUrl(provider.baseUrl, `/v1/${provider.format === 'anthropic' ? 'messages' : 'chat/completions'}`),
-      {
+    const target = joinUrl(provider.baseUrl, `/v1/${provider.format === 'anthropic' ? 'messages' : 'chat/completions'}`)
+    const send = (): Promise<Response> =>
+      fetch(target, {
         method: 'POST',
         headers: { ...adapter.baseHeaders(), ...adapter.auth(key), 'accept-encoding': 'identity' },
         body: prepared.body,
         signal: controller.signal,
         redirect: 'follow'
-      }
-    )
+      })
+
+    // 429 多为速率限制：优先按 Retry-After 等待，没有就退避，最多重试两次
+    const backoff = [2000, 6000]
+    let res = await send()
+    for (let i = 0; i < backoff.length && res.status === 429 && !controller.signal.aborted; i++) {
+      const header = Number(res.headers.get('retry-after'))
+      const waitMs = Number.isFinite(header) && header > 0 ? Math.min(header * 1000, 8000) : (backoff[i] ?? 4000)
+      await new Promise((r) => setTimeout(r, waitMs))
+      if (controller.signal.aborted) break
+      res = await send()
+    }
     run.status = res.status
 
     if (!res.ok) {
       const text = await res.text()
-      run.error = adapter.errorOf(text) ?? text.slice(0, 200) ?? `HTTP ${res.status}`
+      const detail = adapter.errorOf(text) ?? text.slice(0, 200) ?? `HTTP ${res.status}`
+      run.error =
+        res.status === 429
+          ? /\bTPM\b|EndpointTPM/i.test(detail)
+            ? '上游端点 TPM 限流（token 额度已用满），等一分钟左右再测'
+            : /Rpm|RPM/i.test(detail)
+              ? '上游账号 RPM 限流，稍后再试'
+              : `上游限流（429）：${detail}`
+          : detail
       persist(modelId, model.alias, provider.id, model.currency, run, usage, model, started)
       return { ...base, status: run.status, error: run.error, message: run.error }
     }
@@ -192,5 +219,6 @@ export async function run(modelId: string): Promise<ProbeResult> {
   } finally {
     active.delete(modelId)
     live.setProbing(modelId, false)
+    lastFinished = Date.now()
   }
 }
