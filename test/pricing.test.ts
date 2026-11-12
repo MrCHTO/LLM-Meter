@@ -37,6 +37,7 @@ describe('价格查询', () => {
     const { lookup } = await load()
     const out = await lookup('anthropic/claude-sonnet-4-5')
     expect(out.found).toBe(true)
+    expect(out.exact).toBe(true)
     expect(out.matchedId).toBe('anthropic/claude-sonnet-4-5')
     expect(out.priceIn).toBeCloseTo(3)
     expect(out.priceOut).toBeCloseTo(15)
@@ -70,6 +71,8 @@ describe('价格查询', () => {
     const { lookup } = await load()
     const out = await lookup('DeepSeek-V4.1-Flash')
     expect(out.found).toBe(true)
+    expect(out.exact).toBe(false)
+    expect(out.note).toContain('近似匹配')
     expect(out.matchedId).toBe('deepseek/deepseek-v4.1-flash-1017')
   })
 

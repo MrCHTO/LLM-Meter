@@ -36,6 +36,7 @@ declare global {
       lookupPrice: (modelId: string) => Promise<
         IpcResult<{
           found: boolean
+          exact?: boolean
           matchedId?: string
           priceIn?: number
           priceOut?: number

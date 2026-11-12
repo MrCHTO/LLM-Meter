@@ -55,10 +55,12 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
   const [model, setModel] = useState<ModelDraft | null>(null)
   const [busy, setBusy] = useState(false)
   const [priceNote, setPriceNote] = useState('')
+  const [lookedUpFor, setLookedUpFor] = useState('')
 
   /** 按模型 id 去 OpenRouter 拿公开价，查不到就留着手填 */
   const lookupPrice = async (modelId: string): Promise<void> => {
     if (!modelId.trim()) return
+    setLookedUpFor(modelId.trim())
     setPriceNote('查询中…')
     const res = await window.api.lookupPrice(modelId)
     if (!res.ok || !res.data) {
@@ -66,7 +68,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
       return
     }
     const data = res.data
-    setPriceNote(data.note)
+    setPriceNote(`查价：${data.note}`)
     if (!data.found) return
     setModel((m) =>
       m
@@ -232,6 +234,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
             disabled={providers.length === 0}
             onClick={() => {
               setPriceNote('')
+              setLookedUpFor('')
               setModel(emptyModel(providers[0]?.id ?? ''))
             }}
           >
@@ -297,6 +300,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                       className="btn sm"
                       onClick={() => {
                         setPriceNote('')
+              setLookedUpFor('')
                         setModel({
                           id: m.id,
                           providerId: m.providerId,
@@ -419,7 +423,13 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                     className="mono"
                     value={model.upstreamModel}
                     placeholder="deepseek/deepseek-v4.1-flash"
-                    onChange={(e) => setModel({ ...model, upstreamModel: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setModel({ ...model, upstreamModel: value })
+                      if (priceNote && value.trim() !== lookedUpFor) {
+                        setPriceNote('模型名已改，点「查价」按新名字重查')
+                      }
+                    }}
                     onBlur={() => {
                       const empty = !model.priceIn || Number(model.priceIn) === 0
                       if (empty && model.upstreamModel.trim()) void lookupPrice(model.upstreamModel)

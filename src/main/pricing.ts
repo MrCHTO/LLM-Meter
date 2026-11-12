@@ -8,6 +8,8 @@ const TIMEOUT_MS = 6000
 
 export interface PriceLookup {
   found: boolean
+  /** 命中是否精确（末段同名），否则为前缀/归一化后的近似命中 */
+  exact?: boolean
   /** 命中的 OpenRouter 模型 id，便于核对 */
   matchedId?: string
   /** 每百万 token，USD */
@@ -104,13 +106,17 @@ export async function lookup(modelId: string): Promise<PriceLookup> {
 
   if (!hit) return { found: false, note: `OpenRouter 没有 ${wanted}，请手填` }
 
+  const wanted_lc = wanted.toLowerCase()
+  const exact = hit.id.toLowerCase() === wanted_lc || hit.tail === tail
+
   return {
     found: true,
+    exact,
     matchedId: hit.id,
     priceIn: round(hit.priceIn),
     priceOut: round(hit.priceOut),
     priceCacheRead: round(hit.priceCacheRead),
     priceCacheWrite: round(hit.priceCacheWrite),
-    note: `已按 ${hit.id} 填写，可自行改`
+    note: exact ? `已按 ${hit.id} 填写，可自行改` : `近似匹配 ${hit.id}，请核对价格`
   }
 }
