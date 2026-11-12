@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { LiveSnapshot } from '../shared/types'
-import { fmtMoney, fmtPct } from './format'
+import { fmtMoney } from './format'
 import './styles.css'
 
 /** 单模型胶囊：供应商 · 模型 | TPS | 命中率 | 今日费用 */
@@ -49,7 +49,7 @@ function Capsule(): JSX.Element {
   const theme = snapshot?.overlay.theme ?? 'dark'
   const adjusting = snapshot?.overlay.adjusting === true
   const locked = snapshot?.overlay.locked === true
-  const busy = (model?.inflight ?? 0) > 0 || (model?.probing ?? false)
+  const busy = model?.active === true || model?.probing === true
 
   return (
     <div
@@ -83,7 +83,6 @@ function Capsule(): JSX.Element {
             <b>{model.alias}</b>
           </span>
           <span className="capsule-metric mono">{Math.round(model.tps)} t/s</span>
-          <span className="capsule-metric mono">{fmtPct(model.hitRate)}</span>
           <span className="capsule-cost mono">{fmtMoney(model.today.cost, model.currency)}</span>
         </>
       ) : (

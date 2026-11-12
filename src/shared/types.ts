@@ -162,8 +162,10 @@ export interface ModelLive {
   lastError: string | null
   lastErrorAt: number | null
   lastTtftMs: number | null
-  /** 正在进行的请求数，>0 时胶囊边框流光 */
+  /** 正在进行的请求数 */
   inflight: number
+  /** 是否该显示流光：进行中，或刚结束 3 秒内 */
+  active: boolean
   probing: boolean
   paused: boolean
 }

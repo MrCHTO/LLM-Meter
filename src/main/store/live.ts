@@ -29,15 +29,23 @@ const state = new Map<string, ModelState>()
 const recent: RequestEvent[] = []
 /** 进行中的请求数，驱动胶囊彩虹边框 */
 const inflight = new Map<string, number>()
+/** 请求结束后再保持流光 3 秒，避免密集请求时颜色突然断掉 */
+const graceUntil = new Map<string, number>()
+const GRACE_MS = 3000
 
 export function begin(modelId: string): void {
   inflight.set(modelId, (inflight.get(modelId) ?? 0) + 1)
+  graceUntil.delete(modelId)
 }
 
 export function end(modelId: string): void {
   const left = (inflight.get(modelId) ?? 1) - 1
-  if (left > 0) inflight.set(modelId, left)
-  else inflight.delete(modelId)
+  if (left > 0) {
+    inflight.set(modelId, left)
+    return
+  }
+  inflight.delete(modelId)
+  graceUntil.set(modelId, Date.now() + GRACE_MS)
 }
 
 function blankToday(): TodayTotals {
@@ -217,6 +225,8 @@ export function snapshot(
       lastErrorAt: s.lastErrorAt,
       lastTtftMs: s.lastTtftMs,
       inflight: inflight.get(m.id) ?? 0,
+      active:
+        (inflight.get(m.id) ?? 0) > 0 || (graceUntil.get(m.id) ?? 0) > now,
       probing: s.probing,
       paused: settings.pauseProbe
     })

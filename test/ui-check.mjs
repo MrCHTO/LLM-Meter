@@ -339,9 +339,10 @@ try {
   check('悬浮窗是胶囊且只有一个', (await o.eval("document.querySelectorAll('.capsule').length")) === 1)
   check('胶囊显示供应商与模型', (await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('·'))
   check(
-    '胶囊有 TPS / 命中率 / 费用三项',
-    (await o.eval("document.querySelectorAll('.capsule-metric').length")) === 2 &&
-      (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1
+    '胶囊只有 TPS 与费用',
+    (await o.eval("document.querySelectorAll('.capsule-metric').length")) === 1 &&
+      (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1 &&
+      !(await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('%')
   )
   check('胶囊没有多行列表', (await o.eval("document.querySelectorAll('.orow').length")) === 0)
   check('胶囊默认黑色', (await o.eval("document.querySelector('.capsule')?.classList.contains('theme-dark')")) === true)
@@ -371,11 +372,15 @@ try {
   }
   check('请求期间出现流光', rainbow)
   await o.shot('overlay-inflight.png')
+
+  // 结束后仍应保留约 3 秒才恢复：2.5 秒时仍在（要么在跑，要么在缓冲期）
+  await sleep(2500)
+  check('结束后有 3 秒缓冲', (await o.eval("!!document.querySelector('.capsule.inflight')")) === true)
   for (let i = 0; i < 40; i++) {
     await sleep(500)
-    if (!(await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')"))) break
+    if (!(await o.eval("!!document.querySelector('.capsule.inflight')"))) break
   }
-  check('请求结束恢复常态', (await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')")) === false)
+  check('缓冲过后恢复常态', (await o.eval("!!document.querySelector('.capsule.inflight')")) === false)
 
   const box = await o.eval("JSON.stringify({x:window.screenX,y:window.screenY,w:window.outerWidth,h:window.outerHeight})")
   const parsed = JSON.parse(box)
