@@ -5,7 +5,7 @@
 export type ApiFormat = 'openai' | 'anthropic'
 
 export const FORMAT_LABEL: Record<ApiFormat, string> = {
-  openai: 'OpenAI 兼容',
+  openai: 'OpenAI',
   anthropic: 'Anthropic Messages'
 }
 

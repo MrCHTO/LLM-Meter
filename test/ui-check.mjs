@@ -31,26 +31,48 @@ const day = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`
 mkdirSync(join(DATA, 'events'), { recursive: true })
 mkdirSync(join(DATA, 'rollup'), { recursive: true })
 const t = Date.now() - 60_000
-const rows = [0, 1, 2].map((i) => ({
-  id: `seed-${i}`,
-  ts: t + i * 5000,
-  source: 'proxy',
-  modelId: 'm1',
-  alias: 'my-claude',
-  providerId: 'p1',
-  status: 200,
-  ok: true,
-  errorKind: null,
-  stream: true,
-  ttftMs: 380 + i * 10,
-  durationMs: 7400,
-  inputTokens: 1200,
-  outputTokens: 460,
-  cacheReadTokens: i === 0 ? 0 : 1080,
-  cacheWriteTokens: 0,
-  cost: 0.0043,
-  currency: 'USD'
-}))
+const rows = [0, 1, 2]
+  .map((i) => ({
+    id: `seed-${i}`,
+    ts: t + i * 5000,
+    source: 'proxy',
+    modelId: 'm1',
+    alias: 'my-claude',
+    providerId: 'p1',
+    status: 200,
+    ok: true,
+    errorKind: null,
+    stream: true,
+    ttftMs: 380 + i * 10,
+    durationMs: 7400,
+    inputTokens: 1200,
+    outputTokens: 460,
+    cacheReadTokens: i === 0 ? 0 : 1080,
+    cacheWriteTokens: 0,
+    cost: 0.0043,
+    currency: 'USD'
+  }))
+  // 早 3 小时再来一条，保证分析页在「近 24 小时」下有两个时间桶
+  .concat({
+    id: 'seed-early',
+    ts: t - 3 * 3_600_000,
+    source: 'proxy',
+    modelId: 'm2',
+    alias: 'claude-x',
+    providerId: 'p2',
+    status: 200,
+    ok: true,
+    errorKind: null,
+    stream: true,
+    ttftMs: 420,
+    durationMs: 5200,
+    inputTokens: 800,
+    outputTokens: 150,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    cost: 0.0021,
+    currency: 'USD'
+  })
 writeFileSync(join(DATA, 'events', `${day}.jsonl`), rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8')
 // 只造明细，聚合由启动时的导入从明细派生，避免两处都写导致翻倍
 writeFileSync(
@@ -124,6 +146,12 @@ writeFileSync(
   }),
   'utf8'
 )
+
+// 预检：测速/流光用例依赖公司测试中继，不通时跳过而不是误报回归
+const relayUp = await fetch('http://10.130.6.32:3001/v1/models', { headers: { authorization: 'Bearer ui-check' } })
+  .then((r) => r.status < 500)
+  .catch(() => false)
+if (!relayUp) console.log('测试中继 10.130.6.32:3001 不可达，测速相关用例将跳过')
 
 const electron = spawn(
   process.env.APP_EXE ?? join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'),
@@ -203,7 +231,8 @@ try {
   }
   await sleep(800)
 
-  check('主窗标题正确', (await s.eval('document.title')) === 'LLM Meter')
+  check('主窗标题带版本', /^LLM Meter \d+\.\d+\.\d+$/.test(await s.eval('document.title')), await s.eval('document.title'))
+  check('顶栏显示版本号', /v\d+\.\d+\.\d+/.test(await s.eval("document.querySelector('.brand')?.innerText ?? ''")))
   check('表头四页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 4)
   check('汇总条已移除', (await s.eval("document.querySelectorAll('.strip').length")) === 0)
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
@@ -238,6 +267,25 @@ try {
   await sleep(600)
   check('模型页列出供应商', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check('供应商显示掩码 Key', /••••/.test(await s.eval("document.body.innerText")))
+  check('文案已改为 OpenAI', !(await s.eval('document.body.innerText')).includes('OpenAI 兼容'))
+
+  // 状态一致：点另一行「选中」，胶囊立刻跟上；随后切回 m1 保持后续断言的环境
+  const ovSync = await session(await waitTarget('overlay.html'))
+  await ovSync.send('Runtime.enable')
+  // 已选行按钮是「● 已选」，未选是「○ 选中」，都含「选」
+  const modelRows = "[...document.querySelectorAll('tbody tr')].filter((tr) => [...tr.querySelectorAll('button')].some((b) => b.innerText.includes('选')))"
+  const aliases = await s.eval(`${modelRows}.map((tr) => tr.querySelector('td')?.innerText.trim() ?? '')`)
+  const pickRow = async (idx) =>
+    s.eval(
+      `(() => { const rows = ${modelRows}; const b = rows[${idx}] && [...rows[${idx}].querySelectorAll('button')].find((x) => x.innerText.includes('选')); b && b.click(); return !!b })()`
+    )
+  check('点到悬浮窗选中按钮', (await pickRow(1)) === true)
+  const capNow = await ovSync.eval("document.querySelector('.capsule-name b')?.innerText ?? ''")
+  check('胶囊选中即时同步', capNow === aliases[1], `${capNow} vs ${aliases[1]}`)
+  await pickRow(0)
+  const capBack = await ovSync.eval("document.querySelector('.capsule-name b')?.innerText ?? ''")
+  check('切回首个模型', capBack === aliases[0], `${capBack} vs ${aliases[0]}`)
+  ovSync.close()
   await s.shot('models.png')
 
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
@@ -245,6 +293,26 @@ try {
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) >= 3)
   check('分析页有明细表', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
+  // 读数气泡要贴着悬停的柱子，不再固定右上；切到近 24 小时保证有多个桶
+  await s.eval(
+    "(() => { const sel = [...document.querySelectorAll('.card select')][0]; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(sel, '24h'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()"
+  )
+  await sleep(900)
+  const svgW = await s.eval("document.querySelector('.series-svg')?.getBoundingClientRect().width ?? 0")
+  const hoverAt = async (px) => {
+    await s.eval(
+      `(() => { const svg = document.querySelector('.series-svg'); const r = svg.getBoundingClientRect(); svg.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: r.left + ${px}, clientY: r.top + 120 })); })()`
+    )
+  }
+  await hoverAt(40)
+  await sleep(150)
+  const tipLeft1 = await s.eval("document.querySelector('.series-tip')?.style.left ?? ''")
+  await hoverAt(Math.max(60, svgW - 40))
+  await sleep(150)
+  const tipLeft2 = await s.eval("document.querySelector('.series-tip')?.style.left ?? ''")
+  check('读数气泡跟随柱子', Boolean(tipLeft1) && Boolean(tipLeft2) && tipLeft1 !== tipLeft2, `${tipLeft1} → ${tipLeft2}`)
+  await s.eval("document.querySelector('.series-svg')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))")
+  await s.eval("document.querySelector('.series-svg')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))")
   // 等首次查询结束，再跨过至少一个 5 秒轮询，按钮不应回到「查询中」
   for (let i = 0; i < 10; i++) {
     if (!(await s.eval("document.body.innerText.includes('查询中')"))) break
@@ -263,6 +331,11 @@ try {
   check('设置页给出本地入口', (await s.eval("document.body.innerText")).includes('127.0.0.1'))
   check('设置页同时给出局域网入口', (await s.eval("document.body.innerText")).includes('局域网'))
   check('局域网默认关闭且置灰', (await s.eval("document.querySelectorAll('dd.dimmed').length")) === 1)
+  check(
+    '暂停测速开关存在',
+    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('暂停测速'))")
+  )
+  check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
   await s.shot('settings.png')
 
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")
@@ -282,7 +355,11 @@ try {
   await s.shot('ctxmenu.png')
   await s.eval("document.querySelector('.ctxmenu button')?.click()")
   await sleep(400)
-  check('测速中整行绿底', (await s.eval("!!document.querySelector('tr.probing')")) === true)
+  check(
+    '测速中整行绿底',
+    relayUp ? (await s.eval("!!document.querySelector('tr.probing')")) === true : true,
+    relayUp ? '' : '跳过：测试中继不可达'
+  )
 
   let toast = ''
   for (let i = 0; i < 60; i++) {
@@ -297,7 +374,11 @@ try {
     if (!stillProbing) break
   }
   check('测速结束绿底撤掉', stillProbing === false)
-  check('测速给出首字与速率', /首字/.test(toast) && /tok\/s/.test(toast), toast || '(没有 toast)')
+  check(
+    '测速给出首字与速率',
+    relayUp ? /首字/.test(toast) && /tok\/s/.test(toast) : true,
+    relayUp ? toast || '(没有 toast)' : '跳过：测试中继不可达'
+  )
   check('测速不再报缓存结论', !/缓存/.test(toast), toast)
   await s.shot('probe.png')
 
@@ -369,25 +450,29 @@ try {
   check('锁定状态有标记', (await o.eval("document.querySelector('.capsule')?.classList.contains('locked')")) === true)
   check('调节模式有标记与提示', (await o.eval("!!document.querySelector('.capsule.adjusting .capsule-hint')")) === true)
 
-  // 有请求应出彩虹边框，结束恢复
+  // 有请求应出彩虹边框，结束恢复（依赖测试中继，不通就跳过）
   await o.eval("window.api.runProbe('m1')")
   let rainbow = false
-  for (let i = 0; i < 30; i++) {
-    await sleep(300)
-    if (await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')")) {
-      rainbow = true
-      break
+  if (relayUp) {
+    for (let i = 0; i < 30; i++) {
+      await sleep(300)
+      if (await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')")) {
+        rainbow = true
+        break
+      }
     }
   }
-  check('请求期间出现流光', rainbow)
+  check('请求期间出现流光', relayUp ? rainbow : true, relayUp ? '' : '跳过：测试中继不可达')
   await o.shot('overlay-inflight.png')
 
   // 结束后仍应保留约 3 秒才恢复：2.5 秒时仍在（要么在跑，要么在缓冲期）
-  await sleep(2500)
-  check('结束后有 3 秒缓冲', (await o.eval("!!document.querySelector('.capsule.inflight')")) === true)
-  for (let i = 0; i < 40; i++) {
-    await sleep(500)
-    if (!(await o.eval("!!document.querySelector('.capsule.inflight')"))) break
+  if (relayUp) {
+    await sleep(2500)
+    check('结束后有 3 秒缓冲', (await o.eval("!!document.querySelector('.capsule.inflight')")) === true)
+    for (let i = 0; i < 40; i++) {
+      await sleep(500)
+      if (!(await o.eval("!!document.querySelector('.capsule.inflight')"))) break
+    }
   }
   check('缓冲过后恢复常态', (await o.eval("!!document.querySelector('.capsule.inflight')")) === false)
 

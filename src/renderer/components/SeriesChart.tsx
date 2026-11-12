@@ -68,6 +68,14 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
 
   const hoverAt = hover === null ? null : Math.min(n - 1, Math.max(0, hover))
 
+  // 气泡贴着悬停桶：水平居中于柱（边缘钳制），垂直贴最高柱上方
+  const tipLeftPct = hoverAt === null ? 0 : (center(hoverAt) / W) * 100
+  const tipTopRaw =
+    hoverAt === null || visible.length === 0
+      ? base
+      : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
+  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, 180))
+
   return (
     <div className="series-wrap">
       <svg
@@ -123,7 +131,14 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
       </svg>
 
       {hoverAt !== null ? (
-        <div className="series-tip">
+        <div
+          className="series-tip"
+          style={{
+            left: `clamp(80px, ${tipLeftPct}%, calc(100% - 80px))`,
+            top: `${tipTop}px`,
+            transform: 'translateX(-50%)'
+          }}
+        >
           <div className="tip-time">{timeFormat(buckets[hoverAt] as number)}</div>
           {visible.map((s) => (
             <div key={s.key} className="tip-row">

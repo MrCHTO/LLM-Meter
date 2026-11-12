@@ -369,7 +369,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   value={provider.format}
                   onChange={(e) => setProvider({ ...provider, format: e.target.value as ApiFormat })}
                 >
-                  <option value="openai">OpenAI 兼容（/v1/chat/completions）</option>
+                  <option value="openai">OpenAI（/v1/chat/completions）</option>
                   <option value="anthropic">Anthropic Messages（/v1/messages）</option>
                 </select>
               </label>

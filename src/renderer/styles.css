@@ -74,6 +74,13 @@ button {
   margin-left: 8px;
 }
 
+.brand-ver {
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 400;
+  margin-left: 10px;
+}
+
 .tabs {
   display: flex;
   gap: 4px;

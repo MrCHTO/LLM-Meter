@@ -107,6 +107,21 @@ try {
     writeFileSync(join(process.cwd(), 'test', 'shots', 'installed.png'), Buffer.from(shot, 'base64'))
     check('主窗已截图', shot.length > 1000)
 
+    ws.send(
+      JSON.stringify({
+        id: 6,
+        method: 'Runtime.evaluate',
+        params: { expression: "document.querySelector('.brand')?.innerText ?? ''", returnByValue: true }
+      })
+    )
+    const brand = await new Promise((resolve) => {
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data)
+        if (msg.id === 6) resolve(String(msg.result?.result?.value ?? ''))
+      }
+    })
+    check('顶栏带版本号', /v\d+\.\d+\.\d+/.test(brand), brand)
+
     // 去分析页看历史导入的数据
     ws.send(
       JSON.stringify({
@@ -118,6 +133,18 @@ try {
       })
     )
     await sleep(2500)
+    // 刚过零点时「今天」可能还没有流量，切到近 24 小时再看
+    ws.send(
+      JSON.stringify({
+        id: 7,
+        method: 'Runtime.evaluate',
+        params: {
+          expression:
+            "(() => { const sel = [...document.querySelectorAll('.card select')][0]; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(sel, '24h'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()"
+        }
+      })
+    )
+    await sleep(1800)
     const bars = await (async () => {
       ws.send(
         JSON.stringify({

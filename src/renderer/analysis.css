@@ -27,17 +27,8 @@
   vector-effect: non-scaling-stroke;
 }
 
-.series-line {
-  fill: none;
-  stroke-width: 1.6;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
 .series-tip {
   position: absolute;
-  top: 8px;
-  right: 8px;
   min-width: 150px;
   padding: 8px 10px;
   background: rgb(255 255 255 / 96%);

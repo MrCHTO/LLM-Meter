@@ -1,6 +1,6 @@
 # LLM Meter
 
-本机的大模型流量计量器。它在本机起一个 OpenAI / Anthropic 兼容入口，把客户端请求转发到真实上游，同时记录每个模型的 token 用量、首字延迟、每秒 token 产出、缓存命中率和折算成本，用主窗口和置顶悬浮窗实时显示，并能在「分析」页按区间查历史流量、按模型或供应商出图、导出 CSV。
+本机的大模型流量计量器。它在本机起一个 OpenAI / Anthropic 格式的入口，把客户端请求转发到真实上游，同时记录每个模型的 token 用量、首字延迟、每秒 token 产出、缓存命中率和折算成本，用主窗口和置顶悬浮窗实时显示，并能在「分析」页按区间查历史流量、按模型或供应商出图、导出 CSV。
 
 真实 API Key 只存在本应用里（Windows DPAPI 加密），客户端只拿本地 token，所以换中转站或换 key 时所有客户端一处都不用改。
 
@@ -34,7 +34,7 @@ npm test             # 单元测试
 
 | 客户端字段 | 填什么 |
 |---|---|
-| Base URL | OpenAI 兼容：`http://127.0.0.1:8787/openai/v1`<br>Anthropic：`http://127.0.0.1:8787/anthropic` |
+| Base URL | OpenAI：`http://127.0.0.1:8787/openai/v1`<br>Anthropic：`http://127.0.0.1:8787/anthropic` |
 | API Key | 本地 token |
 | model | 模型别名 |
 
@@ -91,7 +91,7 @@ npm test             # 单元测试
 ```bash
 npm test                                                       # 单测：SSE 跨块分帧、usage 提取、成本、URL 拼接、配置容错、库写入与清理
 node test/e2e.mjs                                              # 假上游端到端，27 项（含库断言）
-node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），53 项
+node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），60 项
 node test/import-check.mjs <exe> <含 events/rollup 的备份目录>   # 打包产物的旧数据导入回归
 node test/installed-check.mjs                                   # 安装版实机核对（真实档案，会触发旧数据导入）
 node test/real-e2e.mjs <baseUrl> <key> <model>                  # 真实上游核对

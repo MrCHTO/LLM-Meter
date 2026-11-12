@@ -8,6 +8,8 @@ electronDist: node_modules/electron/dist
 files:
   - out/**/*
   - resources/icon.png
+  - resources/icon.ico
+  - resources/tray.ico
   - package.json
 asar: true
 win:

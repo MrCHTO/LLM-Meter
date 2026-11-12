@@ -86,7 +86,7 @@ declare global {
       recent: (modelId: string, limit?: number) => Promise<IpcResult<RequestEvent[]>>
       openDataDir: () => Promise<IpcResult<boolean>>
       backup: () => Promise<IpcResult<string>>
-      exportDaily: () => Promise<IpcResult<string>>
+      exportDaily: () => Promise<IpcResult<number>>
       cleanupEvents: () => Promise<IpcResult<boolean>>
 
       overlayDragStart: () => Promise<IpcResult<void>>

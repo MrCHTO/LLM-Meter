@@ -207,6 +207,14 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
             </div>
           </label>
         </div>
+        <label className="row nowrap mt" style={{ gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={config.settings.pauseProbe}
+            onChange={(e) => void patch({ pauseProbe: e.target.checked })}
+          />
+          <span>暂停测速（悬浮窗与仪表盘仍照常记录真实流量）</span>
+        </label>
         <div className="field mt">
           <span>美元换人民币汇率{config.settings.usdCnyDate ? ` · ${config.settings.usdCnyDate} 自动` : ' · 未取到'}</span>
           <div className="row nowrap">
@@ -299,8 +307,10 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
         <dl className="kv kv-wide">
           <dt>数据目录</dt>
           <dd className="mono selectable">{config.dataDir}</dd>
-          <dt>版本</dt>
-          <dd>{config.version}</dd>
+          <dt>软件</dt>
+          <dd>
+            LLM Meter <span className="mono">{config.version}</span>
+          </dd>
         </dl>
         <div className="divider" />
         <div className="row">

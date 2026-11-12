@@ -1,18 +1,18 @@
-import { Menu, Tray, app, nativeImage } from 'electron'
+import { Menu, Tray, app } from 'electron'
+import { join } from 'node:path'
 import * as cfg from '../store/config'
 import * as overlay from './overlay'
 import { markQuitting } from './main-window'
 import { showMain } from './registry'
 
-/** 16×16 计量柱图标，内联以便打包后不依赖资源路径 */
-const ICON =
-  'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAX0lEQVR4nGP4//8/AxIWyDvx/z8hjKyHAc0AA0oNCKDUgAJKDein1ID1lBpwnlID3qMpfA/DdDPgPJrC8zBMViCC+DBMdDTiwkQnJFyY6KRMJMadmYjEOA0QIBLD9QAAk+IuP7CKx/AAAAAASUVORK5CYII='
+/** 多尺寸 ico（16/24/32，scripts/make-icons.mjs 生成），Windows 托盘自动挑合适帧 */
+const TRAY_ICON = join(__dirname, '../../resources/tray.ico')
 
 let tray: Tray | null = null
 
 export function create(): void {
-  tray = new Tray(nativeImage.createFromDataURL(`data:image/png;base64,${ICON}`))
-  tray.setToolTip('LLM Meter')
+  tray = new Tray(TRAY_ICON)
+  tray.setToolTip(`LLM Meter ${app.getVersion()}`)
   rebuild()
 
   tray.on('click', () => showMain())

@@ -43,8 +43,8 @@ export default function App(): JSX.Element {
   }, [reload])
 
   useEffect(() => {
-    document.title = 'LLM Meter'
-  }, [])
+    if (config) document.title = `LLM Meter ${config.version}`
+  }, [config])
 
   if (!config) {
     return <div className="empty">加载中…</div>
@@ -58,6 +58,7 @@ export default function App(): JSX.Element {
       <header className="topbar">
         <div className="brand">
           LLM Meter<small>本地计量</small>
+          <span className="brand-ver mono">v{config.version}</span>
         </div>
         <div className="tabs" role="tablist">
           {TABS.map((item) => (

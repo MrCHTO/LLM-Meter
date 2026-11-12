@@ -4,7 +4,7 @@ export function fmtTokens(n: number): string {
   return String(Math.round(n))
 }
 
-export function symbolOf(currency: string): string {
+function symbolOf(currency: string): string {
   if (currency === 'CNY') return '¥'
   if (currency === 'EUR') return '€'
   if (currency === 'JPY') return '¥'
@@ -30,10 +30,6 @@ export function fmtClock(ts: number): string {
   const d = new Date(ts)
   const p = (n: number): string => String(n).padStart(2, '0')
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
-}
-
-export function classNames(...values: (string | false | null | undefined)[]): string {
-  return values.filter(Boolean).join(' ')
 }
 
 export function budgetClass(ratio: number | null): '' | 'warn' | 'bad' {

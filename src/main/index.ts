@@ -56,6 +56,8 @@ if (!gotLock) {
     cfg.onChange(() => {
       tray.rebuild()
       overlay.applySettings()
+      // 配置一变就推一帧，胶囊不用等 500ms 轮询，选中状态与列表始终一致
+      send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
     })
 
     pushTimer = setInterval(() => {

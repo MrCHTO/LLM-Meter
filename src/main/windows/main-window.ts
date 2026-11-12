@@ -1,4 +1,4 @@
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow, app, shell } from 'electron'
 import { join } from 'node:path'
 import { setMain } from './registry'
 
@@ -20,8 +20,8 @@ export function create(): BrowserWindow {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#f5f6f8',
-    title: 'LLM Meter',
-    icon: join(__dirname, '../../resources/icon.png'),
+    title: `LLM Meter ${app.getVersion()}`,
+    icon: join(__dirname, '../../resources/icon.ico'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
