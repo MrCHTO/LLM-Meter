@@ -67,33 +67,22 @@ interface MenuState {
   y: number
 }
 
-function ChartPanel(props: {
-  title: string
-  buckets: number[]
-  /** 当前速率（10 秒均值），与表格同口径 */
-  current: number
-  /** 速率单位，例如 tok/s */
-  rate: string
-  digits: number
-}): JSX.Element {
-  const { title, buckets, current, rate, digits } = props
+function ChartPanel(props: { title: string; buckets: number[]; rate: string }): JSX.Element {
+  const { title, buckets, rate } = props
   const view = buckets.length ? buckets : [0]
-  // 峰值取单秒最大：一次请求就是 1 次/s，不按窗口摊薄
-  const peak = Math.max(0, ...view)
+  // 峰值取单秒最大：一次请求就是 1 次/s，不按窗口摊薄；取整不保留小数
+  const peak = Math.round(Math.max(0, ...view))
   return (
     <div className="chart-card">
       <div className="chart-head">
         <span className="chart-title">{title}</span>
-        <span className="chart-now mono">
-          {current.toFixed(digits)} <small>{rate}</small>
-        </span>
       </div>
       <div className="chart-body">
         <Sparkline buckets={view} tail={view.length} />
       </div>
       <div className="chart-foot mono">
         <span>
-          峰值 {peak.toFixed(digits)} {rate}
+          峰值 {peak} {rate}
         </span>
       </div>
     </div>
@@ -121,14 +110,22 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
     }
   }, [menu])
 
+  const [flash, setFlash] = useState<Record<string, boolean>>({})
+
   const runProbe = useCallback(
     async (modelId: string): Promise<void> => {
       setProbing((m) => ({ ...m, [modelId]: true }))
       setMenu(null)
       const res = await window.api.runProbe(modelId)
       setProbing((m) => ({ ...m, [modelId]: false }))
+      const failed = !res.ok || !res.data?.ok
       if (res.ok && res.data) notify(`${res.data.alias}：${res.data.message}`, res.data.ok ? 'ok' : 'bad')
       else notify(res.error ?? '测速失败')
+      if (failed) {
+        // 失败用红底纹提示，5 秒后恢复
+        setFlash((m) => ({ ...m, [modelId]: true }))
+        setTimeout(() => setFlash((m) => ({ ...m, [modelId]: false })), 5000)
+      }
       await onChanged()
     },
     [notify, onChanged]
@@ -158,20 +155,8 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
   return (
     <div className="section">
       <div className="charts">
-        <ChartPanel
-          title="TPS"
-          buckets={snapshot?.totals.buckets ?? []}
-          current={snapshot?.totals.tps ?? 0}
-          rate="tok/s"
-          digits={1}
-        />
-        <ChartPanel
-          title="请求量"
-          buckets={snapshot?.totals.reqBuckets ?? []}
-          current={reqPerSec}
-          rate="次/s"
-          digits={1}
-        />
+        <ChartPanel title="TPS" buckets={snapshot?.totals.buckets ?? []} rate="tok/s" />
+        <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} rate="次/s" />
       </div>
 
       <div className="card">
@@ -193,10 +178,18 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
             {models.map((m: ModelLive) => {
               const budget = budgetClass(m.budgetRatio)
               const isOpen = open === m.modelId
+              const running = probing[m.modelId] === true || m.probing
               return (
                 <Fragment key={m.modelId}>
                   <tr
-                    className={isOpen ? 'clickable open' : 'clickable'}
+                    className={[
+                      'clickable',
+                      isOpen && 'open',
+                      running && 'probing',
+                      flash[m.modelId] && 'bad-flash'
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     onClick={() => setOpen(isOpen ? null : m.modelId)}
                     onContextMenu={(event) => {
                       event.preventDefault()
@@ -205,10 +198,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                   >
                     <td className="c-model">
                       <div className="cell-model">
-                        <b>
-                          {m.alias}
-                          {probing[m.modelId] || m.probing ? <span className="pill" style={{ marginLeft: 6 }}>测速中</span> : null}
-                        </b>
+                        <b>{m.alias}</b>
                         <small className="mono">{m.upstreamModel}</small>
                       </div>
                     </td>
@@ -221,7 +211,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                     <td className="c-format">{FORMAT_LABEL[m.format]}</td>
                     <td className="c-rate">
                       <div className="rate">
-                        <span className="mono">{m.tps.toFixed(1)}</span>
+                        <span className="mono">{Math.round(m.tps)}</span>
                         <Sparkline buckets={m.buckets} tail={18} />
                       </div>
                     </td>

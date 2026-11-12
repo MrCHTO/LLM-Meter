@@ -222,7 +222,12 @@ try {
     (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === 'TPS,请求量'
   )
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
-  check('曲线卡片带当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
+  check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
+  check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
+  check(
+    '峰值不带小数',
+    !/\.\d/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''"))
+  )
   check('曲线图下带峰值', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
   check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
@@ -265,6 +270,8 @@ try {
   check('右键弹出菜单', (await s.eval("document.querySelectorAll('.ctxmenu button').length")) === 2)
   await s.shot('ctxmenu.png')
   await s.eval("document.querySelector('.ctxmenu button')?.click()")
+  await sleep(400)
+  check('测速中整行绿底', (await s.eval("!!document.querySelector('tr.probing')")) === true)
 
   let toast = ''
   for (let i = 0; i < 60; i++) {
@@ -272,6 +279,7 @@ try {
     toast = await s.eval("document.querySelector('.toast')?.innerText ?? ''")
     if (toast) break
   }
+  check('测速结束绿底撤掉', (await s.eval("!!document.querySelector('tr.probing')")) === false)
   check('测速给出首字与速率', /首字/.test(toast) && /tok\/s/.test(toast), toast || '(没有 toast)')
   check('测速不再报缓存结论', !/缓存/.test(toast), toast)
   await s.shot('probe.png')

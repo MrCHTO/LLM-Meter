@@ -852,3 +852,23 @@ tr.open > td {
 .selectable {
   user-select: text;
 }
+
+tr.clickable > td {
+  transition: background-color 0.25s ease;
+}
+
+tr.probing > td {
+  background: #e9f8ef;
+}
+
+tr.bad-flash > td {
+  background: #fdecec;
+}
+
+tr.probing.open > td {
+  background: #e9f8ef;
+}
+
+tr.bad-flash.open > td {
+  background: #fdecec;
+}
