@@ -125,7 +125,7 @@ writeFileSync(
       localToken: TOKEN,
       retentionDays: 30,
       rollupRetentionDays: 365,
-      overlay: { x: 160, y: 160, width: 320, visible: true },
+      overlay: { x: 160, y: 160, width: 320, visible: true, modelId: 'm1' },
       overlayOpacity: 92,
       pauseProbe: false,
       startMinimized: false
@@ -328,17 +328,23 @@ try {
   const o = await session(ov)
   await o.send('Runtime.enable')
   await sleep(1200)
-  check('悬浮窗列出被监视模型', (await o.eval("document.querySelectorAll('.orow').length")) === 1)
-  check('悬浮窗有底部汇总', (await o.eval("document.querySelector('.ofoot')?.innerText ?? ''")).includes('今日'))
-  check('悬浮窗可透明（面板存在）', (await o.eval("!!document.querySelector('.panel')")) === true)
+  check('悬浮窗是胶囊且只有一个', (await o.eval("document.querySelectorAll('.capsule').length")) === 1)
+  check('胶囊显示供应商与模型', (await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('·'))
+  check(
+    '胶囊有 TPS / 命中率 / 费用三项',
+    (await o.eval("document.querySelectorAll('.capsule-metric').length")) === 2 &&
+      (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1
+  )
+  check('胶囊没有多行列表', (await o.eval("document.querySelectorAll('.orow').length")) === 0)
   const box = await o.eval("JSON.stringify({x:window.screenX,y:window.screenY,w:window.outerWidth,h:window.outerHeight})")
   const parsed = JSON.parse(box)
-  check('悬浮窗尺寸非零且位置已恢复', parsed.w > 200 && parsed.x > 0 && parsed.y > 0, box)
+  check('悬浮窗尺寸非零且位置已恢复', parsed.w > 200 && parsed.h < 80 && parsed.x > 0 && parsed.y > 0, box)
   await o.shot('overlay.png')
   o.close()
 
   const cfgFile = JSON.parse(readFileSync(join(DATA, 'config.json'), 'utf8'))
   check('悬浮窗位置已持久化', cfgFile.settings.overlay.x > 0, `${cfgFile.settings.overlay.x},${cfgFile.settings.overlay.y}`)
+  check('胶囊盯住的模型已持久化', cfgFile.settings.overlay.modelId === 'm1', String(cfgFile.settings.overlay.modelId))
 } catch (err) {
   check('整体执行', false, err.message)
   console.log(log.join('').slice(-2000))

@@ -278,6 +278,7 @@ export function register(): void {
         startMinimized?: boolean
         overlayWidth?: number
         overlayVisible?: boolean
+        overlayModelId?: string | null
       }) => {
         const portChanged = patch.port !== undefined && patch.port !== cfg.get().settings.port
         cfg.mutate((c) => {
@@ -294,6 +295,7 @@ export function register(): void {
           if (patch.startMinimized !== undefined) c.settings.startMinimized = patch.startMinimized
           if (patch.overlayWidth !== undefined) c.settings.overlay.width = Math.min(720, Math.max(240, Math.round(patch.overlayWidth)))
           if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
+          if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
         })
         overlayWin.applySettings()
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
@@ -378,6 +380,6 @@ export function register(): void {
   ipcMain.handle(CH.overlayHover, wrap((value: boolean) => overlayWin.setHover(value)))
   ipcMain.handle(CH.overlayMenu, wrap(() => overlayWin.showMenu()))
   ipcMain.handle(CH.overlayOpenMain, wrap(() => showMain()))
-  ipcMain.handle(CH.overlaySetHeight, wrap((height: number) => overlayWin.resizeHeight(height)))
+  ipcMain.handle(CH.overlaySetSize, wrap((width: number, height: number) => overlayWin.resize(width, height)))
   ipcMain.handle(CH.mainOpen, wrap(() => showMain()))
 }

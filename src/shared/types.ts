@@ -53,6 +53,8 @@ export interface OverlayState {
   y: number | null
   width: number
   visible: boolean
+  /** 胶囊盯住的模型，null 表示还没选 */
+  modelId: string | null
 }
 
 export interface Settings {
@@ -179,6 +181,8 @@ export interface LiveSnapshot {
   baseUrl: string
   models: ModelLive[]
   totals: SnapshotTotals
+  /** 胶囊盯住的模型，随每次推送带下去 */
+  overlayModelId: string | null
 }
 
 export interface DayPoint {
@@ -288,6 +292,6 @@ export const CH = {
   overlayMenu: 'overlay:menu',
   overlayHover: 'overlay:hover',
   overlayOpenMain: 'overlay:openMain',
-  overlaySetHeight: 'overlay:setHeight',
+  overlaySetSize: 'overlay:setSize',
   mainOpen: 'main:open'
 } as const

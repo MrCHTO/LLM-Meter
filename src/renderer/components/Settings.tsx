@@ -34,6 +34,7 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
     }
   }
 
+  const overlayModel = config.models.find((m) => m.id === config.settings.overlay.modelId)
   const base = snapshot?.baseUrl || `http://127.0.0.1:${config.settings.port}`
 
   return (
@@ -191,6 +192,11 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
 
       <div className="card">
         <h2>悬浮窗</h2>
+        <dl className="kv kv-wide">
+          <dt>当前模型</dt>
+          <dd>{overlayModel ? overlayModel.alias : '未选择（在模型列表里点「选中」或右键胶囊选择）'}</dd>
+        </dl>
+        <div className="divider" />
         <div className="row">
           <button
             className="btn"

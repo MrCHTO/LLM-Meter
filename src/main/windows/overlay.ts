@@ -6,8 +6,10 @@ import * as probe from '../probe/runner'
 import { getOverlay, send, setOverlay, showMain } from './registry'
 import { markQuitting } from './main-window'
 
-const MIN_WIDTH = 240
-const MIN_HEIGHT = 96
+const MIN_WIDTH = 220
+const MIN_HEIGHT = 36
+const DEFAULT_WIDTH = 340
+const DEFAULT_HEIGHT = 40
 
 let hovered = false
 let dragTimer: NodeJS.Timeout | null = null
@@ -16,7 +18,7 @@ let dragOffset = { x: 0, y: 0 }
 function defaultBounds(): Rectangle {
   const area = screen.getPrimaryDisplay().workArea
   const width = Math.max(MIN_WIDTH, cfg.get().settings.overlay.width)
-  const height = 240
+  const height = DEFAULT_HEIGHT
   return {
     width,
     height,
@@ -47,17 +49,13 @@ export function applySettings(): void {
   if (!win) return
   const s = cfg.get().settings
   win.setOpacity(hovered ? 1 : s.overlayOpacity / 100)
-  const b = win.getBounds()
-  if (b.width !== s.overlay.width) {
-    win.setBounds(clampBounds({ ...b, width: s.overlay.width }))
-  }
 }
 
 export function create(): BrowserWindow {
   const stored = cfg.get().settings.overlay
   const base = stored.x === null || stored.y === null
     ? defaultBounds()
-    : clampBounds({ x: stored.x, y: stored.y, width: stored.width, height: 280 })
+    : clampBounds({ x: stored.x, y: stored.y, width: stored.width || DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
 
   const win = new BrowserWindow({
     ...base,
@@ -143,11 +141,16 @@ export function stopDrag(): void {
   saveBounds()
 }
 
-export function resizeHeight(height: number): void {
+/** 渲染层量出胶囊实际宽高后回传，窗口跟着内容走 */
+export function resize(width: number, height: number): void {
   const win = getOverlay()
   if (!win) return
   const b = win.getBounds()
-  const next = clampBounds({ ...b, height: Math.max(MIN_HEIGHT, Math.round(height)) })
+  const next = clampBounds({
+    ...b,
+    width: Math.max(MIN_WIDTH, Math.round(width)),
+    height: Math.max(MIN_HEIGHT, Math.round(height))
+  })
   win.setBounds(next)
 }
 
@@ -168,12 +171,31 @@ export function setHover(value: boolean): void {
   applySettings()
 }
 
+/** 菜单里换胶囊盯的模型 */
+function modelSubmenu(): Electron.MenuItemConstructorOptions[] {
+  const current = cfg.get().settings.overlay.modelId
+  const models = cfg.listModels().filter((m) => m.enabled)
+  if (models.length === 0) return [{ label: '没有启用的模型', enabled: false }]
+  return models.map((m) => ({
+    label: m.alias,
+    type: 'radio' as const,
+    checked: current === m.id,
+    click: () => {
+      cfg.mutate((c) => {
+        c.settings.overlay.modelId = m.id
+      })
+    }
+  }))
+}
+
 export function showMenu(): void {
   const win = getOverlay()
   if (!win) return
   const settings = cfg.get().settings
   const menu = Menu.buildFromTemplate([
     { label: '打开主窗口', click: () => showMain() },
+    { label: '选择模型', submenu: modelSubmenu() },
+    { type: 'separator' },
     {
       label: settings.pauseProbe ? '恢复探针' : '暂停探针',
       click: () => {

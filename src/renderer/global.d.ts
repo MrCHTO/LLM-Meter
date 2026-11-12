@@ -59,6 +59,7 @@ declare global {
         startMinimized?: boolean
         overlayWidth?: number
         overlayVisible?: boolean
+        overlayModelId?: string | null
       }) => Promise<IpcResult<boolean>>
       rotateToken: () => Promise<IpcResult<string>>
       refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>
@@ -76,7 +77,7 @@ declare global {
       overlayHover: (value: boolean) => Promise<IpcResult<void>>
       overlayMenu: () => Promise<IpcResult<void>>
       overlayOpenMain: () => Promise<IpcResult<void>>
-      overlaySetHeight: (height: number) => Promise<IpcResult<void>>
+      overlaySetSize: (width: number, height: number) => Promise<IpcResult<void>>
       openMain: () => Promise<IpcResult<void>>
 
       onPush: (fn: (snapshot: LiveSnapshot) => void) => () => void

@@ -230,7 +230,8 @@ export function snapshot(
     proxyError,
     baseUrl,
     models: models.filter((m) => cfg.modelById(m.modelId)?.enabled !== false),
-    totals
+    totals,
+    overlayModelId: settings.overlay.modelId
   }
 }
 

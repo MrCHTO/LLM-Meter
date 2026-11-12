@@ -36,7 +36,7 @@ const api = {
   overlayHover: (value: boolean) => ipcRenderer.invoke(CH.overlayHover, value),
   overlayMenu: () => ipcRenderer.invoke(CH.overlayMenu),
   overlayOpenMain: () => ipcRenderer.invoke(CH.overlayOpenMain),
-  overlaySetHeight: (height: number) => ipcRenderer.invoke(CH.overlaySetHeight, height),
+  overlaySetSize: (width: number, height: number) => ipcRenderer.invoke(CH.overlaySetSize, width, height),
   openMain: () => ipcRenderer.invoke(CH.mainOpen),
 
   onPush: (fn: (snapshot: unknown) => void) => {

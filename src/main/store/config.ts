@@ -10,7 +10,7 @@ const DEFAULT_SETTINGS: Settings = {
   localToken: '',
   retentionDays: 30,
   rollupRetentionDays: 365,
-  overlay: { x: null, y: null, width: 320, visible: true },
+  overlay: { x: null, y: null, width: 320, visible: true, modelId: null },
   overlayOpacity: 92,
   pauseProbe: false,
   startMinimized: false
@@ -117,7 +117,8 @@ function normalize(raw: unknown): ConfigFile {
       x: typeof ov.x === 'number' ? ov.x : null,
       y: typeof ov.y === 'number' ? ov.y : null,
       width: clamp(Math.round(num(ov.width, DEFAULT_SETTINGS.overlay.width)), 240, 720),
-      visible: ov.visible !== false
+      visible: ov.visible !== false,
+      modelId: typeof ov.modelId === 'string' && ov.modelId ? ov.modelId : null
     },
     overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 30, 100),
     pauseProbe: os.pauseProbe === true,

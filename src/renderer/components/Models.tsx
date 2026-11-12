@@ -273,12 +273,13 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                     <button
                       className="btn sm ghost"
                       onClick={async () => {
-                        const res = await window.api.updateModel(m.id, { watch: !m.watch })
+                        const picked = config.settings.overlay.modelId === m.id
+                        const res = await window.api.updateSettings({ overlayModelId: picked ? null : m.id })
                         if (!res.ok) notify(res.error ?? '切换失败')
                         else await onChanged()
                       }}
                     >
-                      {m.watch ? '显示' : '隐藏'}
+                      {config.settings.overlay.modelId === m.id ? '● 已选' : '○ 选中'}
                     </button>
                   </td>
                   <td>
