@@ -55,6 +55,11 @@ export interface OverlayState {
   visible: boolean
   /** 胶囊盯住的模型，null 表示还没选 */
   modelId: string | null
+  /** 锁定后拖不动，防误碰 */
+  locked: boolean
+  theme: 'dark' | 'light'
+  /** 调节透明度模式：此时拖动改的是透明度而不是位置 */
+  adjusting: boolean
 }
 
 export interface Settings {
@@ -157,6 +162,8 @@ export interface ModelLive {
   lastError: string | null
   lastErrorAt: number | null
   lastTtftMs: number | null
+  /** 正在进行的请求数，>0 时胶囊边框流光 */
+  inflight: number
   probing: boolean
   paused: boolean
 }
@@ -185,6 +192,8 @@ export interface LiveSnapshot {
   totals: SnapshotTotals
   /** 胶囊盯住的模型，随每次推送带下去 */
   overlayModelId: string | null
+  /** 悬浮窗外观与交互状态 */
+  overlay: OverlayState
 }
 
 export interface DayPoint {

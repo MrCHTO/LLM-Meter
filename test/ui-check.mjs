@@ -281,7 +281,13 @@ try {
     toast = await s.eval("document.querySelector('.toast')?.innerText ?? ''")
     if (toast) break
   }
-  check('测速结束绿底撤掉', (await s.eval("!!document.querySelector('tr.probing')")) === false)
+  let stillProbing = true
+  for (let i = 0; i < 12; i++) {
+    await sleep(400)
+    stillProbing = await s.eval("!!document.querySelector('tr.probing')")
+    if (!stillProbing) break
+  }
+  check('测速结束绿底撤掉', stillProbing === false)
   check('测速给出首字与速率', /首字/.test(toast) && /tok\/s/.test(toast), toast || '(没有 toast)')
   check('测速不再报缓存结论', !/缓存/.test(toast), toast)
   await s.shot('probe.png')
@@ -338,6 +344,39 @@ try {
       (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1
   )
   check('胶囊没有多行列表', (await o.eval("document.querySelectorAll('.orow').length")) === 0)
+  check('胶囊默认黑色', (await o.eval("document.querySelector('.capsule')?.classList.contains('theme-dark')")) === true)
+  await o.shot('overlay-dark.png')
+
+  // 白色外观
+  await o.eval("(async()=>await window.api.updateSettings({overlayTheme:'light'}))()")
+  await sleep(800)
+  check('可切白色外观', (await o.eval("document.querySelector('.capsule')?.classList.contains('theme-light')")) === true)
+  await o.shot('overlay-light.png')
+
+  // 锁定与调节模式
+  await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true, overlayAdjusting:true}))()")
+  await sleep(800)
+  check('锁定状态有标记', (await o.eval("document.querySelector('.capsule')?.classList.contains('locked')")) === true)
+  check('调节模式有标记与提示', (await o.eval("!!document.querySelector('.capsule.adjusting .capsule-hint')")) === true)
+
+  // 有请求应出彩虹边框，结束恢复
+  await o.eval("window.api.runProbe('m1')")
+  let rainbow = false
+  for (let i = 0; i < 30; i++) {
+    await sleep(300)
+    if (await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')")) {
+      rainbow = true
+      break
+    }
+  }
+  check('请求期间出现流光', rainbow)
+  await o.shot('overlay-inflight.png')
+  for (let i = 0; i < 40; i++) {
+    await sleep(500)
+    if (!(await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')"))) break
+  }
+  check('请求结束恢复常态', (await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')")) === false)
+
   const box = await o.eval("JSON.stringify({x:window.screenX,y:window.screenY,w:window.outerWidth,h:window.outerHeight})")
   const parsed = JSON.parse(box)
   check('悬浮窗尺寸非零且位置已恢复', parsed.w > 200 && parsed.h < 80 && parsed.x > 0 && parsed.y > 0, box)

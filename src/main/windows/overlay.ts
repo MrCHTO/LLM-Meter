@@ -118,9 +118,37 @@ function saveBounds(): void {
   }, 400)
 }
 
+let adjustStart = { x: 0, opacity: 100 }
+
+/**
+ * 拖动入口分两种：
+ * - 调节模式：横向拖动改透明度（1px ≈ 1%，10–100）
+ * - 普通模式：拖动挪位置，锁定时不动
+ */
 export function startDrag(): void {
   const win = getOverlay()
   if (!win) return
+  const settings = cfg.get().settings
+
+  if (settings.overlay.adjusting) {
+    adjustStart = { x: screen.getCursorScreenPoint().x, opacity: settings.overlayOpacity }
+    if (dragTimer) clearInterval(dragTimer)
+    dragTimer = setInterval(() => {
+      const w = getOverlay()
+      if (!w) return
+      const delta = screen.getCursorScreenPoint().x - adjustStart.x
+      const value = Math.min(100, Math.max(10, Math.round(adjustStart.opacity + delta)))
+      if (value === cfg.get().settings.overlayOpacity) return
+      cfg.mutate((c) => {
+        c.settings.overlayOpacity = value
+      })
+      w.setOpacity(value / 100)
+    }, 30)
+    return
+  }
+
+  if (settings.overlay.locked) return
+
   const cursor = screen.getCursorScreenPoint()
   const b = win.getBounds()
   dragOffset = { x: cursor.x - b.x, y: cursor.y - b.y }
@@ -138,9 +166,7 @@ export function stopDrag(): void {
   if (dragTimer) clearInterval(dragTimer)
   dragTimer = null
   saveBounds()
-}
-
-/** 渲染层量出胶囊实际宽高后回传，窗口跟着内容走 */
+}/** 渲染层量出胶囊实际宽高后回传，窗口跟着内容走 */
 export function resize(width: number, height: number): void {
   const win = getOverlay()
   if (!win) return
@@ -196,18 +222,49 @@ export function showMenu(): void {
     { label: '选择模型', submenu: modelSubmenu() },
     { type: 'separator' },
     {
-      label: '透明度',
-      submenu: [50, 70, 92, 100].map((value) => ({
-        label: `${value}%`,
-        type: 'radio' as const,
-        checked: settings.overlayOpacity === value,
-        click: () => {
-          cfg.mutate((c) => {
-            c.settings.overlayOpacity = value
-          })
-          applySettings()
+      label: '锁定位置',
+      type: 'checkbox',
+      checked: settings.overlay.locked,
+      click: () => {
+        cfg.mutate((c) => {
+          c.settings.overlay.locked = !c.settings.overlay.locked
+        })
+      }
+    },
+    {
+      label: '外观',
+      submenu: [
+        {
+          label: '黑色',
+          type: 'radio',
+          checked: settings.overlay.theme !== 'light',
+          click: () => {
+            cfg.mutate((c) => {
+              c.settings.overlay.theme = 'dark'
+            })
+          }
+        },
+        {
+          label: '白色',
+          type: 'radio',
+          checked: settings.overlay.theme === 'light',
+          click: () => {
+            cfg.mutate((c) => {
+              c.settings.overlay.theme = 'light'
+            })
+          }
         }
-      }))
+      ]
+    },
+    {
+      label: `调节透明度（当前 ${settings.overlayOpacity}%）`,
+      type: 'checkbox',
+      checked: settings.overlay.adjusting,
+      click: () => {
+        cfg.mutate((c) => {
+          c.settings.overlay.adjusting = !c.settings.overlay.adjusting
+        })
+      }
     },
     {
       label: '回到默认位置',

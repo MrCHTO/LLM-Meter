@@ -284,7 +284,7 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
           </span>
           <input
             type="range"
-            min={30}
+            min={10}
             max={100}
             value={opacity}
             onChange={(e) => setOpacity(Number(e.target.value))}

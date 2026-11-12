@@ -46,10 +46,24 @@ function Capsule(): JSX.Element {
     return () => window.removeEventListener('mouseup', up)
   }, [dragging])
 
+  const theme = snapshot?.overlay.theme ?? 'dark'
+  const adjusting = snapshot?.overlay.adjusting === true
+  const locked = snapshot?.overlay.locked === true
+  const busy = (model?.inflight ?? 0) > 0 || (model?.probing ?? false)
+
   return (
     <div
       ref={rootRef}
-      className="capsule"
+      className={[
+        'capsule',
+        `theme-${theme}`,
+        busy && 'inflight',
+        adjusting && 'adjusting',
+        locked && 'locked'
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      title={adjusting ? '左右拖动调透明度' : locked ? '已锁定位置' : undefined}
       onMouseDown={onMouseDown}
       onDoubleClick={() => void window.api.overlayOpenMain()}
       onContextMenu={(event) => {
@@ -75,6 +89,8 @@ function Capsule(): JSX.Element {
       ) : (
         <span className="capsule-empty">未选择模型 · 右键选择</span>
       )}
+
+      {adjusting ? <span className="capsule-hint mono">↔</span> : null}
     </div>
   )
 }

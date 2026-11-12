@@ -288,6 +288,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   let status = 0
 
   try {
+    live.begin(model.id)
     const upstream = await fetch(target, {
       method,
       headers,
@@ -428,6 +429,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     })
   } finally {
     clearTimeout(timer)
+    live.end(model.id)
   }
 }
 

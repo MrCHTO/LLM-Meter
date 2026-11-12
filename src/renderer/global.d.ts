@@ -61,6 +61,9 @@ declare global {
         overlayVisible?: boolean
         overlayModelId?: string | null
         allowLan?: boolean
+        overlayTheme?: 'dark' | 'light'
+        overlayLocked?: boolean
+        overlayAdjusting?: boolean
       }) => Promise<IpcResult<boolean>>
       rotateToken: () => Promise<IpcResult<string>>
       refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>

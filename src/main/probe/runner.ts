@@ -122,6 +122,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
   const controller = new AbortController()
   active.set(modelId, controller)
   live.setProbing(modelId, true)
+  live.begin(modelId)
 
   const started = Date.now()
   const usage: Usage = { ...EMPTY_USAGE }
@@ -219,6 +220,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
   } finally {
     active.delete(modelId)
     live.setProbing(modelId, false)
+    live.end(modelId)
     lastFinished = Date.now()
   }
 }

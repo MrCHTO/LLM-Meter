@@ -283,6 +283,9 @@ export function register(): void {
         overlayVisible?: boolean
         overlayModelId?: string | null
         allowLan?: boolean
+        overlayTheme?: 'dark' | 'light'
+        overlayLocked?: boolean
+        overlayAdjusting?: boolean
       }) => {
         const portChanged = patch.port !== undefined && patch.port !== cfg.get().settings.port
         const lanChanged = patch.allowLan !== undefined && patch.allowLan !== cfg.get().settings.allowLan
@@ -295,13 +298,16 @@ export function register(): void {
             c.settings.rollupRetentionDays = Math.max(1, Math.round(patch.rollupRetentionDays))
           }
           if (patch.overlayOpacity !== undefined) {
-            c.settings.overlayOpacity = Math.min(100, Math.max(30, Math.round(patch.overlayOpacity)))
+            c.settings.overlayOpacity = Math.min(100, Math.max(10, Math.round(patch.overlayOpacity)))
           }
           if (patch.pauseProbe !== undefined) c.settings.pauseProbe = patch.pauseProbe
           if (patch.startMinimized !== undefined) c.settings.startMinimized = patch.startMinimized
           if (patch.overlayWidth !== undefined) c.settings.overlay.width = Math.min(720, Math.max(240, Math.round(patch.overlayWidth)))
           if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
+          if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
+          if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
+          if (patch.overlayAdjusting !== undefined) c.settings.overlay.adjusting = patch.overlayAdjusting
         })
         overlayWin.applySettings()
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
