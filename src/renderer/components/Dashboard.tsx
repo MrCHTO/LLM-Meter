@@ -75,22 +75,15 @@ function ChartPanel(props: {
   /** 速率单位，例如 tok/s */
   rate: string
   digits: number
-  extra?: string
 }): JSX.Element {
-  const { title, buckets, current, rate, digits, extra } = props
+  const { title, buckets, current, rate, digits } = props
   const view = buckets.length ? buckets : [0]
-  // 峰值也用 10 秒窗口均值取最大，和「当前」同口径，不会比它大 10 倍
-  let peak = 0
-  for (let i = 0; i < view.length; i++) {
-    const slice = view.slice(Math.max(0, i - 9), i + 1)
-    const avg = slice.reduce((a, b) => a + b, 0) / Math.min(10, slice.length)
-    if (avg > peak) peak = avg
-  }
+  // 峰值取单秒最大：一次请求就是 1 次/s，不按窗口摊薄
+  const peak = Math.max(0, ...view)
   return (
     <div className="chart-card">
       <div className="chart-head">
         <span className="chart-title">{title}</span>
-        {extra ? <span className="pill bad">{extra}</span> : null}
         <span className="chart-now mono">
           {current.toFixed(digits)} <small>{rate}</small>
         </span>
@@ -166,21 +159,18 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
     <div className="section">
       <div className="charts">
         <ChartPanel
-          title="TPS 曲线图"
+          title="TPS"
           buckets={snapshot?.totals.buckets ?? []}
           current={snapshot?.totals.tps ?? 0}
           rate="tok/s"
           digits={1}
-          extra={snapshot && snapshot.totals.errors > 0 ? `${snapshot.totals.errors} 错` : ''}
         />
         <ChartPanel
-          title="请求曲线图"
+          title="请求量"
           buckets={snapshot?.totals.reqBuckets ?? []}
           current={reqPerSec}
           rate="次/s"
           digits={1}
-          extra=""
-          // 请求是无量纲计数，合计取整即可
         />
       </div>
 

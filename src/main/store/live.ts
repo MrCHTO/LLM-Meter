@@ -83,15 +83,21 @@ export function init(): void {
   })
 }
 
-/** 回放最近 15 分钟，让重启后曲线不空。 */
-export function replay(events: RequestEvent[]): void {
-  const from = Date.now() - 15 * 60_000
+/**
+ * 回放最近 60 秒，让重启后曲线不空。
+ * 注意每个事件要按「自己的时间」落到对应秒桶里——按到达顺序堆到末尾会堆出一个假尖峰。
+ */
+export function replay(events: RequestEvent[], now = Date.now()): void {
   for (const ev of events) {
-    if (ev.ts < from || !ev.ok) continue
+    // 失败的请求也要计入请求曲线，只是 token 为 0
+    if (ev.ts > now) continue
+    const age = Math.floor((now - ev.ts) / 1000)
+    if (age >= BUCKETS) continue
     const s = ensure(ev.modelId)
-    rollBuckets(s, ev.ts)
-    const idx = BUCKETS - 1
+    s.bucketSecond = Math.floor(now / 1000)
+    const idx = BUCKETS - 1 - age
     s.buckets[idx] = (s.buckets[idx] ?? 0) + ev.outputTokens
+    s.reqBuckets[idx] = (s.reqBuckets[idx] ?? 0) + 1
     if (ev.ttftMs !== null) s.lastTtftMs = ev.ttftMs
   }
 }
@@ -150,8 +156,12 @@ export function tpsOf(s: ModelState): number {
   return tail.reduce((a, b) => a + b, 0) / TPS_WINDOW
 }
 
-export function snapshot(proxyRunning: boolean, proxyError: string | null, baseUrl: string): LiveSnapshot {
-  const now = Date.now()
+export function snapshot(
+  proxyRunning: boolean,
+  proxyError: string | null,
+  baseUrl: string,
+  now = Date.now()
+): LiveSnapshot {
   const settings = cfg.get().settings
   const providers = new Map(cfg.listProviders().map((p) => [p.id, p]))
 

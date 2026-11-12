@@ -36,7 +36,8 @@ if (!gotLock) {
 
     rollup.init()
     live.init()
-    live.replay(events.readRange(Date.now() - 15 * 60_000, Date.now()))
+    // 曲线只画最近 60 秒，回放范围跟着收窄
+    live.replay(events.readRange(Date.now() - 65_000, Date.now()))
     events.cleanup(settings.retentionDays)
     rollup.cleanup(settings.rollupRetentionDays)
 

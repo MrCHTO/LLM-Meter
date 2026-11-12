@@ -217,6 +217,11 @@ try {
   check('汇总条已移除', (await s.eval("document.querySelectorAll('.strip').length")) === 0)
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
+  check(
+    '曲线标题为 TPS 与请求量',
+    (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === 'TPS,请求量'
+  )
+  check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线卡片带当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
   check('曲线图下带峰值', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
   check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)

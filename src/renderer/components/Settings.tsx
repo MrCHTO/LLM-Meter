@@ -40,17 +40,17 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
     <div className="section">
       <div className="card">
         <h2>客户端接入</h2>
-        <div className="kv">
+        <dl className="kv kv-wide">
           <dt>OpenAI 兼容</dt>
-          <dd>{base}{FORMAT_MOUNT.openai}/v1</dd>
+          <dd className="mono selectable">{base}{FORMAT_MOUNT.openai}/v1</dd>
           <dt>Anthropic</dt>
-          <dd>{base}{FORMAT_MOUNT.anthropic}</dd>
+          <dd className="mono selectable">{base}{FORMAT_MOUNT.anthropic}</dd>
           <dt>本地 token</dt>
           <dd>
-            <div className="row">
+            <div className="row nowrap">
               <input
                 ref={tokenRef}
-                className="mono"
+                className="mono grow"
                 type="text"
                 readOnly
                 value={showToken ? config.settings.localToken : config.settings.localTokenMasked}
@@ -77,14 +77,18 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
               </button>
             </div>
           </dd>
-        </div>
-        <div className="row" style={{ marginTop: 12 }}>
+        </dl>
+
+        <div className="divider" />
+
+        <div className="row">
           <span className={`dot ${snapshot?.proxyRunning ? 'on' : 'off'}`} />
-          <span className="hint" style={{ margin: 0 }}>
+          <span className="muted">
             {snapshot?.proxyRunning ? '代理运行中' : (snapshot?.proxyError ?? '代理已停止')}
           </span>
           <button
             className="btn sm"
+            style={{ marginLeft: 'auto' }}
             onClick={async () => {
               const res = await window.api.restartProxy()
               if (res.ok) notify('代理已重启', 'ok')
@@ -95,11 +99,15 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
             重启代理
           </button>
         </div>
-        <div className="grid-2" style={{ marginTop: 12 }}>
+      </div>
+
+      <div className="card">
+        <h2>运行</h2>
+        <div className="grid-2">
           <label className="field">
             <span>监听端口</span>
-            <div className="row">
-              <input className="mono" type="number" value={port} onChange={(e) => setPort(e.target.value)} />
+            <div className="row nowrap">
+              <input className="mono w-sm" type="number" value={port} onChange={(e) => setPort(e.target.value)} />
               <button
                 className="btn"
                 onClick={async () => {
@@ -118,8 +126,13 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
           </label>
           <label className="field">
             <span>明细保留天数</span>
-            <div className="row">
-              <input className="mono" type="number" value={retention} onChange={(e) => setRetention(e.target.value)} />
+            <div className="row nowrap">
+              <input
+                className="mono w-sm"
+                type="number"
+                value={retention}
+                onChange={(e) => setRetention(e.target.value)}
+              />
               <button
                 className="btn"
                 onClick={async () => {
@@ -132,47 +145,47 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
               </button>
             </div>
           </label>
-          <label className="field">
-            <span>美元换人民币汇率{config.settings.usdCnyDate ? ` · ${config.settings.usdCnyDate} 自动` : ' · 未取到'}</span>
-            <div className="row">
-              <input
-                className="mono"
-                type="number"
-                step="0.01"
-                value={rate}
-                onChange={(e) => setRate(e.target.value)}
-              />
-              <button
-                className="btn"
-                onClick={async () => {
-                  const value = Number(rate)
-                  if (!value || value < 1 || value > 20) {
-                    notify('汇率需要在 1-20 之间')
-                    return
-                  }
-                  await patch({ usdCny: value })
-                  notify(`汇率已设为 ¥${value}/$`, 'ok')
-                }}
-              >
-                应用
-              </button>
-              <button
-                className="btn"
-                onClick={async () => {
-                  const res = await window.api.refreshRate()
-                  if (!res.ok || !res.data) {
-                    notify(res.error ?? '取汇率失败，沿用旧值')
-                  } else {
-                    setRate(String(res.data.rate))
-                    notify(`已更新为 ¥${res.data.rate}/$（${res.data.date}）`, 'ok')
-                  }
-                  await onChanged()
-                }}
-              >
-                取当天
-              </button>
-            </div>
-          </label>
+        </div>
+        <div className="field mt">
+          <span>美元换人民币汇率{config.settings.usdCnyDate ? ` · ${config.settings.usdCnyDate} 自动` : ' · 未取到'}</span>
+          <div className="row nowrap">
+            <input
+              className="mono w-sm"
+              type="number"
+              step="0.01"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+            />
+            <button
+              className="btn"
+              onClick={async () => {
+                const value = Number(rate)
+                if (!value || value < 1 || value > 20) {
+                  notify('汇率需要在 1-20 之间')
+                  return
+                }
+                await patch({ usdCny: value })
+                notify(`汇率已设为 ¥${value}/$`, 'ok')
+              }}
+            >
+              应用
+            </button>
+            <button
+              className="btn"
+              onClick={async () => {
+                const res = await window.api.refreshRate()
+                if (!res.ok || !res.data) {
+                  notify(res.error ?? '取汇率失败，沿用旧值')
+                } else {
+                  setRate(String(res.data.rate))
+                  notify(`已更新为 ¥${res.data.rate}/$（${res.data.date}）`, 'ok')
+                }
+                await onChanged()
+              }}
+            >
+              取当天
+            </button>
+          </div>
         </div>
       </div>
 
@@ -189,9 +202,20 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
           >
             {config.settings.overlay.visible ? '隐藏悬浮窗' : '显示悬浮窗'}
           </button>
+          <label className="row nowrap" style={{ gap: 8, marginLeft: 'auto' }}>
+            <input
+              type="checkbox"
+              checked={config.settings.startMinimized}
+              onChange={(e) => void patch({ startMinimized: e.target.checked })}
+            />
+            <span className="muted">启动时只留托盘</span>
+          </label>
         </div>
-        <label className="field" style={{ marginTop: 12 }}>
-          <span>不透明度 {opacity}%（鼠标悬停时会临时全不透明）</span>
+        <div className="field mt">
+          <span className="row">
+            <span>不透明度</span>
+            <span className="muted" style={{ marginLeft: 'auto' }}>{opacity}%</span>
+          </span>
           <input
             type="range"
             min={30}
@@ -201,26 +225,19 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
             onMouseUp={() => void patch({ overlayOpacity: opacity })}
             onKeyUp={() => void patch({ overlayOpacity: opacity })}
           />
-        </label>
-        <label className="row" style={{ gap: 8, marginTop: 10 }}>
-          <input
-            type="checkbox"
-            checked={config.settings.startMinimized}
-            onChange={(e) => void patch({ startMinimized: e.target.checked })}
-          />
-          <span>启动时只留托盘，不弹主窗</span>
-        </label>
+        </div>
       </div>
 
       <div className="card">
         <h2>数据</h2>
-        <div className="kv">
+        <dl className="kv kv-wide">
           <dt>数据目录</dt>
-          <dd>{config.dataDir}</dd>
+          <dd className="mono selectable">{config.dataDir}</dd>
           <dt>版本</dt>
           <dd>{config.version}</dd>
-        </div>
-        <div className="row" style={{ marginTop: 12 }}>
+        </dl>
+        <div className="divider" />
+        <div className="row">
           <button className="btn" onClick={() => void window.api.openDataDir()}>
             打开目录
           </button>
@@ -242,11 +259,10 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
           >
             立即落盘聚合
           </button>
+          <span className="muted" style={{ marginLeft: 'auto' }}>
+            明细 {config.settings.retentionDays} 天 / 聚合 {config.settings.rollupRetentionDays} 天
+          </span>
         </div>
-        <p className="hint" style={{ marginTop: 12, marginBottom: 0 }}>
-          明细 {config.settings.retentionDays} 天、聚合 {config.settings.rollupRetentionDays} 天后自动删除。当前格式：
-          {config.providers.map((p) => `${p.name}=${FORMAT_LABEL[p.format]}`).join('，') || '—'}
-        </p>
       </div>
     </div>
   )

@@ -814,3 +814,41 @@ tr.open > td {
   font-size: 11px;
   color: var(--muted);
 }
+
+.divider {
+  height: 1px;
+  background: var(--line);
+  margin: 12px 0;
+}
+
+.row.nowrap {
+  flex-wrap: nowrap;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.w-sm,
+.field .row > input.w-sm {
+  width: 104px;
+  flex: none;
+}
+
+.mt {
+  margin-top: 12px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.kv-wide {
+  grid-template-columns: 110px 1fr;
+}
+
+.selectable {
+  user-select: text;
+}
