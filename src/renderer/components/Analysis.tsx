@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsRow, StatsSeries, StatsSource } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtTokens } from '../format'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
@@ -55,6 +55,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
   const [series, setSeries] = useState<StatsSeries | null>(null)
   const [totals, setTotals] = useState<StatsRow[]>([])
   const [busy, setBusy] = useState(false)
+  const inFlight = useRef(false)
 
   const range = rangeOf(preset, customFrom, customTo)
   const granularity = range ? granularityOf(range.to - range.from) : 'hour'
@@ -79,23 +80,35 @@ export function Analysis({ config, notify }: Props): JSX.Element {
     [granularity]
   )
 
-  const load = useCallback(async (): Promise<void> => {
-    if (!range) {
-      setSeries(null)
-      setTotals([])
-      return
-    }
-    setBusy(true)
-    const q = { from: range.from, to: range.to, source }
-    const [s, t] = await Promise.all([
-      window.api.statsSeries({ ...q, granularity, metric, groupBy }),
-      window.api.statsTotals({ ...q, groupBy })
-    ])
-    if (s.ok && s.data) setSeries(s.data)
-    else notify(s.error ?? '查询失败')
-    if (t.ok && t.data) setTotals(t.data)
-    setBusy(false)
-  }, [range, source, granularity, metric, groupBy, notify])
+  const load = useCallback(
+    async (silent = false): Promise<void> => {
+      // 每次现算区间：预设的右端要跟着当前时间走，否则轮询永远查旧窗口
+      const r = rangeOf(preset, customFrom, customTo)
+      if (!r) {
+        setSeries(null)
+        setTotals([])
+        return
+      }
+      if (inFlight.current) return
+      inFlight.current = true
+      // 轮询走静默：不换按钮文案，失败也不弹提示
+      if (!silent) setBusy(true)
+      try {
+        const q = { from: r.from, to: r.to, source }
+        const [s, t] = await Promise.all([
+          window.api.statsSeries({ ...q, granularity: granularityOf(r.to - r.from), metric, groupBy }),
+          window.api.statsTotals({ ...q, groupBy })
+        ])
+        if (s.ok && s.data) setSeries(s.data)
+        else if (!silent) notify(s.error ?? '查询失败')
+        if (t.ok && t.data) setTotals(t.data)
+      } finally {
+        inFlight.current = false
+        if (!silent) setBusy(false)
+      }
+    },
+    [preset, customFrom, customTo, source, metric, groupBy, notify]
+  )
 
   useEffect(() => {
     void load()
@@ -103,7 +116,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
 
   useEffect(() => {
     if (preset === 'custom') return
-    const timer = setInterval(() => void load(), 5000)
+    const timer = setInterval(() => void load(true), 5000)
     return () => clearInterval(timer)
   }, [load, preset])
 

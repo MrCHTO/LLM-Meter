@@ -34,7 +34,7 @@ function niceStep(peak: number, integer: boolean): number {
   return integer ? Math.max(1, Math.round(step)) : step
 }
 
-/** 多序列时间轴折线，纯 SVG：自适应 Y 轴、图例隐藏、悬停十字线。 */
+/** 多序列时间轴分组柱状图，纯 SVG：自适应 Y 轴、图例隐藏、悬停十字线。 */
 export function SeriesChart({ buckets, series, format, timeFormat, integer = false, onToggle }: Props): JSX.Element {
   const [hover, setHover] = useState<number | null>(null)
 
@@ -48,14 +48,19 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
   const n = buckets.length
   const plotW = W - PAD.left - PAD.right
   const plotH = H - PAD.top - PAD.bottom
-  const x = (i: number): number => PAD.left + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW)
+  const band = plotW / Math.max(1, n)
+  const center = (i: number): number => PAD.left + band * (i + 0.5)
 
   const step = niceStep(peak, integer)
   const axisMax = Math.max(step, Math.ceil(peak / step) * step)
+  const base = PAD.top + plotH
   const y = (v: number): number => PAD.top + plotH - (v / axisMax) * plotH
 
   const ticks: number[] = []
   for (let v = 0; v <= axisMax + step / 2; v += step) ticks.push(Number(v.toPrecision(12)))
+
+  // 同桶内并排，柱宽随桶宽收窄，最少 1px
+  const barW = Math.max(1, Math.min(band * 0.72, 56) / Math.max(1, visible.length))
 
   if (n === 0) {
     return <div className="chart-empty">这个区间没有数据</div>
@@ -72,8 +77,8 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect()
           const ratio = (e.clientX - rect.left) / rect.width
-          const idx = Math.round(ratio * W - PAD.left) / (plotW / Math.max(1, n - 1))
-          setHover(Number.isFinite(idx) ? Math.round(idx) : null)
+          const idx = Math.floor((ratio * W - PAD.left) / band)
+          setHover(Number.isFinite(idx) ? Math.min(n - 1, Math.max(0, idx)) : null)
         }}
         onMouseLeave={() => setHover(null)}
       >
@@ -88,32 +93,32 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
 
         {buckets.map((b, i) =>
           i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
-            <text key={b} x={x(i)} y={H - 6} textAnchor="middle" className="axis">
+            <text key={b} x={center(i)} y={H - 6} textAnchor="middle" className="axis">
               {timeFormat(b)}
             </text>
           ) : null
         )}
 
-        {visible.map((s) => (
-          <polyline
-            key={s.key}
-            className="series-line"
-            stroke={s.color}
-            points={s.points.map((v, i) => `${x(i)},${y(v)}`).join(' ')}
-          />
-        ))}
-
-        {/* 点少时补点，避免单点或双点画不出形状 */}
-        {n <= 60
-          ? visible.map((s) =>
-              s.points.map((v, i) => (
-                <circle key={`${s.key}-${i}`} r={2.6} cx={x(i)} cy={y(v)} fill={s.color} />
-              ))
+        {visible.map((s, si) =>
+          s.points.map((v, i) => {
+            const h = Math.max(1, base - y(v))
+            const gx = center(i) - (barW * visible.length) / 2 + si * barW
+            return (
+              <rect
+                key={`${s.key}-${i}`}
+                x={gx}
+                y={base - h}
+                width={Math.max(1, barW - 1)}
+                height={h}
+                fill={s.color}
+                className="series-bar"
+              />
             )
-          : null}
+          })
+        )}
 
         {hoverAt !== null ? (
-          <line x1={x(hoverAt)} x2={x(hoverAt)} y1={PAD.top} y2={H - PAD.bottom} className="crosshair" />
+          <line x1={center(hoverAt)} x2={center(hoverAt)} y1={PAD.top} y2={base} className="crosshair" />
         ) : null}
       </svg>
 

@@ -244,10 +244,18 @@ try {
   await sleep(1500)
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) >= 3)
   check('分析页有明细表', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
-  check(
-    '分析页画出了曲线或空态',
-    (await s.eval("!!document.querySelector('.series-svg')")) || (await s.eval("!!document.querySelector('.chart-empty')"))
-  )
+  check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
+  // 等首次查询结束，再跨过至少一个 5 秒轮询，按钮不应回到「查询中」
+  for (let i = 0; i < 10; i++) {
+    if (!(await s.eval("document.body.innerText.includes('查询中')"))) break
+    await sleep(300)
+  }
+  let flicker = false
+  for (let i = 0; i < 14; i++) {
+    if (await s.eval("document.body.innerText.includes('查询中')")) flicker = true
+    await sleep(500)
+  }
+  check('自动刷新时查询按钮不闪', !flicker)
   await s.shot('analysis.png')
 
   await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")

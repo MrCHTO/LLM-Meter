@@ -118,6 +118,22 @@ try {
       })
     )
     await sleep(2500)
+    const bars = await (async () => {
+      ws.send(
+        JSON.stringify({
+          id: 5,
+          method: 'Runtime.evaluate',
+          params: { expression: "document.querySelectorAll('rect.series-bar').length", returnByValue: true }
+        })
+      )
+      return new Promise((resolve) => {
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(e.data)
+          if (msg.id === 5) resolve(msg.result?.result?.value ?? 0)
+        }
+      })
+    })()
+    check('分析页画出柱状图', Number(bars) > 0, `bars=${bars}`)
     ws.send(JSON.stringify({ id: 3, method: 'Page.captureScreenshot', params: { format: 'png' } }))
     const shot2 = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('分析页截图超时')), 10_000)
