@@ -67,6 +67,27 @@ interface MenuState {
   y: number
 }
 
+function ChartPanel(props: { title: string; buckets: number[]; unit: string; digits: number }): JSX.Element {
+  const { title, buckets, unit, digits } = props
+  const view = buckets.length ? buckets : [0]
+  const last = view[view.length - 1] ?? 0
+  const peak = Math.max(0, ...view)
+  const sum = view.reduce((a, b) => a + b, 0)
+  return (
+    <div className="chart-card">
+      <div className="chart-title">{title}</div>
+      <div className="chart-body">
+        <Sparkline buckets={view} tail={view.length} />
+      </div>
+      <div className="chart-foot mono">
+        <span>当前 {last.toFixed(digits)} {unit}</span>
+        <span>峰值 {peak.toFixed(digits)}</span>
+        <span>近 60 秒 {sum.toFixed(digits)}</span>
+      </div>
+    </div>
+  )
+}
+
 export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.Element {
   const [open, setOpen] = useState<string | null>(null)
   const [probing, setProbing] = useState<Record<string, boolean>>({})
@@ -122,26 +143,12 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
   return (
     <div className="section">
       <div className="strip">
-        {snapshot ? (
-          <div className="strip-bg">
-            <Sparkline buckets={snapshot.totals.buckets} tail={snapshot.totals.buckets.length} />
-          </div>
-        ) : null}
         <div className="strip-main">
           <span className="strip-label">TPS</span>
           <span className="strip-value mono">{snapshot ? snapshot.totals.tps.toFixed(1) : '0.0'}</span>
-          <span className="strip-label">命中率</span>
-          <span className="strip-value mono">{fmtPct(snapshot?.totals.hitRate ?? null)}</span>
-        </div>
-        <div className="strip-side mono">
-          <span>
-            今日 {fmtMoney(snapshot?.totals.todayCost ?? 0, snapshot?.totals.currency ?? 'CNY')}
-            {snapshot?.totals.budgetSum ? ` / ${fmtMoney(snapshot.totals.budgetSum, snapshot.totals.currency)}` : ''}
-          </span>
-          <span>
-            {snapshot?.totals.requests ?? 0} 请求
-            {snapshot && snapshot.totals.errors > 0 ? <i className="pill bad">{snapshot.totals.errors} 错</i> : null}
-          </span>
+          <span className="strip-label">请求</span>
+          <span className="strip-value mono">{snapshot?.totals.requests ?? 0}</span>
+          {snapshot && snapshot.totals.errors > 0 ? <i className="pill bad">{snapshot.totals.errors} 错</i> : null}
         </div>
       </div>
 
@@ -228,6 +235,11 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
             ) : null}
           </tbody>
         </table>
+      </div>
+
+      <div className="charts">
+        <ChartPanel title="TPS 曲线图" buckets={snapshot?.totals.buckets ?? []} unit="tok/s" digits={1} />
+        <ChartPanel title="请求曲线图" buckets={snapshot?.totals.reqBuckets ?? []} unit="次" digits={0} />
       </div>
 
       {menu ? (

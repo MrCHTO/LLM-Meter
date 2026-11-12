@@ -62,20 +62,20 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
     setPriceNote('查询中…')
     const res = await window.api.lookupPrice(modelId)
     if (!res.ok || !res.data) {
-      setPriceNote(res.error ?? '查询失败，请手填')
+      setPriceNote('连接openrouter超时，请手动填写')
       return
     }
     const data = res.data
-    setPriceNote(`查价：${data.note}`)
+    setPriceNote(data.note)
     if (!data.found) return
     setModel((m) =>
       m
         ? {
             ...m,
-            priceIn: String(data.priceIn ?? 0),
-            priceOut: String(data.priceOut ?? 0),
-            priceCacheRead: String(data.priceCacheRead ?? 0),
-            priceCacheWrite: String(data.priceCacheWrite ?? 0),
+            priceIn: String(Math.round((data.priceIn ?? 0) * 100) / 100),
+            priceOut: String(Math.round((data.priceOut ?? 0) * 100) / 100),
+            priceCacheRead: String(Math.round((data.priceCacheRead ?? 0) * 100) / 100),
+            priceCacheWrite: String(Math.round((data.priceCacheWrite ?? 0) * 100) / 100),
             currency: 'CNY'
           }
         : m
@@ -304,10 +304,10 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                           providerId: m.providerId,
                           upstreamModel: m.upstreamModel,
                           alias: m.alias,
-                          priceIn: String(m.priceIn),
-                          priceOut: String(m.priceOut),
-                          priceCacheRead: String(m.priceCacheRead),
-                          priceCacheWrite: String(m.priceCacheWrite),
+                          priceIn: String(Math.round(m.priceIn * 100) / 100),
+                          priceOut: String(Math.round(m.priceOut * 100) / 100),
+                          priceCacheRead: String(Math.round(m.priceCacheRead * 100) / 100),
+                          priceCacheWrite: String(Math.round(m.priceCacheWrite * 100) / 100),
                           currency: m.currency,
                           dailyBudget: m.dailyBudget ? String(m.dailyBudget) : '',
                           watch: m.watch
@@ -440,7 +440,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
               </label>
               {priceNote ? <p className="hint">{priceNote}</p> : null}
               <label className="field">
-                <span>别名（客户端里填这个名字）</span>
+                <span>别名</span>
                 <input
                   type="text"
                   className="mono"

@@ -72,7 +72,6 @@ describe('价格查询', () => {
     const out = await lookup('DeepSeek-V4.1-Flash')
     expect(out.found).toBe(true)
     expect(out.exact).toBe(false)
-    expect(out.note).toContain('近似匹配')
     expect(out.matchedId).toBe('deepseek/deepseek-v4.1-flash-1017')
   })
 
@@ -87,7 +86,7 @@ describe('价格查询', () => {
     const out = await lookup('no-such-model')
     expect(out.found).toBe(false)
     expect(out.priceIn).toBeUndefined()
-    expect(out.note).toContain('请手填')
+    expect(out.note).toContain('请手动填写')
   })
 
   it('空 id 直接返回', async () => {
@@ -120,6 +119,6 @@ describe('价格查询', () => {
     const { lookup } = await load()
     const out = await lookup('deepseek/deepseek-v4.1-flash')
     expect(out.found).toBe(false)
-    expect(out.note).toContain('请手填')
+    expect(out.note).toContain('请手动填写')
   })
 })

@@ -257,7 +257,7 @@ export function register(): void {
         priceOut: conv(out.priceOut),
         priceCacheRead: conv(out.priceCacheRead),
         priceCacheWrite: conv(out.priceCacheWrite),
-        note: `${out.note}（按 ${today.date} 汇率 ¥${today.rate}/$ 折算）`
+        note: `已按照 ${out.matchedId} 查询并自动填写，人名币汇率为 ${today.rate}${out.exact ? '' : '（近似匹配，请核对）'}`
       }
     })
   )

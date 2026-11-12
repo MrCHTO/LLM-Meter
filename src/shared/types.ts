@@ -168,6 +168,8 @@ export interface SnapshotTotals {
   currency: string
   /** 各模型桶按秒相加，给汇总曲线用 */
   buckets: number[]
+  /** 每秒请求数 */
+  reqBuckets: number[]
 }
 
 export interface LiveSnapshot {

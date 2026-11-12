@@ -214,8 +214,11 @@ try {
 
   check('主窗标题正确', (await s.eval('document.title')) === 'LLM Meter')
   check('表头三页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 3)
-  check('汇总条只有一条且带曲线', (await s.eval("document.querySelectorAll('.strip .strip-bg svg').length")) === 1)
-  check('汇总条有 TPS 与命中率', /TPS/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")) && /命中率/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")))
+  check('汇总条只有一条', (await s.eval("document.querySelectorAll('.strip').length")) === 1)
+  check('汇总条有 TPS 与请求', /TPS/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")) && /请求/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")))
+  check('汇总条不再有命中率与总费用', !/命中率|今日/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")))
+  check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
+  check('曲线图下带类型与数据', /当前/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")) && /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
   check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
@@ -290,9 +293,9 @@ try {
   }
   console.log('查价提示:', note)
   if (/超时|不可达/.test(note)) {
-    check('查价给出可回落提示', /手填/.test(note), note)
+    check('查价失败文案统一', note === '连接openrouter超时，请手动填写', note)
   } else {
-    check('查价命中并回填', /已按/.test(note), note)
+    check('查价命中并回填', /^已按照 .+ 查询并自动填写，人名币汇率为 [\d.]+/.test(note), note)
     const filled = await s.eval(`document.querySelector('.modal input[step="0.01"]')?.value ?? ''`)
     check('单价已填', Number(filled) > 0, filled)
   }

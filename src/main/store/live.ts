@@ -15,6 +15,8 @@ const TPS_WINDOW = 10
 
 interface ModelState {
   buckets: number[]
+  /** 每秒请求数，供请求曲线用 */
+  reqBuckets: number[]
   bucketSecond: number
   today: TodayTotals
   lastError: string | null
@@ -35,6 +37,7 @@ function ensure(modelId: string): ModelState {
   if (found) return found
   const created: ModelState = {
     buckets: new Array<number>(BUCKETS).fill(0),
+    reqBuckets: new Array<number>(BUCKETS).fill(0),
     bucketSecond: Math.floor(Date.now() / 1000),
     today: blankToday(),
     lastError: null,
@@ -52,8 +55,10 @@ function rollBuckets(s: ModelState, now = Date.now()): void {
   if (shift <= 0) return
   if (shift >= BUCKETS) {
     s.buckets.fill(0)
+    s.reqBuckets.fill(0)
   } else {
     s.buckets = [...s.buckets.slice(shift), ...new Array<number>(shift).fill(0)]
+    s.reqBuckets = [...s.reqBuckets.slice(shift), ...new Array<number>(shift).fill(0)]
   }
   s.bucketSecond = sec
 }
@@ -94,6 +99,8 @@ export function replay(events: RequestEvent[]): void {
 export function record(ev: RequestEvent): void {
   const s = ensure(ev.modelId)
   rollBuckets(s, ev.ts)
+  const idx = BUCKETS - 1
+  s.reqBuckets[idx] = (s.reqBuckets[idx] ?? 0) + 1
   if (ev.ok) {
     s.today.requests += 1
     s.today.input += ev.inputTokens
@@ -102,7 +109,6 @@ export function record(ev: RequestEvent): void {
     s.today.cacheWrite += ev.cacheWriteTokens
     s.today.cost += ev.cost
     if (ev.ttftMs !== null) s.lastTtftMs = ev.ttftMs
-    const idx = BUCKETS - 1
     s.buckets[idx] = (s.buckets[idx] ?? 0) + ev.outputTokens
   } else {
     s.today.requests += 1
@@ -159,7 +165,8 @@ export function snapshot(proxyRunning: boolean, proxyError: string | null, baseU
     budgetRatio: null,
     budgetSum: 0,
     currency: 'CNY',
-    buckets: new Array<number>(BUCKETS).fill(0)
+    buckets: new Array<number>(BUCKETS).fill(0),
+    reqBuckets: new Array<number>(BUCKETS).fill(0)
   }
 
   for (const m of cfg.listModels()) {
@@ -193,6 +200,7 @@ export function snapshot(proxyRunning: boolean, proxyError: string | null, baseU
     totals.tps += tps
     for (let i = 0; i < BUCKETS; i++) {
       totals.buckets[i] = (totals.buckets[i] ?? 0) + (s.buckets[i] ?? 0)
+      totals.reqBuckets[i] = (totals.reqBuckets[i] ?? 0) + (s.reqBuckets[i] ?? 0)
     }
     totals.todayCost += s.today.cost
     totals.requests += s.today.requests

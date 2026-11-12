@@ -5,6 +5,7 @@
 const ENDPOINT = 'https://openrouter.ai/api/v1/models'
 const TTL_MS = 10 * 60_000
 const TIMEOUT_MS = 6000
+export const FAIL_NOTE = '连接openrouter超时，请手动填写'
 
 export interface PriceLookup {
   found: boolean
@@ -86,9 +87,8 @@ export async function lookup(modelId: string): Promise<PriceLookup> {
   let list: Entry[]
   try {
     list = await load()
-  } catch (err) {
-    const timeout = (err as Error).name === 'AbortError'
-    return { found: false, note: timeout ? 'OpenRouter 超时，请手填' : 'OpenRouter 不可达，请手填' }
+  } catch {
+    return { found: false, note: FAIL_NOTE }
   }
 
   const { tail, compact } = normalize(wanted)
@@ -104,7 +104,7 @@ export async function lookup(modelId: string): Promise<PriceLookup> {
     [...plain.filter((e) => e.compact.startsWith(compact))].sort(byTailLen)[0] ??
     [...list.filter((e) => e.tail === tail)].sort(byTailLen)[0]
 
-  if (!hit) return { found: false, note: `OpenRouter 没有 ${wanted}，请手填` }
+  if (!hit) return { found: false, note: FAIL_NOTE }
 
   const wanted_lc = wanted.toLowerCase()
   const exact = hit.id.toLowerCase() === wanted_lc || hit.tail === tail
@@ -117,6 +117,6 @@ export async function lookup(modelId: string): Promise<PriceLookup> {
     priceOut: round(hit.priceOut),
     priceCacheRead: round(hit.priceCacheRead),
     priceCacheWrite: round(hit.priceCacheWrite),
-    note: exact ? `已按 ${hit.id} 填写` : `近似匹配 ${hit.id}，请核对价格`
+    note: hit.id
   }
 }
