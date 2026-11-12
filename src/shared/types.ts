@@ -133,6 +133,8 @@ export interface ModelLive {
   providerName: string
   /** 上游根地址，界面直接展示 */
   baseUrl: string
+  /** 真正发给上游的模型名 */
+  upstreamModel: string
   format: ApiFormat
   currency: string
   dailyBudget: number | null
@@ -258,6 +260,7 @@ export const CH = {
   modelCreate: 'model:create',
   modelUpdate: 'model:update',
   modelDelete: 'model:delete',
+  priceLookup: 'model:price',
   probeRun: 'probe:run',
   probeStop: 'probe:stop',
   settingsUpdate: 'settings:update',

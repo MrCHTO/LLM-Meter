@@ -13,6 +13,7 @@ const api = {
   createModel: (input: unknown) => ipcRenderer.invoke(CH.modelCreate, input),
   updateModel: (id: string, patch: unknown) => ipcRenderer.invoke(CH.modelUpdate, id, patch),
   deleteModel: (id: string) => ipcRenderer.invoke(CH.modelDelete, id),
+  lookupPrice: (modelId: string) => ipcRenderer.invoke(CH.priceLookup, modelId),
   runProbe: (id: string) => ipcRenderer.invoke(CH.probeRun, id),
   stopProbe: (id?: string) => ipcRenderer.invoke(CH.probeStop, id),
   pauseProbe: (value: boolean) => ipcRenderer.invoke(CH.probePause, value),

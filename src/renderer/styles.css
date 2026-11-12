@@ -702,3 +702,20 @@ tr.open > td {
 .tbl-left tbody td:nth-child(2) {
   text-align: left;
 }
+
+.ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tbl-flush {
+  margin: 0;
+}
+
+.field .row > input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}

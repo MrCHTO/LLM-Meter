@@ -21,6 +21,7 @@ import * as token from './security/token'
 import * as probe from './probe/runner'
 import * as proxy from './proxy/server'
 import { joinUrl } from './proxy/url'
+import { lookup as lookupPrice } from './pricing'
 import * as overlayWin from './windows/overlay'
 import { showMain } from './windows/registry'
 
@@ -238,6 +239,7 @@ export function register(): void {
     })
   )
 
+  ipcMain.handle(CH.priceLookup, wrap((modelId: string) => lookupPrice(modelId)))
   ipcMain.handle(CH.probeRun, wrap((id: string): Promise<ProbeResult> => probe.run(id)))
   ipcMain.handle(CH.probeStop, wrap((id?: string) => probe.stop(id)))
 

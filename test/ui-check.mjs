@@ -241,6 +241,36 @@ try {
   check('点行展开明细', (await s.eval("document.querySelectorAll('.detail table tbody tr').length")) > 0)
   await s.shot('detail.png')
 
+  // 添加模型弹窗里按 id 查价
+  await s.eval("document.querySelector('.tab:nth-child(2)').click()")
+  await sleep(700)
+  await s.eval("[...document.querySelectorAll('button')].find((b) => b.innerText === '添加模型').click()")
+  await sleep(500)
+  await s.eval(`(() => {
+    const input = document.querySelector('.modal input[placeholder^="deepseek"]')
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+    setter.call(input, 'DeepSeek-V4.1-Flash')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })()`)
+  await sleep(300)
+  await s.eval("[...document.querySelectorAll('.modal button')].find((b) => b.innerText === '查价').click()")
+
+  let note = ''
+  for (let i = 0; i < 20; i++) {
+    await sleep(800)
+    note = await s.eval("document.querySelector('.modal p.hint')?.innerText ?? ''")
+    if (note && !note.includes('查询中')) break
+  }
+  console.log('查价提示:', note)
+  if (/超时|不可达/.test(note)) {
+    check('查价给出可回落提示', /手填/.test(note), note)
+  } else {
+    check('查价命中并回填', /已按/.test(note), note)
+    const filled = await s.eval(`document.querySelector('.modal input[step="0.01"]')?.value ?? ''`)
+    check('单价已填', Number(filled) > 0, filled)
+  }
+  await s.shot('price.png')
+
   s.close()
 
   const ov = await waitTarget('overlay.html')

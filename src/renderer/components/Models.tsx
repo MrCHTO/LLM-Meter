@@ -54,6 +54,33 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
   const [provider, setProvider] = useState<ProviderDraft | null>(null)
   const [model, setModel] = useState<ModelDraft | null>(null)
   const [busy, setBusy] = useState(false)
+  const [priceNote, setPriceNote] = useState('')
+
+  /** 按模型 id 去 OpenRouter 拿公开价，查不到就留着手填 */
+  const lookupPrice = async (modelId: string): Promise<void> => {
+    if (!modelId.trim()) return
+    setPriceNote('查询中…')
+    const res = await window.api.lookupPrice(modelId)
+    if (!res.ok || !res.data) {
+      setPriceNote(res.error ?? '查询失败，请手填')
+      return
+    }
+    const data = res.data
+    setPriceNote(data.note)
+    if (!data.found) return
+    setModel((m) =>
+      m
+        ? {
+            ...m,
+            priceIn: String(data.priceIn ?? 0),
+            priceOut: String(data.priceOut ?? 0),
+            priceCacheRead: String(data.priceCacheRead ?? 0),
+            priceCacheWrite: String(data.priceCacheWrite ?? 0),
+            currency: 'USD'
+          }
+        : m
+    )
+  }
 
   const saveProvider = async (): Promise<void> => {
     if (!provider) return
@@ -203,7 +230,10 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
           <button
             className="btn primary"
             disabled={providers.length === 0}
-            onClick={() => setModel(emptyModel(providers[0]?.id ?? ''))}
+            onClick={() => {
+              setPriceNote('')
+              setModel(emptyModel(providers[0]?.id ?? ''))
+            }}
           >
             添加模型
           </button>
@@ -265,7 +295,8 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   <td>
                     <button
                       className="btn sm"
-                      onClick={() =>
+                      onClick={() => {
+                        setPriceNote('')
                         setModel({
                           id: m.id,
                           providerId: m.providerId,
@@ -279,7 +310,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                           dailyBudget: m.dailyBudget ? String(m.dailyBudget) : '',
                           watch: m.watch
                         })
-                      }
+                      }}
                     >
                       编辑
                     </button>{' '}
@@ -382,14 +413,24 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
               </label>
               <label className="field">
                 <span>上游模型名</span>
-                <input
-                  type="text"
-                  className="mono"
-                  value={model.upstreamModel}
-                  placeholder="claude-sonnet-4-5"
-                  onChange={(e) => setModel({ ...model, upstreamModel: e.target.value })}
-                />
+                <div className="row">
+                  <input
+                    type="text"
+                    className="mono"
+                    value={model.upstreamModel}
+                    placeholder="deepseek/deepseek-v4.1-flash"
+                    onChange={(e) => setModel({ ...model, upstreamModel: e.target.value })}
+                    onBlur={() => {
+                      const empty = !model.priceIn || Number(model.priceIn) === 0
+                      if (empty && model.upstreamModel.trim()) void lookupPrice(model.upstreamModel)
+                    }}
+                  />
+                  <button className="btn" onClick={() => void lookupPrice(model.upstreamModel)}>
+                    查价
+                  </button>
+                </div>
               </label>
+              {priceNote ? <p className="hint">{priceNote}</p> : null}
               <label className="field">
                 <span>别名（客户端里填这个名字）</span>
                 <input

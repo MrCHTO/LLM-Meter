@@ -33,6 +33,17 @@ declare global {
       createModel: (input: Omit<ModelCfg, 'id' | 'createdAt' | 'sort'>) => Promise<IpcResult<string>>
       updateModel: (id: string, patch: Partial<ModelCfg>) => Promise<IpcResult<boolean>>
       deleteModel: (id: string) => Promise<IpcResult<boolean>>
+      lookupPrice: (modelId: string) => Promise<
+        IpcResult<{
+          found: boolean
+          matchedId?: string
+          priceIn?: number
+          priceOut?: number
+          priceCacheRead?: number
+          priceCacheWrite?: number
+          note: string
+        }>
+      >
       runProbe: (id: string) => Promise<IpcResult<ProbeResult>>
       stopProbe: (id?: string) => Promise<IpcResult<boolean>>
       pauseProbe: (value: boolean) => Promise<IpcResult<boolean>>

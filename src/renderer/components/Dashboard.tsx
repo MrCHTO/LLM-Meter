@@ -152,18 +152,17 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
       </div>
 
       <div className="card">
-        <h2>按模型</h2>
-        <table className="tbl">
+        <table className="tbl tbl-flush">
           <thead>
             <tr>
               <th className="c-model">模型</th>
-              <th className="c-url">上游地址</th>
+              <th className="c-url">上游供应商/地址</th>
               <th className="c-format">上游协议</th>
               <th className="c-rate">TPS</th>
               <th className="c-ttft">TTFT</th>
               <th className="c-hit">缓存命中率</th>
-              <th className="c-tok">输入 token</th>
-              <th className="c-tok">输出 token</th>
+              <th className="c-tok">输入</th>
+              <th className="c-tok">输出</th>
               <th className="c-cost">费用</th>
             </tr>
           </thead>
@@ -187,11 +186,14 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                           {m.alias}
                           {probing[m.modelId] || m.probing ? <span className="pill" style={{ marginLeft: 6 }}>测速中</span> : null}
                         </b>
-                        <small>{m.providerName}</small>
+                        <small className="mono">{m.upstreamModel}</small>
                       </div>
                     </td>
-                    <td className="c-url mono" title={m.baseUrl}>
-                      {m.baseUrl}
+                    <td className="c-url" title={`${m.providerName} ${m.baseUrl}`}>
+                      <div className="cell-model">
+                        <span>{m.providerName}</span>
+                        <small className="mono ellipsis">{m.baseUrl}</small>
+                      </div>
                     </td>
                     <td className="c-format">{FORMAT_LABEL[m.format]}</td>
                     <td className="c-rate">
