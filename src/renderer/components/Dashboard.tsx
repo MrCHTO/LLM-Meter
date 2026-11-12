@@ -70,30 +70,38 @@ interface MenuState {
 function ChartPanel(props: {
   title: string
   buckets: number[]
-  unit: string
+  /** 当前速率（10 秒均值），与表格同口径 */
+  current: number
+  /** 速率单位，例如 tok/s */
+  rate: string
   digits: number
   extra?: string
 }): JSX.Element {
-  const { title, buckets, unit, digits, extra } = props
+  const { title, buckets, current, rate, digits, extra } = props
   const view = buckets.length ? buckets : [0]
-  const last = view[view.length - 1] ?? 0
-  const peak = Math.max(0, ...view)
-  const sum = view.reduce((a, b) => a + b, 0)
+  // 峰值也用 10 秒窗口均值取最大，和「当前」同口径，不会比它大 10 倍
+  let peak = 0
+  for (let i = 0; i < view.length; i++) {
+    const slice = view.slice(Math.max(0, i - 9), i + 1)
+    const avg = slice.reduce((a, b) => a + b, 0) / Math.min(10, slice.length)
+    if (avg > peak) peak = avg
+  }
   return (
     <div className="chart-card">
       <div className="chart-head">
         <span className="chart-title">{title}</span>
         {extra ? <span className="pill bad">{extra}</span> : null}
         <span className="chart-now mono">
-          {last.toFixed(digits)} <small>{unit}</small>
+          {current.toFixed(digits)} <small>{rate}</small>
         </span>
       </div>
       <div className="chart-body">
         <Sparkline buckets={view} tail={view.length} />
       </div>
       <div className="chart-foot mono">
-        <span>峰值 {peak.toFixed(digits)} {unit}</span>
-        <span>近 60 秒 {sum.toFixed(digits)} {unit}</span>
+        <span>
+          峰值 {peak.toFixed(digits)} {rate}
+        </span>
       </div>
     </div>
   )
@@ -134,6 +142,9 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
   )
 
   const models = snapshot?.models ?? []
+  // 请求速率取最近 10 秒均值，避免空闲时恒为 0
+  const tailReq = (snapshot?.totals.reqBuckets ?? []).slice(-10)
+  const reqPerSec = tailReq.reduce((a, b) => a + b, 0) / 10
 
   if (config.models.length === 0) {
     return (
@@ -157,11 +168,20 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
         <ChartPanel
           title="TPS 曲线图"
           buckets={snapshot?.totals.buckets ?? []}
-          unit="tok/s"
+          current={snapshot?.totals.tps ?? 0}
+          rate="tok/s"
           digits={1}
           extra={snapshot && snapshot.totals.errors > 0 ? `${snapshot.totals.errors} 错` : ''}
         />
-        <ChartPanel title="请求曲线图" buckets={snapshot?.totals.reqBuckets ?? []} unit="次" digits={0} />
+        <ChartPanel
+          title="请求曲线图"
+          buckets={snapshot?.totals.reqBuckets ?? []}
+          current={reqPerSec}
+          rate="次/s"
+          digits={1}
+          extra=""
+          // 请求是无量纲计数，合计取整即可
+        />
       </div>
 
       <div className="card">

@@ -218,7 +218,7 @@ try {
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
   check('曲线卡片带当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
-  check('曲线图下带峰值与合计', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")) && /近 60 秒/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
+  check('曲线图下带峰值', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
   check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
@@ -245,13 +245,18 @@ try {
   await s.shot('settings.png')
 
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")
-  await sleep(400)
+  for (let i = 0; i < 30; i++) {
+    if (await s.eval("!!document.querySelector('tbody tr.clickable')")) break
+    await sleep(300)
+  }
+  await s.eval("document.querySelector('tbody tr.clickable')?.scrollIntoView({ block: 'center' })")
+  await sleep(500)
 
   // 右键行 → 菜单 → 测速
   await s.eval(
     "(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); })()"
   )
-  await sleep(400)
+  await sleep(500)
   check('右键弹出菜单', (await s.eval("document.querySelectorAll('.ctxmenu button').length")) === 2)
   await s.shot('ctxmenu.png')
   await s.eval("document.querySelector('.ctxmenu button')?.click()")
