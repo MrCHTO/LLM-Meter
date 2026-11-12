@@ -214,11 +214,11 @@ try {
 
   check('主窗标题正确', (await s.eval('document.title')) === 'LLM Meter')
   check('表头三页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 3)
-  check('汇总条只有一条', (await s.eval("document.querySelectorAll('.strip').length")) === 1)
-  check('汇总条有 TPS 与请求', /TPS/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")) && /请求/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")))
-  check('汇总条不再有命中率与总费用', !/命中率|今日/.test(await s.eval("document.querySelector('.strip')?.innerText ?? ''")))
+  check('汇总条已移除', (await s.eval("document.querySelectorAll('.strip').length")) === 0)
+  check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
-  check('曲线图下带类型与数据', /当前/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")) && /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
+  check('曲线卡片带当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
+  check('曲线图下带峰值与合计', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")) && /近 60 秒/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
   check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
@@ -275,9 +275,12 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(2)').click()")
   await sleep(700)
   await s.eval("[...document.querySelectorAll('button')].find((b) => b.innerText === '添加模型').click()")
-  await sleep(500)
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("!!document.querySelector('.modal input[type=\"text\"]')")) break
+    await sleep(300)
+  }
   await s.eval(`(() => {
-    const input = document.querySelector('.modal input[placeholder^="deepseek"]')
+    const input = document.querySelector('.modal input[type="text"]')
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
     setter.call(input, 'DeepSeek-V4.1-Flash')
     input.dispatchEvent(new Event('input', { bubbles: true }))
