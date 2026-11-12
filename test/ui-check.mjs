@@ -75,6 +75,15 @@ writeFileSync(
         keyCipher: `raw:${Buffer.from(KEY).toString('base64')}`,
         enabled: true,
         createdAt: 1
+      },
+      {
+        id: 'p2',
+        name: 'Anthropic 中转',
+        baseUrl: 'https://api.anthropic.example',
+        format: 'anthropic',
+        keyCipher: `raw:${Buffer.from('sk-ant').toString('base64')}`,
+        enabled: true,
+        createdAt: 2
       }
     ],
     models: [
@@ -93,6 +102,22 @@ writeFileSync(
         dailyBudget: 5,
         sort: 0,
         createdAt: 1
+      },
+      {
+        id: 'm2',
+        providerId: 'p2',
+        upstreamModel: 'claude-sonnet-4-5',
+        alias: 'claude-x',
+        enabled: true,
+        watch: false,
+        priceIn: 3,
+        priceOut: 15,
+        priceCacheRead: 0.3,
+        priceCacheWrite: 3.75,
+        currency: 'USD',
+        dailyBudget: null,
+        sort: 1,
+        createdAt: 2
       }
     ],
     settings: {
