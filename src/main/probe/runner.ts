@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { ApiFormat, ModelCfg, ProbeResult, ProbeRun, Provider, RequestEvent } from '../../shared/types'
+import type { ProbeResult, RequestEvent } from '../../shared/types'
 import * as cfg from '../store/config'
 import * as live from '../store/live'
 import * as rollup from '../store/rollup'
@@ -11,135 +11,53 @@ import { joinUrl } from '../proxy/url'
 import { cost, EMPTY_USAGE, type Usage } from '../metrics/cost'
 
 const TIMEOUT_MS = 120_000
-/** 约 2600 token 的稳定前缀，超过两家的自动缓存门槛 */
-const FILLER = '缓存前缀用于测量命中。The quick brown fox jumps over the lazy dog. 温度、气压与湿度沿着海岸线缓慢变化，'
-const PREFIX_TOKENS = 300
+const FILLER = '温度、气压与湿度沿着海岸线缓慢变化，The quick brown fox jumps over the lazy dog。'
 
 const active = new Map<string, AbortController>()
 
-function buildPrefix(runId: string): string {
-  const parts: string[] = [`probe-run:${runId}`]
-  for (let i = 0; i < PREFIX_TOKENS; i++) parts.push(`${i} ${FILLER}`)
-  return parts.join(' ')
-}
-
-function bodyFor(format: ApiFormat, prefix: string): Record<string, unknown> {
-  const ask = '请用中文写一段约 200 字的说明，介绍你自己擅长什么。'
-  if (format === 'anthropic') {
-    return {
-      system: prefix,
-      messages: [{ role: 'user', content: ask }],
-      max_tokens: 400,
-      temperature: 0,
-      stream: true
-    }
-  }
+/** 只测速度：一次请求，看首字与生成速率，不比对缓存。 */
+function probeBody(): Record<string, unknown> {
   return {
     messages: [
-      { role: 'system', content: prefix },
-      { role: 'user', content: ask }
+      {
+        role: 'user',
+        content: `请用中文写一段约 400 字的说明，介绍沿海气候的特点。${FILLER}`
+      }
     ],
-    max_tokens: 400,
+    max_tokens: 320,
     temperature: 0,
     stream: true,
     stream_options: { include_usage: true }
   }
 }
 
-async function once(
-  model: ModelCfg,
-  provider: Provider,
-  prefix: string,
-  signal: AbortSignal
-): Promise<{ run: ProbeRun; usage: Usage }> {
-  const adapter = adapterFor(provider.format)
-  const key = openKey(provider.keyCipher)
-  const started = Date.now()
-  const usage: Usage = { ...EMPTY_USAGE }
-  const run: ProbeRun = {
-    status: 0,
-    ok: false,
-    ttftMs: null,
-    tps: null,
-    inputTokens: 0,
-    cacheReadTokens: 0,
-    outputTokens: 0
-  }
-
-  if (!key) {
-    run.error = '供应商没有可用 API Key'
-    return { run, usage }
-  }
-
-  const prepared = adapter.prepare(bodyFor(provider.format, prefix), model.upstreamModel)
-  const headers: Record<string, string> = {
-    ...adapter.baseHeaders(),
-    ...adapter.auth(key),
-    'accept-encoding': 'identity'
-  }
-
-  try {
-    const res = await fetch(
-      joinUrl(provider.baseUrl, `/v1/${provider.format === 'anthropic' ? 'messages' : 'chat/completions'}`),
-      {
-        method: 'POST',
-        headers,
-        body: prepared.body,
-        signal,
-        redirect: 'follow'
-      }
-    )
-    run.status = res.status
-    if (!res.ok) {
-      const text = await res.text()
-      run.error = adapter.errorOf(text) ?? text.slice(0, 200) ?? `HTTP ${res.status}`
-      return { run, usage }
-    }
-
-    const tap = new SseTap()
-    const reader = res.body?.getReader()
-    if (!reader) {
-      run.error = '没有响应体'
-      return { run, usage }
-    }
-    let chars = 0
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      for (const frame of tap.feed(Buffer.from(value))) {
-        const info = adapter.onFrame(frame)
-        chars += info.chars
-        if (info.firstContent && run.ttftMs === null) run.ttftMs = Date.now() - started
-        if (info.usage) Object.assign(usage, info.usage)
-        if (info.error) run.error = info.error
-      }
-    }
-
-    if (usage.output === 0 && chars > 0) usage.output = Math.max(1, Math.round(chars / 4))
-    const duration = Date.now() - started
-    run.ok = !run.error
-    run.inputTokens = usage.input
-    run.cacheReadTokens = usage.cacheRead
-    run.outputTokens = usage.output
-    run.tps =
-      run.ttftMs === null || usage.output <= 0
-        ? null
-        : usage.output / Math.max(0.001, (duration - run.ttftMs) / 1000)
-    return { run, usage }
-  } catch (err) {
-    run.error = signal.aborted ? '已停止' : err instanceof Error ? err.message : '请求失败'
-    return { run, usage }
-  }
+interface Run {
+  status: number
+  ok: boolean
+  ttftMs: number | null
+  tps: number | null
+  inputTokens: number
+  outputTokens: number
+  error?: string
 }
 
-function persist(model: ModelCfg, provider: Provider, run: ProbeRun, usage: Usage, started: number): void {
+function persist(
+  modelId: string,
+  alias: string,
+  providerId: string,
+  currency: string,
+  run: Run,
+  usage: Usage,
+  modelPrices: Parameters<typeof cost>[0],
+  started: number
+): void {
   const ev: RequestEvent = {
     id: randomUUID(),
     ts: Date.now(),
     source: 'probe',
-    modelId: model.id,
-    alias: model.alias,
-    providerId: provider.id,
+    modelId,
+    alias,
+    providerId,
     status: run.status,
     ok: run.ok,
     errorKind: run.ok ? null : run.status >= 500 ? 'upstream_5xx' : run.status ? 'upstream_4xx' : 'network',
@@ -150,8 +68,8 @@ function persist(model: ModelCfg, provider: Provider, run: ProbeRun, usage: Usag
     outputTokens: usage.output,
     cacheReadTokens: usage.cacheRead,
     cacheWriteTokens: usage.cacheWrite,
-    cost: run.ok ? cost(model, usage) : 0,
-    currency: model.currency,
+    cost: run.ok ? cost(modelPrices, usage) : 0,
+    currency,
     note: run.error
   }
   live.record(ev)
@@ -172,59 +90,105 @@ export function stop(modelId?: string): void {
 }
 
 export async function run(modelId: string): Promise<ProbeResult> {
-  const model = cfg.modelById(modelId)
   const blank: ProbeResult = {
     modelId,
-    alias: model?.alias ?? modelId,
+    alias: modelId,
     ok: false,
-    cold: { status: 0, ok: false, ttftMs: null, tps: null, inputTokens: 0, cacheReadTokens: 0, outputTokens: 0 },
-    warm: { status: 0, ok: false, ttftMs: null, tps: null, inputTokens: 0, cacheReadTokens: 0, outputTokens: 0 },
-    cacheEffective: false,
+    status: 0,
+    ttftMs: null,
+    tps: null,
+    inputTokens: 0,
+    outputTokens: 0,
     message: ''
   }
-  if (!model) return { ...blank, message: '模型不存在' }
-  if (cfg.get().settings.pauseProbe) return { ...blank, message: '探针已暂停，右键悬浮窗或到设置里恢复' }
-  if (active.has(modelId)) return { ...blank, message: '该模型正在测速' }
-  const provider = cfg.providerById(model.providerId)
-  if (!provider) return { ...blank, message: '供应商已删除' }
 
+  const model = cfg.modelById(modelId)
+  if (!model) return { ...blank, message: '模型不存在' }
+  const base: ProbeResult = { ...blank, alias: model.alias }
+  if (cfg.get().settings.pauseProbe) return { ...base, message: '测速已暂停，右键悬浮窗或到设置里恢复' }
+  if (active.has(modelId)) return { ...base, message: '该模型正在测速' }
+
+  const provider = cfg.providerById(model.providerId)
+  if (!provider) return { ...base, message: '供应商已删除' }
+  const key = openKey(provider.keyCipher)
+  if (!key) return { ...base, message: '供应商没有可用 API Key' }
+
+  const adapter = adapterFor(provider.format)
   const controller = new AbortController()
   active.set(modelId, controller)
   live.setProbing(modelId, true)
+
   const started = Date.now()
+  const usage: Usage = { ...EMPTY_USAGE }
+  const run: Run = { status: 0, ok: false, ttftMs: null, tps: null, inputTokens: 0, outputTokens: 0 }
 
   try {
-    const prefix = buildPrefix(randomUUID())
-    const cold = await once(model, provider, prefix, controller.signal)
-    persist(model, provider, cold.run, cold.usage, started)
+    const prepared = adapter.prepare(probeBody(), model.upstreamModel)
+    const res = await fetch(
+      joinUrl(provider.baseUrl, `/v1/${provider.format === 'anthropic' ? 'messages' : 'chat/completions'}`),
+      {
+        method: 'POST',
+        headers: { ...adapter.baseHeaders(), ...adapter.auth(key), 'accept-encoding': 'identity' },
+        body: prepared.body,
+        signal: controller.signal,
+        redirect: 'follow'
+      }
+    )
+    run.status = res.status
 
-    let warm: { run: ProbeRun; usage: Usage } = {
-      run: { ...cold.run },
-      usage: { ...cold.usage }
+    if (!res.ok) {
+      const text = await res.text()
+      run.error = adapter.errorOf(text) ?? text.slice(0, 200) ?? `HTTP ${res.status}`
+      persist(modelId, model.alias, provider.id, model.currency, run, usage, model, started)
+      return { ...base, status: run.status, error: run.error, message: run.error }
     }
-    if (cold.run.ok && !controller.signal.aborted) {
-      // 同一前缀再来一次；第二次的 cache_read 就是缓存是否生效的答案
-      warm = await once(model, provider, prefix, controller.signal)
-      persist(model, provider, warm.run, warm.usage, Date.now())
+
+    const tap = new SseTap()
+    const reader = res.body?.getReader()
+    if (!reader) throw new Error('上游没有返回响应体')
+
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      for (const frame of tap.feed(Buffer.from(value))) {
+        const info = adapter.onFrame(frame)
+        if (info.firstContent && run.ttftMs === null) run.ttftMs = Date.now() - started
+        if (info.usage) Object.assign(usage, info.usage)
+        if (info.error) run.error = info.error
+      }
     }
 
-    const offset = warm.usage.cacheRead - cold.usage.cacheRead
-    const cacheEffective = warm.usage.cacheRead > 0 && offset > 0
-    let message: string
-    if (!cold.run.ok) message = `冷请求失败：${cold.run.error ?? '未知'}`
-    else if (warm.run.cacheReadTokens === 0) message = '缓存未生效：二次请求的缓存读为 0'
-    else if (!cacheEffective) message = `二次请求读缓存 ${warm.run.cacheReadTokens}，但未超过首次`
-    else message = `缓存有效：第二次多读到 ${offset} 个缓存 token`
+    const duration = Date.now() - started
+    run.ok = !run.error
+    run.inputTokens = usage.input
+    run.outputTokens = usage.output
+    run.tps =
+      run.ttftMs === null || usage.output <= 0
+        ? null
+        : usage.output / Math.max(0.001, (duration - run.ttftMs) / 1000)
 
+    persist(modelId, model.alias, provider.id, model.currency, run, usage, model, started)
+
+    if (!run.ok) return { ...base, status: run.status, error: run.error, message: run.error ?? '失败' }
+
+    const message =
+      run.tps === null
+        ? `首字 ${run.ttftMs ?? '—'}ms，没有产生输出`
+        : `首字 ${Math.round(run.ttftMs ?? 0)}ms · ${run.tps.toFixed(1)} tok/s`
     return {
-      modelId,
-      alias: model.alias,
-      ok: cold.run.ok && warm.run.ok,
-      cold: cold.run,
-      warm: warm.run,
-      cacheEffective,
+      ...base,
+      ok: true,
+      status: run.status,
+      ttftMs: run.ttftMs,
+      tps: run.tps,
+      inputTokens: run.inputTokens,
+      outputTokens: run.outputTokens,
       message
     }
+  } catch (err) {
+    run.error = controller.signal.aborted ? '已停止' : err instanceof Error ? err.message : '请求失败'
+    persist(modelId, model.alias, provider.id, model.currency, run, usage, model, started)
+    return { ...base, status: run.status, error: run.error, message: run.error }
   } finally {
     active.delete(modelId)
     live.setProbing(modelId, false)

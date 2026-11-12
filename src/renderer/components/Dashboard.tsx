@@ -1,5 +1,6 @@
-import { Fragment, useState } from 'react'
-import type { ConfigView, LiveSnapshot, ModelLive, ProbeResult, RequestEvent } from '../../shared/types'
+import { Fragment, useCallback, useEffect, useState } from 'react'
+import type { ConfigView, LiveSnapshot, ModelLive, RequestEvent } from '../../shared/types'
+import { FORMAT_LABEL } from '../../shared/types'
 import { budgetClass, fmtClock, fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
 import { Sparkline } from './Sparkline'
 
@@ -13,11 +14,18 @@ interface Props {
 function Recent({ modelId }: { modelId: string }): JSX.Element {
   const [rows, setRows] = useState<RequestEvent[] | null>(null)
 
-  if (rows === null) {
-    void window.api.recent(modelId, 20).then((res) => setRows(res.ok && res.data ? res.data : []))
-  }
+  useEffect(() => {
+    let alive = true
+    void window.api.recent(modelId, 20).then((res) => {
+      if (alive) setRows(res.ok && res.data ? res.data : [])
+    })
+    return () => {
+      alive = false
+    }
+  }, [modelId])
 
-  if (!rows || rows.length === 0) return <div className="detail empty">还没有请求记录</div>
+  if (!rows) return <div className="detail">读取中…</div>
+  if (rows.length === 0) return <div className="detail">还没有请求记录</div>
 
   return (
     <div className="detail">
@@ -53,27 +61,45 @@ function Recent({ modelId }: { modelId: string }): JSX.Element {
   )
 }
 
+interface MenuState {
+  modelId: string
+  x: number
+  y: number
+}
+
 export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.Element {
   const [open, setOpen] = useState<string | null>(null)
   const [probing, setProbing] = useState<Record<string, boolean>>({})
-  const [results, setResults] = useState<Record<string, ProbeResult>>({})
+  const [menu, setMenu] = useState<MenuState | null>(null)
 
-  const runProbe = async (modelId: string): Promise<void> => {
-    setProbing((m) => ({ ...m, [modelId]: true }))
-    const res = await window.api.runProbe(modelId)
-    setProbing((m) => ({ ...m, [modelId]: false }))
-    if (res.ok && res.data) {
-      const data = res.data
-      setResults((m) => ({ ...m, [modelId]: data }))
-      notify(
-        `${data.alias}：${data.message}（冷 ${fmtMs(data.cold.ttftMs)} / 热 ${fmtMs(data.warm.ttftMs)}）`,
-        data.cacheEffective ? 'ok' : 'bad'
-      )
-    } else {
-      notify(res.error ?? '测速失败')
+  useEffect(() => {
+    if (!menu) return
+    const close = (): void => setMenu(null)
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenu(null)
     }
-    await onChanged()
-  }
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [menu])
+
+  const runProbe = useCallback(
+    async (modelId: string): Promise<void> => {
+      setProbing((m) => ({ ...m, [modelId]: true }))
+      setMenu(null)
+      const res = await window.api.runProbe(modelId)
+      setProbing((m) => ({ ...m, [modelId]: false }))
+      if (res.ok && res.data) notify(`${res.data.alias}：${res.data.message}`, res.data.ok ? 'ok' : 'bad')
+      else notify(res.error ?? '测速失败')
+      await onChanged()
+    },
+    [notify, onChanged]
+  )
 
   const models = snapshot?.models ?? []
 
@@ -127,47 +153,58 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
 
       <div className="card">
         <h2>按模型</h2>
-        <table>
+        <table className="tbl">
           <thead>
             <tr>
-              <th>模型</th>
-              <th>tok/s</th>
-              <th>TTFT</th>
-              <th>命中率</th>
-              <th>今日 入/出</th>
-              <th>今日成本</th>
-              <th>错误</th>
-              <th />
+              <th className="c-model">模型</th>
+              <th className="c-url">上游地址</th>
+              <th className="c-format">上游协议</th>
+              <th className="c-rate">token/s</th>
+              <th className="c-ttft">TTFT</th>
+              <th className="c-hit">缓存命中率</th>
+              <th className="c-tok">输入 token</th>
+              <th className="c-tok">输出 token</th>
+              <th className="c-cost">费用</th>
             </tr>
           </thead>
           <tbody>
             {models.map((m: ModelLive) => {
               const budget = budgetClass(m.budgetRatio)
-              const result = results[m.modelId]
+              const isOpen = open === m.modelId
               return (
                 <Fragment key={m.modelId}>
-                  <tr>
-                    <td>
+                  <tr
+                    className={isOpen ? 'clickable open' : 'clickable'}
+                    onClick={() => setOpen(isOpen ? null : m.modelId)}
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      setMenu({ modelId: m.modelId, x: event.clientX, y: event.clientY })
+                    }}
+                  >
+                    <td className="c-model">
                       <div className="cell-model">
-                        <b>{m.alias}</b>
-                        <small>
-                          {m.providerName} · {m.format === 'anthropic' ? 'Anthropic' : 'OpenAI'}
-                          {m.lastError ? ` · ${m.lastError}` : ''}
-                        </small>
+                        <b>
+                          {m.alias}
+                          {probing[m.modelId] || m.probing ? <span className="pill" style={{ marginLeft: 6 }}>测速中</span> : null}
+                        </b>
+                        <small>{m.providerName}</small>
                       </div>
                     </td>
-                    <td>
+                    <td className="c-url mono" title={m.baseUrl}>
+                      {m.baseUrl}
+                    </td>
+                    <td className="c-format">{FORMAT_LABEL[m.format]}</td>
+                    <td className="c-rate">
                       <div className="rate">
                         <span className="mono">{m.tps.toFixed(1)}</span>
                         <Sparkline buckets={m.buckets} tail={30} />
                       </div>
                     </td>
-                    <td className="mono">{fmtMs(m.lastTtftMs)}</td>
-                    <td className="mono">{fmtPct(m.hitRate)}</td>
-                    <td className="mono">
-                      {fmtTokens(m.today.input)} / {fmtTokens(m.today.output)}
-                    </td>
-                    <td className="mono">
+                    <td className="c-ttft mono">{fmtMs(m.lastTtftMs)}</td>
+                    <td className="c-hit mono">{fmtPct(m.hitRate)}</td>
+                    <td className="c-tok mono">{fmtTokens(m.today.input)}</td>
+                    <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
+                    <td className="c-cost mono">
                       {fmtMoney(m.today.cost, m.currency)}
                       {m.dailyBudget ? (
                         <div className={`meter ${budget}`}>
@@ -175,35 +212,10 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                         </div>
                       ) : null}
                     </td>
-                    <td>{m.today.errors > 0 ? <span className="pill bad">{m.today.errors}</span> : '—'}</td>
-                    <td>
-                      <button className="btn sm" onClick={() => setOpen(open === m.modelId ? null : m.modelId)}>
-                        {open === m.modelId ? '收起' : '明细'}
-                      </button>{' '}
-                      <button
-                        className="btn sm"
-                        disabled={probing[m.modelId] || m.probing || m.paused}
-                        title={m.paused ? '探针已暂停' : undefined}
-                        onClick={() => void runProbe(m.modelId)}
-                      >
-                        {probing[m.modelId] || m.probing ? '测速中' : '测速'}
-                      </button>
-                    </td>
                   </tr>
-                  {result ? (
-                    <tr>
-                      <td colSpan={8}>
-                        <div className={`detail ${result.cacheEffective ? '' : 'err-line'}`}>
-                          {result.message} · 冷：{fmtMs(result.cold.ttftMs)} {result.cold.tps?.toFixed(1) ?? '—'} tok/s 缓存{' '}
-                          {result.cold.cacheReadTokens} · 热：{fmtMs(result.warm.ttftMs)} {result.warm.tps?.toFixed(1) ?? '—'} tok/s 缓存{' '}
-                          {result.warm.cacheReadTokens}
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                  {open === m.modelId ? (
-                    <tr>
-                      <td colSpan={8} style={{ padding: 0 }}>
+                  {isOpen ? (
+                    <tr className="detail-row">
+                      <td colSpan={9} style={{ padding: 0 }}>
                         <Recent modelId={m.modelId} />
                       </td>
                     </tr>
@@ -213,7 +225,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
             })}
             {models.length === 0 ? (
               <tr>
-                <td colSpan={8} className="empty">
+                <td colSpan={9} className="empty">
                   还没有启用的模型
                 </td>
               </tr>
@@ -221,6 +233,19 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
           </tbody>
         </table>
       </div>
+
+      {menu ? (
+        <div
+          className="ctxmenu"
+          style={{ left: Math.min(menu.x, window.innerWidth - 130), top: Math.min(menu.y, window.innerHeight - 80) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button onClick={() => void runProbe(menu.modelId)}>测速</button>
+          <button onClick={() => setOpen(open === menu.modelId ? null : menu.modelId)}>
+            {open === menu.modelId ? '收起明细' : '展开明细'}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

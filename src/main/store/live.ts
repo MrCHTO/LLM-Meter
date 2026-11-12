@@ -172,6 +172,7 @@ export function snapshot(proxyRunning: boolean, proxyError: string | null, baseU
       modelId: m.id,
       alias: m.alias,
       providerName: provider?.name ?? '（供应商已删）',
+      baseUrl: provider?.baseUrl ?? '',
       format: provider?.format ?? 'openai',
       currency: m.currency,
       dailyBudget: m.dailyBudget,

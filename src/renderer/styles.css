@@ -606,3 +606,86 @@ body.overlay-body {
   color: var(--dim);
   font-size: 11px;
 }
+
+/* ---------- 按模型表 ---------- */
+.tbl {
+  table-layout: fixed;
+}
+
+.tbl .c-model {
+  width: 17%;
+}
+
+.tbl .c-url {
+  width: 22%;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tbl .c-format {
+  width: 11%;
+}
+
+.tbl th.c-url,
+.tbl th.c-format {
+  text-align: left;
+}
+
+.tbl .c-rate {
+  width: 10%;
+}
+
+.tbl .c-ttft {
+  width: 8%;
+}
+
+.tbl .c-hit {
+  width: 9%;
+}
+
+.tbl .c-tok {
+  width: 8%;
+}
+
+.tbl .c-cost {
+  width: 9%;
+}
+
+tr.clickable {
+  cursor: pointer;
+}
+
+tr.open > td {
+  background: #f4f8fd;
+}
+
+.detail-row > td {
+  background: #fbfcfe;
+}
+
+.ctxmenu {
+  position: fixed;
+  z-index: 60;
+  min-width: 124px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 16%);
+}
+
+.ctxmenu button {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+
+.ctxmenu button:hover {
+  background: var(--panel-2);
+}

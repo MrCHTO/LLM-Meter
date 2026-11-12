@@ -190,10 +190,14 @@ try {
   check('主窗标题正确', (await s.eval('document.title')) === 'LLM Meter')
   check('表头三页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 3)
   check('看板有 KPI 卡', (await s.eval("document.querySelectorAll('.kpi .tile').length")) === 4)
-  check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
+  check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)
+  check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
+  check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
+  check('上游地址与协议列有值', (await s.eval("document.querySelector('td.c-url')?.innerText ?? ''")).includes('10.130.6.32'))
   check('迷你曲线有柱子', (await s.eval("document.querySelectorAll('.bar i').length")) > 0)
-  check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('tbody tr td:nth-child(4)')?.innerText ?? ''")))
+  check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('td.c-hit')?.innerText ?? ''")))
   check('预算条出现', (await s.eval("document.querySelectorAll('.meter').length")) > 0)
+  check('行内没有按钮', (await s.eval("document.querySelectorAll('tbody tr.clickable button').length")) === 0)
   check('代理状态点在跑', (await s.eval("document.querySelector('.dot')?.className")) === 'dot on')
   const sandboxOk = await s.eval("typeof window.api === 'object' && typeof window.api.config === 'function'")
   check('contextIsolation 下 preload 正常暴露', sandboxOk === true)
@@ -213,21 +217,28 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")
   await sleep(400)
 
-  // 真的点「测速」按钮，等结果行出现
-  await s.eval("document.querySelector('tbody tr td:last-child button:nth-child(2)')?.click()")
-  let bodyText = ''
-  for (let i = 0; i < 45; i++) {
-    await sleep(1500)
-    bodyText = await s.eval('document.body.innerText')
-    if (bodyText.includes('冷：')) break
+  // 右键行 → 菜单 → 测速
+  await s.eval(
+    "(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); })()"
+  )
+  await sleep(400)
+  check('右键弹出菜单', (await s.eval("document.querySelectorAll('.ctxmenu button').length")) === 2)
+  await s.shot('ctxmenu.png')
+  await s.eval("document.querySelector('.ctxmenu button')?.click()")
+
+  let toast = ''
+  for (let i = 0; i < 60; i++) {
+    await sleep(1000)
+    toast = await s.eval("document.querySelector('.toast')?.innerText ?? ''")
+    if (toast) break
   }
-  check('测速结果行渲染出来', bodyText.includes('冷：'))
-  check('测速结果带缓存结论', /缓存(有效|未生效)/.test(bodyText))
+  check('测速给出首字与速率', /首字/.test(toast) && /tok\/s/.test(toast), toast || '(没有 toast)')
+  check('测速不再报缓存结论', !/缓存/.test(toast), toast)
   await s.shot('probe.png')
 
-  await s.eval("document.querySelector('tbody tr td:last-child button:nth-child(1)')?.click()")
+  await s.eval("document.querySelector('tbody tr.clickable').click()")
   await sleep(900)
-  check('明细可展开且有行', (await s.eval("document.querySelectorAll('.detail table tbody tr').length")) > 0)
+  check('点行展开明细', (await s.eval("document.querySelectorAll('.detail table tbody tr').length")) > 0)
   await s.shot('detail.png')
 
   s.close()

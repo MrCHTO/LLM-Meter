@@ -131,6 +131,8 @@ export interface ModelLive {
   modelId: string
   alias: string
   providerName: string
+  /** 上游根地址，界面直接展示 */
+  baseUrl: string
   format: ApiFormat
   currency: string
   dailyBudget: number | null
@@ -177,25 +179,16 @@ export interface DayPoint {
   cost: number
 }
 
-export interface ProbeRun {
-  status: number
-  ok: boolean
-  ttftMs: number | null
-  tps: number | null
-  inputTokens: number
-  cacheReadTokens: number
-  outputTokens: number
-  error?: string
-}
-
 export interface ProbeResult {
   modelId: string
   alias: string
   ok: boolean
-  cold: ProbeRun
-  warm: ProbeRun
-  /** 第二次请求确实读到了缓存 */
-  cacheEffective: boolean
+  status: number
+  ttftMs: number | null
+  tps: number | null
+  inputTokens: number
+  outputTokens: number
+  error?: string
   message: string
 }
 
