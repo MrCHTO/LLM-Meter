@@ -20,6 +20,7 @@ const api = {
 
   updateSettings: (patch: unknown) => ipcRenderer.invoke(CH.settingsUpdate, patch),
   rotateToken: () => ipcRenderer.invoke(CH.tokenRotate),
+  refreshRate: () => ipcRenderer.invoke(CH.rateRefresh),
   restartProxy: () => ipcRenderer.invoke(CH.proxyRestart),
 
   history: (days: number, modelId: string | null) => ipcRenderer.invoke(CH.history, days, modelId),

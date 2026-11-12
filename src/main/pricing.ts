@@ -117,6 +117,6 @@ export async function lookup(modelId: string): Promise<PriceLookup> {
     priceOut: round(hit.priceOut),
     priceCacheRead: round(hit.priceCacheRead),
     priceCacheWrite: round(hit.priceCacheWrite),
-    note: exact ? `已按 ${hit.id} 填写，可自行改` : `近似匹配 ${hit.id}，请核对价格`
+    note: exact ? `已按 ${hit.id} 填写` : `近似匹配 ${hit.id}，请核对价格`
   }
 }

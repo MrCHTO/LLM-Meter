@@ -58,7 +58,7 @@ function seed() {
             priceOut: 2,
             priceCacheRead: 0.1,
             priceCacheWrite: 1.25,
-            currency: 'USD',
+            currency: 'CNY',
             dailyBudget: 5,
             sort: 0,
             createdAt: 1
@@ -74,7 +74,7 @@ function seed() {
             priceOut: 15,
             priceCacheRead: 0.3,
             priceCacheWrite: 3.75,
-            currency: 'USD',
+            currency: 'CNY',
             dailyBudget: null,
             sort: 1,
             createdAt: 2

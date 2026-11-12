@@ -54,10 +54,11 @@ describe('展示格式', () => {
     expect(fmtTokens(2_500_000)).toBe('2.5M')
   })
 
-  it('小额用四位小数', () => {
-    expect(fmtMoney(0.0043)).toBe('$0.0043')
-    expect(fmtMoney(1.5)).toBe('$1.50')
-    expect(fmtMoney(0)).toBe('$0')
+  it('金额固定两位小数', () => {
+    expect(fmtMoney(0.0043, 'USD')).toBe('$0.00')
+    expect(fmtMoney(1.5, 'USD')).toBe('$1.50')
+    expect(fmtMoney(0, 'USD')).toBe('$0.00')
+    expect(fmtMoney(0.0043)).toBe('¥0.00')
   })
 
   it('按货币换符号', () => {

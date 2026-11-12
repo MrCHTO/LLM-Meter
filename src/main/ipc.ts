@@ -22,6 +22,7 @@ import * as probe from './probe/runner'
 import * as proxy from './proxy/server'
 import { joinUrl } from './proxy/url'
 import { lookup as lookupPrice } from './pricing'
+import * as rate from './rate'
 import * as overlayWin from './windows/overlay'
 import { showMain } from './windows/registry'
 
@@ -55,6 +56,8 @@ function view(): ConfigView {
     models: cfg.listModels(),
     settings: {
       port: c.settings.port,
+      usdCny: c.settings.usdCny,
+      usdCnyDate: c.settings.usdCnyDate,
       retentionDays: c.settings.retentionDays,
       rollupRetentionDays: c.settings.rollupRetentionDays,
       overlay: c.settings.overlay,
@@ -239,7 +242,26 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(CH.priceLookup, wrap((modelId: string) => lookupPrice(modelId)))
+  ipcMain.handle(
+    CH.priceLookup,
+    wrap(async (modelId: string) => {
+      const out = await lookupPrice(modelId)
+      if (!out.found) return out
+      // OpenRouter 报的是美元，按当天汇率折成人民币再给界面
+      const today = await rate.current()
+      const conv = (v?: number): number | undefined =>
+        v === undefined ? undefined : Math.round(v * today.rate * 1e6) / 1e6
+      return {
+        ...out,
+        priceIn: conv(out.priceIn),
+        priceOut: conv(out.priceOut),
+        priceCacheRead: conv(out.priceCacheRead),
+        priceCacheWrite: conv(out.priceCacheWrite),
+        note: `${out.note}（按 ${today.date} 汇率 ¥${today.rate}/$ 折算）`
+      }
+    })
+  )
+  ipcMain.handle(CH.rateRefresh, wrap(() => rate.refresh()))
   ipcMain.handle(CH.probeRun, wrap((id: string): Promise<ProbeResult> => probe.run(id)))
   ipcMain.handle(CH.probeStop, wrap((id?: string) => probe.stop(id)))
 
@@ -248,6 +270,7 @@ export function register(): void {
     wrap(
       async (patch: {
         port?: number
+        usdCny?: number
         retentionDays?: number
         rollupRetentionDays?: number
         overlayOpacity?: number
@@ -259,6 +282,7 @@ export function register(): void {
         const portChanged = patch.port !== undefined && patch.port !== cfg.get().settings.port
         cfg.mutate((c) => {
           if (patch.port !== undefined) c.settings.port = Math.min(65535, Math.max(1024, Math.round(patch.port)))
+          if (patch.usdCny !== undefined) c.settings.usdCny = Math.min(20, Math.max(1, patch.usdCny))
           if (patch.retentionDays !== undefined) c.settings.retentionDays = Math.max(1, Math.round(patch.retentionDays))
           if (patch.rollupRetentionDays !== undefined) {
             c.settings.rollupRetentionDays = Math.max(1, Math.round(patch.rollupRetentionDays))

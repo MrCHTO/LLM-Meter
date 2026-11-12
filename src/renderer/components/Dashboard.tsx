@@ -121,33 +121,27 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
 
   return (
     <div className="section">
-      <div className="kpi">
-        <div className="tile">
-          <div className="label">合计 TPS</div>
-          <div className="value mono">{snapshot ? snapshot.totals.tps.toFixed(1) : '0.0'}</div>
-        </div>
-        <div className="tile">
-          <div className="label">平均命中率</div>
-          <div className="value mono">{fmtPct(snapshot?.totals.hitRate ?? null)}</div>
-        </div>
-        <div className="tile">
-          <div className="label">今日成本</div>
-          <div className="value mono">
-            {fmtMoney(snapshot?.totals.todayCost ?? 0, snapshot?.totals.currency ?? 'USD')}
-            {snapshot?.totals.budgetSum ? (
-              <span className="hint"> / {fmtMoney(snapshot.totals.budgetSum, snapshot.totals.currency)}</span>
-            ) : null}
+      <div className="strip">
+        {snapshot ? (
+          <div className="strip-bg">
+            <Sparkline buckets={snapshot.totals.buckets} tail={snapshot.totals.buckets.length} />
           </div>
+        ) : null}
+        <div className="strip-main">
+          <span className="strip-label">TPS</span>
+          <span className="strip-value mono">{snapshot ? snapshot.totals.tps.toFixed(1) : '0.0'}</span>
+          <span className="strip-label">命中率</span>
+          <span className="strip-value mono">{fmtPct(snapshot?.totals.hitRate ?? null)}</span>
         </div>
-        <div className="tile">
-          <div className="label">今日请求 / 错误</div>
-          <div className="value mono">
-            {snapshot?.totals.requests ?? 0}
-            <span className={snapshot && snapshot.totals.errors > 0 ? 'pill bad' : 'pill'}>
-              {' '}
-              {snapshot?.totals.errors ?? 0} 错
-            </span>
-          </div>
+        <div className="strip-side mono">
+          <span>
+            今日 {fmtMoney(snapshot?.totals.todayCost ?? 0, snapshot?.totals.currency ?? 'CNY')}
+            {snapshot?.totals.budgetSum ? ` / ${fmtMoney(snapshot.totals.budgetSum, snapshot.totals.currency)}` : ''}
+          </span>
+          <span>
+            {snapshot?.totals.requests ?? 0} 请求
+            {snapshot && snapshot.totals.errors > 0 ? <i className="pill bad">{snapshot.totals.errors} 错</i> : null}
+          </span>
         </div>
       </div>
 

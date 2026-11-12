@@ -43,11 +43,8 @@ export function fmtTokens(n: number): string {
   return String(Math.round(n))
 }
 
-export function fmtMoney(value: number, currency = 'USD'): string {
+export function fmtMoney(value: number, currency = 'CNY'): string {
   const symbol = currency === 'CNY' ? '¥' : currency === 'EUR' ? '€' : '$'
-  if (value === 0) return `${symbol}0`
-  if (value < 0.01) return `${symbol}${value.toFixed(4)}`
-  if (value < 1) return `${symbol}${value.toFixed(3)}`
   return `${symbol}${value.toFixed(2)}`
 }
 

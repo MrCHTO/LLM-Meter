@@ -47,9 +47,9 @@ npm test             # 单元测试
 | 缓存命中率 | 缓存读 token ÷ 输入 token 总量（输入已含缓存部分） |
 | tok/s | 输出 token ÷ 生成窗口秒数，生成窗口 = 总耗时 − 首字耗时 |
 | TTFT | 首个内容帧（含推理通道）− 请求发出 |
-| 成本 | (输入×单价 + 输出×单价 + 缓存读×单价 + 缓存写×单价) ÷ 1e6 |
+| 成本 | (输入×单价 + 输出×单价 + 缓存读×单价 + 缓存写×单价) ÷ 1e6，一律人民币 |
 
-单价按每百万 token 填。新增模型时点「查价」会按模型 id 去 OpenRouter 取公开价并回填，查不到或超时留着手填（可随时改）。非流式请求没有首字时间，tok/s 记空，界面标「仅总时长」。失败的请求计错误数、token 记 0，仍会落一条明细。
+单价按每百万 token、以人民币填。新增模型时点「查价」会按模型 id 去 OpenRouter 取公开价，按设置里的汇率折成人民币回填，查不到或超时留着手填。非流式请求没有首字时间，tok/s 记空，界面标「仅总时长」。失败的请求计错误数、token 记 0，仍会落一条明细。
 
 不同上游的缓存字段会被归一：OpenAI 的 `prompt_tokens_details.cached_tokens`、DeepSeek 的 `prompt_cache_hit_tokens`、Anthropic 的 `cache_read_input_tokens`。Anthropic 的 `input_tokens` 本身不含缓存，记录时会补成总量，保证命中率口径一致。
 

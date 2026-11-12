@@ -14,6 +14,7 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
   const [port, setPort] = useState(String(config.settings.port))
   const [opacity, setOpacity] = useState(config.settings.overlayOpacity)
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
+  const [rate, setRate] = useState(String(config.settings.usdCny))
   const tokenRef = useRef<HTMLInputElement>(null)
 
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
@@ -128,6 +129,47 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
                 }}
               >
                 应用
+              </button>
+            </div>
+          </label>
+          <label className="field">
+            <span>美元换人民币汇率{config.settings.usdCnyDate ? ` · ${config.settings.usdCnyDate} 自动` : ' · 未取到'}</span>
+            <div className="row">
+              <input
+                className="mono"
+                type="number"
+                step="0.01"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+              />
+              <button
+                className="btn"
+                onClick={async () => {
+                  const value = Number(rate)
+                  if (!value || value < 1 || value > 20) {
+                    notify('汇率需要在 1-20 之间')
+                    return
+                  }
+                  await patch({ usdCny: value })
+                  notify(`汇率已设为 ¥${value}/$`, 'ok')
+                }}
+              >
+                应用
+              </button>
+              <button
+                className="btn"
+                onClick={async () => {
+                  const res = await window.api.refreshRate()
+                  if (!res.ok || !res.data) {
+                    notify(res.error ?? '取汇率失败，沿用旧值')
+                  } else {
+                    setRate(String(res.data.rate))
+                    notify(`已更新为 ¥${res.data.rate}/$（${res.data.date}）`, 'ok')
+                  }
+                  await onChanged()
+                }}
+              >
+                取当天
               </button>
             </div>
           </label>

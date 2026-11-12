@@ -11,12 +11,8 @@ export function symbolOf(currency: string): string {
   return '$'
 }
 
-export function fmtMoney(value: number, currency = 'USD'): string {
-  const s = symbolOf(currency)
-  if (!value) return `${s}0`
-  if (value < 0.01) return `${s}${value.toFixed(4)}`
-  if (value < 1) return `${s}${value.toFixed(3)}`
-  return `${s}${value.toFixed(2)}`
+export function fmtMoney(value: number, currency = 'CNY'): string {
+  return `${symbolOf(currency)}${value.toFixed(2)}`
 }
 
 export function fmtMs(ms: number | null): string {

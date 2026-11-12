@@ -9,8 +9,6 @@ interface Props {
   onChanged: () => Promise<void>
 }
 
-const CURRENCIES = ['USD', 'CNY', 'EUR', 'JPY']
-
 interface ProviderDraft {
   id?: string
   name: string
@@ -44,7 +42,7 @@ function emptyModel(providerId: string): ModelDraft {
     priceOut: '0',
     priceCacheRead: '0',
     priceCacheWrite: '0',
-    currency: 'USD',
+    currency: 'CNY',
     dailyBudget: '',
     watch: true
   }
@@ -78,7 +76,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
             priceOut: String(data.priceOut ?? 0),
             priceCacheRead: String(data.priceCacheRead ?? 0),
             priceCacheWrite: String(data.priceCacheWrite ?? 0),
-            currency: 'USD'
+            currency: 'CNY'
           }
         : m
     )
@@ -453,7 +451,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
               </label>
               <div className="grid-2">
                 <label className="field">
-                  <span>输入单价 / 百万 token</span>
+                  <span>输入单价 / 百万 token / ¥</span>
                   <input
                     type="number"
                     step="0.01"
@@ -462,7 +460,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   />
                 </label>
                 <label className="field">
-                  <span>输出单价 / 百万 token</span>
+                  <span>输出单价 / 百万 token / ¥</span>
                   <input
                     type="number"
                     step="0.01"
@@ -471,7 +469,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   />
                 </label>
                 <label className="field">
-                  <span>缓存读单价 / 百万 token</span>
+                  <span>缓存读取单价 / 百万 token / ¥</span>
                   <input
                     type="number"
                     step="0.01"
@@ -480,7 +478,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   />
                 </label>
                 <label className="field">
-                  <span>缓存写单价 / 百万 token</span>
+                  <span>缓存写入单价 / 百万 token / ¥</span>
                   <input
                     type="number"
                     step="0.01"
@@ -489,17 +487,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   />
                 </label>
                 <label className="field">
-                  <span>货币</span>
-                  <select value={model.currency} onChange={(e) => setModel({ ...model, currency: e.target.value })}>
-                    {CURRENCIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>日预算（留空不限）</span>
+                  <span>日预算 / ¥（留空不限）</span>
                   <input
                     type="number"
                     step="0.1"

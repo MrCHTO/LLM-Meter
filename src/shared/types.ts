@@ -57,6 +57,10 @@ export interface OverlayState {
 
 export interface Settings {
   port: number
+  /** USD → CNY 汇率，价格与成本一律按人民币显示 */
+  usdCny: number
+  /** 汇率对应的日期，YYYY-MM-DD；取到当天值后不再重复请求 */
+  usdCnyDate: string
   /** 本地入口 token，32 位 hex */
   localToken: string
   /** 明细保留天数 */
@@ -162,6 +166,8 @@ export interface SnapshotTotals {
   budgetRatio: number | null
   budgetSum: number
   currency: string
+  /** 各模型桶按秒相加，给汇总曲线用 */
+  buckets: number[]
 }
 
 export interface LiveSnapshot {
@@ -261,6 +267,7 @@ export const CH = {
   modelUpdate: 'model:update',
   modelDelete: 'model:delete',
   priceLookup: 'model:price',
+  rateRefresh: 'rate:refresh',
   probeRun: 'probe:run',
   probeStop: 'probe:stop',
   settingsUpdate: 'settings:update',

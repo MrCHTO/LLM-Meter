@@ -51,6 +51,7 @@ declare global {
 
       updateSettings: (patch: {
         port?: number
+        usdCny?: number
         retentionDays?: number
         rollupRetentionDays?: number
         overlayOpacity?: number
@@ -60,6 +61,7 @@ declare global {
         overlayVisible?: boolean
       }) => Promise<IpcResult<boolean>>
       rotateToken: () => Promise<IpcResult<string>>
+      refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>
       restartProxy: () => Promise<IpcResult<unknown>>
 
       history: (days: number, modelId: string | null) => Promise<IpcResult<DayPoint[]>>

@@ -158,7 +158,8 @@ export function snapshot(proxyRunning: boolean, proxyError: string | null, baseU
     errors: 0,
     budgetRatio: null,
     budgetSum: 0,
-    currency: 'USD'
+    currency: 'CNY',
+    buckets: new Array<number>(BUCKETS).fill(0)
   }
 
   for (const m of cfg.listModels()) {
@@ -190,6 +191,9 @@ export function snapshot(proxyRunning: boolean, proxyError: string | null, baseU
       paused: settings.pauseProbe
     })
     totals.tps += tps
+    for (let i = 0; i < BUCKETS; i++) {
+      totals.buckets[i] = (totals.buckets[i] ?? 0) + (s.buckets[i] ?? 0)
+    }
     totals.todayCost += s.today.cost
     totals.requests += s.today.requests
     totals.errors += s.today.errors

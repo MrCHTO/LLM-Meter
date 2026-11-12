@@ -618,24 +618,20 @@ body.overlay-body {
 }
 
 .tbl .c-model {
-  width: 15%;
-  overflow: hidden;
+  width: 19%;
+  white-space: normal;
 }
 
 .tbl .c-url {
-  width: 19%;
+  width: 21%;
   text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .tbl .c-format {
-  width: 13%;
+  width: 12%;
   text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .tbl th.c-url,
@@ -732,7 +728,95 @@ tr.open > td {
 .cell-model > b,
 .cell-model > small,
 .cell-model > span {
+  overflow-wrap: anywhere;
+}
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 18px;
+  overflow: visible;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.spark-fill {
+  fill: rgb(31 111 235 / 12%);
+}
+
+.spark-empty .spark-line {
+  stroke: #c7d3e2;
+}
+
+.spark-empty .spark-fill {
+  fill: rgb(31 111 235 / 5%);
+}
+
+.strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+  height: 84px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.strip-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.strip-bg .spark {
+  height: 100%;
+  overflow: hidden;
+}
+
+.strip-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  position: relative;
+}
+
+.strip-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.strip-value {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin-right: 14px;
+}
+
+.strip-side {
+  margin-left: auto;
+  background: rgb(255 255 255 / 88%);
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  position: relative;
+}
+
+.strip-side .pill {
+  margin-left: 6px;
 }

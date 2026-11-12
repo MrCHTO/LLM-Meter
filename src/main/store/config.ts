@@ -5,6 +5,8 @@ import type { ConfigFile, ModelCfg, Provider, Settings } from '../../shared/type
 
 const DEFAULT_SETTINGS: Settings = {
   port: 8787,
+  usdCny: 7.2,
+  usdCnyDate: '',
   localToken: '',
   retentionDays: 30,
   rollupRetentionDays: 365,
@@ -102,6 +104,8 @@ function normalize(raw: unknown): ConfigFile {
   const ov = (os.overlay ?? {}) as Record<string, unknown>
   const settings: Settings = {
     port: clamp(Math.round(num(os.port, DEFAULT_SETTINGS.port)), 1024, 65535),
+    usdCny: clamp(num(os.usdCny, DEFAULT_SETTINGS.usdCny), 1, 20),
+    usdCnyDate: /^\d{4}-\d{2}-\d{2}$/.test(str(os.usdCnyDate)) ? str(os.usdCnyDate) : '',
     localToken: /^[0-9a-f]{32}$/.test(str(os.localToken)) ? str(os.localToken) : newToken(),
     retentionDays: clamp(Math.round(num(os.retentionDays, DEFAULT_SETTINGS.retentionDays)), 1, 3650),
     rollupRetentionDays: clamp(
@@ -118,6 +122,18 @@ function normalize(raw: unknown): ConfigFile {
     overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 30, 100),
     pauseProbe: os.pauseProbe === true,
     startMinimized: os.startMinimized === true
+  }
+
+  // 历史配置里的外币单价一次性折成人民币，之后不再重复折算
+  for (const m of models) {
+    if (m.currency === 'CNY') continue
+    const rate = m.currency === 'USD' ? settings.usdCny : 1
+    m.priceIn *= rate
+    m.priceOut *= rate
+    m.priceCacheRead *= rate
+    m.priceCacheWrite *= rate
+    if (m.dailyBudget) m.dailyBudget *= rate
+    m.currency = 'CNY'
   }
 
   return { version: 1, providers, models, settings }
