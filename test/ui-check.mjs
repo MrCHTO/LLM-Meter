@@ -3,11 +3,14 @@
  * 用法：node test/ui-check.mjs
  */
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
-const DATA = join(process.env.APPDATA ?? '', 'llm-meter', 'data')
+/** 临时档案目录：不覆盖用户真实配置，也不与其运行中的实例抢单例锁 */
+const PROFILE = mkdtempSync(join(tmpdir(), 'llmmeter-ui-'))
+const DATA = join(PROFILE, 'data')
 const SHOTS = join(ROOT, 'test', 'shots')
 const TOKEN = 'cafebabecafebabecafebabecafebabe'
 const KEY = process.env.KEY ?? 'sk-YxfyzJCnbzjFzvFCF3Fd6eE84e414dA1AcEa60B3161fE535'
@@ -108,7 +111,9 @@ writeFileSync(
 
 const electron = spawn(
   process.env.APP_EXE ?? join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'),
-  process.env.APP_EXE ? ['--remote-debugging-port=9333'] : ['.', '--remote-debugging-port=9333'],
+  process.env.APP_EXE
+    ? [`--remote-debugging-port=9333`, `--user-data-dir=${PROFILE}`]
+    : ['.', '--remote-debugging-port=9333', `--user-data-dir=${PROFILE}`],
   { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] }
 )
 const log = []
@@ -248,6 +253,8 @@ try {
 } finally {
   electron.kill()
   await sleep(500)
+  if (process.env.KEEP_PROFILE) console.log('profile:', PROFILE)
+  else rmSync(PROFILE, { recursive: true, force: true })
 }
 
 const failed = results.filter((x) => !x).length

@@ -3,12 +3,14 @@
  * 用法：node test/e2e.mjs
  */
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ROOT = process.cwd()
-const APP_DATA = join(process.env.APPDATA ?? '', 'llm-meter')
-const DATA = join(APP_DATA, 'data')
+/** 临时档案目录：不覆盖用户真实配置 */
+const PROFILE = mkdtempSync(join(tmpdir(), 'llmmeter-e2e-'))
+const DATA = join(PROFILE, 'data')
 const TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef'
 const PROXY = 'http://127.0.0.1:8787'
 const UPSTREAM = 'http://127.0.0.1:18999'
@@ -136,7 +138,7 @@ const day = seed()
 const upstream = spawn(process.execPath, [join(ROOT, 'test', 'fake-upstream.mjs'), '18999'], { stdio: 'inherit' })
 await sleep(600)
 
-const electron = spawn(join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'), ['.'], {
+const electron = spawn(join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'), ['.', `--user-data-dir=${PROFILE}`], {
   cwd: ROOT,
   env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' },
   stdio: ['ignore', 'pipe', 'pipe']
@@ -239,6 +241,8 @@ try {
   electron.kill()
   upstream.kill()
   await sleep(500)
+  if (process.env.KEEP_PROFILE) console.log('profile:', PROFILE)
+  else rmSync(PROFILE, { recursive: true, force: true })
 }
 
 const failed = results.filter((r) => !r.pass)
