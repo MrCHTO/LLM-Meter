@@ -7,7 +7,13 @@ import type {
   ModelCfg,
   ProbeResult,
   ProviderTestResult,
-  RequestEvent
+  RequestEvent,
+  StatsExportResult,
+  StatsGroup,
+  StatsQuery,
+  StatsRow,
+  StatsSeries,
+  StatsSeriesQuery
 } from '../shared/types'
 
 declare global {
@@ -70,6 +76,13 @@ declare global {
       restartProxy: () => Promise<IpcResult<unknown>>
 
       history: (days: number, modelId: string | null) => Promise<IpcResult<DayPoint[]>>
+      statsSeries: (q: StatsSeriesQuery) => Promise<IpcResult<StatsSeries>>
+      statsTotals: (q: StatsQuery & { groupBy: StatsGroup }) => Promise<IpcResult<StatsRow[]>>
+      statsTop: (
+        q: StatsQuery & { by: 'cost' | 'requests' | 'output'; limit: number }
+      ) => Promise<IpcResult<StatsRow[]>>
+      statsExport: (q: StatsQuery) => Promise<IpcResult<StatsExportResult>>
+      devSeed: (count: number) => Promise<IpcResult<number>>
       recent: (modelId: string, limit?: number) => Promise<IpcResult<RequestEvent[]>>
       openDataDir: () => Promise<IpcResult<boolean>>
       backup: () => Promise<IpcResult<string>>

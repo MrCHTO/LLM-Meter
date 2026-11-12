@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConfigView, LiveSnapshot } from '../shared/types'
+import { Analysis } from './components/Analysis'
 import { Dashboard } from './components/Dashboard'
 import { Models } from './components/Models'
 import { SettingsView } from './components/Settings'
 import { Toasts, type ToastItem } from './components/Toasts'
 
-type Tab = 'dash' | 'models' | 'settings'
+type Tab = 'dash' | 'analysis' | 'models' | 'settings'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dash', label: '仪表盘' },
+  { id: 'analysis', label: '分析' },
   { id: 'models', label: '模型与供应商' },
   { id: 'settings', label: '设置' }
 ]
@@ -81,6 +83,7 @@ export default function App(): JSX.Element {
         {tab === 'dash' && (
           <Dashboard snapshot={snapshot} config={config} notify={notify} onChanged={reload} />
         )}
+        {tab === 'analysis' && <Analysis config={config} notify={notify} />}
         {tab === 'models' && <Models config={config} notify={notify} onChanged={reload} />}
         {tab === 'settings' && (
           <SettingsView config={config} snapshot={snapshot} notify={notify} onChanged={reload} />

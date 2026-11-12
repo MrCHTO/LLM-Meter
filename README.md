@@ -1,6 +1,6 @@
 # LLM Meter
 
-本机的大模型流量计量器。它在本机起一个 OpenAI / Anthropic 兼容入口，把客户端请求转发到真实上游，同时记录每个模型的 token 用量、首字延迟、每秒 token 产出、缓存命中率和折算成本，用主窗口和置顶悬浮窗实时显示。
+本机的大模型流量计量器。它在本机起一个 OpenAI / Anthropic 兼容入口，把客户端请求转发到真实上游，同时记录每个模型的 token 用量、首字延迟、每秒 token 产出、缓存命中率和折算成本，用主窗口和置顶悬浮窗实时显示，并能在「分析」页按区间查历史流量、按模型或供应商出图、导出 CSV。
 
 真实 API Key 只存在本应用里（Windows DPAPI 加密），客户端只拿本地 token，所以换中转站或换 key 时所有客户端一处都不用改。
 
@@ -55,15 +55,30 @@ npm test             # 单元测试
 
 上游压根没报缓存时（不少中转会把 `prompt_tokens_details` 置空），命中率会是 0 或「—」，这反映的是上游行为，不是本应用的 bug。用「测速」可以判定某家到底有没有偷偷关缓存。
 
+## 分析
+
+「分析」页把库里的流量按时间（今天 / 近 24 小时 / 近 7 天 / 自定义）、指标（请求数、TPS、输入、输出、缓存读、成本、错误数）、分组（模型 / 供应商）、来源（真实流量 / 仅测速 / 全部）做成多序列时间轴与分组合计；Top 10 按成本取，导出 CSV 带 BOM，Excel 直接能开。
+
+大区间默认走分钟或小时聚合，只有导出和 Top N 碰明细表。
+
 ## 数据
 
-| 文件 | 内容 | 保留 |
+单个 SQLite 库 `llm-meter.db`（WAL；驱动是 Electron 内置的 `node:sqlite`，不需要原生模块和 electron-rebuild）：
+
+| 表/文件 | 内容 | 保留 |
 |---|---|---|
 | `config.json` | 供应商、模型、设置、悬浮窗位置（Key 是 DPAPI 密文） | 永久 |
-| `events/YYYY-MM-DD.jsonl` | 每请求一行明细 | 默认 30 天 |
-| `rollup/YYYY-MM-DD.json` | 每分钟聚合 | 默认 365 天 |
+| `requests` | 每请求一行：tokens、TTFT、耗时、成本，附供应商名/地址/上游模型名快照 | 默认 30 天 |
+| `rollup_minute` | 每分钟 × 模型 × 来源聚合 | 默认 365 天 |
+| `rollup_day` | 每日 × 模型 × 来源聚合 | 永久 |
 
-单进程写、原子替换，损坏的配置文件会改名留证并回落到空配置，坏行跳过。没有数据库，所以不需要原生模块和 electron-rebuild。
+历史行冗余存供应商名、Base URL、上游模型名，删掉供应商或模型后历史仍可查。明细与两级聚合在同一个事务里写，不会出现「明细有、聚合缺」。
+
+启动时和每天 04:00 各清理一次过期行，随后 `PRAGMA incremental_vacuum`；清理量可在设置页手动触发。备份用 `VACUUM INTO` 出一致性快照，配置与库一并放进 `backups/`。
+
+从旧版升级时，首次启动会把 `events/*.jsonl` 与 `rollup/*.json` 分批事务导入，按明细 id 幂等（重复跑不叠加），原目录改名到 `data/legacy-imported/<时间戳>/` 留底。损坏的配置文件会改名留证并回落到空配置，坏行跳过。
+
+`node:sqlite` 在 Electron 45（Node 22）下已验证能建库、能 WAL 读写，探针留在 `test/sqlite-probe.cjs`。
 
 ## 悬浮窗
 
@@ -74,9 +89,11 @@ npm test             # 单元测试
 ## 测试
 
 ```bash
-npm test                                                       # 单测：SSE 跨块分帧、usage 提取、成本、URL 拼接、配置容错
-node test/e2e.mjs                                              # 假上游端到端，25 项
-node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots）
+npm test                                                       # 单测：SSE 跨块分帧、usage 提取、成本、URL 拼接、配置容错、库写入与清理
+node test/e2e.mjs                                              # 假上游端到端，27 项（含库断言）
+node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），52 项
+node test/import-check.mjs <exe> <含 events/rollup 的备份目录>   # 打包产物的旧数据导入回归
+node test/installed-check.mjs                                   # 安装版实机核对（真实档案，会触发旧数据导入）
 node test/real-e2e.mjs <baseUrl> <key> <model>                  # 真实上游核对
 node test/cache-probe.mjs <baseUrl> <key> <model> identity      # 判断某家缓存是否生效
 ```

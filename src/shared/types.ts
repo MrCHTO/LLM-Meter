@@ -267,6 +267,49 @@ export interface ProviderTestResult {
   message: string
 }
 
+/* ------------------------------- 分析接口 ------------------------------- */
+
+export type StatsMetric = 'requests' | 'errors' | 'input' | 'output' | 'cache_read' | 'cost' | 'tps'
+export type StatsGranularity = 'minute' | 'hour' | 'day'
+export type StatsGroup = 'model' | 'provider'
+export type StatsSource = 'all' | 'proxy' | 'probe'
+
+export interface StatsQuery {
+  from: number
+  to: number
+  source: StatsSource
+}
+
+export interface StatsSeriesQuery extends StatsQuery {
+  granularity: StatsGranularity
+  metric: StatsMetric
+  groupBy: StatsGroup
+}
+
+export interface StatsSeries {
+  buckets: number[]
+  series: { key: string; label: string; points: number[] }[]
+}
+
+export interface StatsRow {
+  key: string
+  label: string
+  requests: number
+  errors: number
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+  cost: number
+  avgTtft: number | null
+  tps: number | null
+}
+
+export interface StatsExportResult {
+  path: string
+  rows: number
+}
+
 export interface IpcResult<T> {
   ok: boolean
   data?: T
@@ -306,5 +349,10 @@ export const CH = {
   overlayHover: 'overlay:hover',
   overlayOpenMain: 'overlay:openMain',
   overlaySetSize: 'overlay:setSize',
-  mainOpen: 'main:open'
+  mainOpen: 'main:open',
+  statsSeries: 'stats:series',
+  statsTotals: 'stats:totals',
+  statsTop: 'stats:top',
+  statsExport: 'stats:export',
+  devSeed: 'dev:seed'
 } as const

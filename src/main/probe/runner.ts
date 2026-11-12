@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import type { ProbeResult, RequestEvent } from '../../shared/types'
+import type { ModelCfg, ProbeResult, Provider, RequestEvent } from '../../shared/types'
 import * as cfg from '../store/config'
 import * as live from '../store/live'
-import * as rollup from '../store/rollup'
-import * as events from '../store/events'
+import * as db from '../store/db'
+import * as repo from '../store/db/repo'
+import { dayKey } from '../store/paths'
 import { open as openKey } from '../security/keys'
 import { adapterFor } from './../proxy/adapters'
 import { SseTap } from '../proxy/sse'
@@ -46,23 +47,14 @@ interface Run {
   error?: string
 }
 
-function persist(
-  modelId: string,
-  alias: string,
-  providerId: string,
-  currency: string,
-  run: Run,
-  usage: Usage,
-  modelPrices: Parameters<typeof cost>[0],
-  started: number
-): void {
+function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, started: number): void {
   const ev: RequestEvent = {
     id: randomUUID(),
     ts: Date.now(),
     source: 'probe',
-    modelId,
-    alias,
-    providerId,
+    modelId: model.id,
+    alias: model.alias,
+    providerId: provider.id,
     status: run.status,
     ok: run.ok,
     errorKind: run.ok ? null : run.status >= 500 ? 'upstream_5xx' : run.status ? 'upstream_4xx' : 'network',
@@ -73,13 +65,21 @@ function persist(
     outputTokens: usage.output,
     cacheReadTokens: usage.cacheRead,
     cacheWriteTokens: usage.cacheWrite,
-    cost: run.ok ? cost(modelPrices, usage) : 0,
-    currency,
+    cost: run.ok ? cost(model, usage) : 0,
+    currency: model.currency,
     note: run.error
   }
   live.record(ev)
-  rollup.add(ev)
-  events.append(ev)
+  try {
+    repo.recordRequest(db.get(), ev, {
+      day: dayKey(ev.ts),
+      providerName: provider.name,
+      baseUrl: provider.baseUrl,
+      upstreamModel: model.upstreamModel
+    })
+  } catch (err) {
+    console.error('[db] 写入失败', err)
+  }
 }
 
 export function isRunning(modelId: string): boolean {
@@ -167,7 +167,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
               ? '上游账号 RPM 限流，稍后再试'
               : `上游限流（429）：${detail}`
           : detail
-      persist(modelId, model.alias, provider.id, model.currency, run, usage, model, started)
+      persist(model, provider, run, usage, started)
       return { ...base, status: run.status, error: run.error, message: run.error }
     }
 
@@ -195,7 +195,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
         ? null
         : usage.output / Math.max(0.001, (duration - run.ttftMs) / 1000)
 
-    persist(modelId, model.alias, provider.id, model.currency, run, usage, model, started)
+    persist(model, provider, run, usage, started)
 
     if (!run.ok) return { ...base, status: run.status, error: run.error, message: run.error ?? '失败' }
 
@@ -215,7 +215,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
     }
   } catch (err) {
     run.error = controller.signal.aborted ? '已停止' : err instanceof Error ? err.message : '请求失败'
-    persist(modelId, model.alias, provider.id, model.currency, run, usage, model, started)
+    persist(model, provider, run, usage, started)
     return { ...base, status: run.status, error: run.error, message: run.error }
   } finally {
     active.delete(modelId)

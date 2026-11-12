@@ -1,9 +1,9 @@
 import { app, BrowserWindow } from 'electron'
 import { CH } from '../shared/types'
 import * as cfg from './store/config'
-import * as events from './store/events'
 import * as live from './store/live'
-import * as rollup from './store/rollup'
+import * as db from './store/db'
+import * as repo from './store/db/repo'
 import { ensureDirs } from './store/paths'
 import * as proxy from './proxy/server'
 import * as ipc from './ipc'
@@ -34,12 +34,10 @@ if (!gotLock) {
     ensureDirs()
     const settings = cfg.get().settings
 
-    rollup.init()
+    db.init()
     live.init()
     // 曲线只画最近 60 秒，回放范围跟着收窄
-    live.replay(events.readRange(Date.now() - 65_000, Date.now()))
-    events.cleanup(settings.retentionDays)
-    rollup.cleanup(settings.rollupRetentionDays)
+    live.replay(repo.replaySince(db.get(), Date.now() - 65_000))
 
     proxy.bindDeps({ record: () => undefined })
     const state = await proxy.start(settings.port)
@@ -79,7 +77,7 @@ if (!gotLock) {
     if (pushTimer) clearInterval(pushTimer)
     pushTimer = null
     tray.destroy()
-    rollup.dispose()
+    db.close()
     void proxy.stop()
   })
 }

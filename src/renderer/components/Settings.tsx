@@ -320,13 +320,13 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
             className="btn"
             onClick={async () => {
               const res = await window.api.exportDaily()
-              notify(res.ok ? '聚合已落盘，可在 rollup 目录取用' : (res.error ?? '导出失败'), res.ok ? 'ok' : 'bad')
+              notify(res.ok ? `已清理 ${res.data ?? 0} 条过期明细` : (res.error ?? '清理失败'), res.ok ? 'ok' : 'bad')
             }}
           >
-            立即落盘聚合
+            清理过期数据
           </button>
           <span className="muted" style={{ marginLeft: 'auto' }}>
-            明细 {config.settings.retentionDays} 天 / 聚合 {config.settings.rollupRetentionDays} 天
+            明细 {config.settings.retentionDays} 天 / 分钟聚合 {config.settings.rollupRetentionDays} 天 / 日聚合永久
           </span>
         </div>
       </div>

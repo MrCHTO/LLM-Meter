@@ -6,6 +6,9 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
 
 const ROOT = process.cwd()
 /** 临时档案目录：不覆盖用户真实配置 */
@@ -99,13 +102,17 @@ function seed() {
   return `${day.getFullYear()}-${p(day.getMonth() + 1)}-${p(day.getDate())}`
 }
 
-function events(day) {
-  const file = join(DATA, 'events', `${day}.jsonl`)
+/** 直接读库校验，库在 <profile>/data/llm-meter.db */
+function dbRows(sql, ...params) {
+  const file = join(DATA, 'llm-meter.db')
   if (!existsSync(file)) return []
-  return readFileSync(file, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => JSON.parse(line))
+  const { DatabaseSync } = require('node:sqlite')
+  const conn = new DatabaseSync(file, { readOnly: true })
+  try {
+    return conn.prepare(sql).all(...params)
+  } finally {
+    conn.close()
+  }
 }
 
 async function call(path, { method = 'POST', body, token = TOKEN, raw } = {}) {
@@ -201,35 +208,39 @@ try {
   check('上游 404 原样回传', missing.status === 404, `${missing.status}`)
 
   await sleep(1200)
-  const rows = events(day)
+  const rows = dbRows('select * from requests order by ts asc')
+  check('明细写进了数据库', rows.length > 0, `count=${rows.length}`)
 
-  const streamRows = rows.filter((r) => r.stream && r.ok && r.alias === 'gpt-mini')
-  check('流式事件两行落盘', streamRows.length === 2, `count=${streamRows.length}`)
+  const streamRows = rows.filter((r) => r.stream === 1 && r.ok === 1 && r.alias === 'gpt-mini')
+  check('流式请求两行落库', streamRows.length === 2, `count=${streamRows.length}`)
   const first = streamRows[0]
   const second = streamRows[1]
-  check('首次缓存读 0，第二次读到 1080', first?.cacheReadTokens === 0 && second?.cacheReadTokens === 1080, `${first?.cacheReadTokens} → ${second?.cacheReadTokens}`)
-  check('输出 token 记录正确', first?.outputTokens === 42, `${first?.outputTokens}`)
-  check('输入 token 记录正确', first?.inputTokens === 1200, `${first?.inputTokens}`)
-  check('TTFT 已测量', typeof first?.ttftMs === 'number' && first.ttftMs >= 0, `${first?.ttftMs}`)
+  check(
+    '首次缓存读 0，第二次读到 1080',
+    first?.cache_read_tokens === 0 && second?.cache_read_tokens === 1080,
+    `${first?.cache_read_tokens} → ${second?.cache_read_tokens}`
+  )
+  check('输出 token 记录正确', first?.output_tokens === 42, `${first?.output_tokens}`)
+  check('输入 token 记录正确', first?.input_tokens === 1200, `${first?.input_tokens}`)
+  check('TTFT 已测量', typeof first?.ttft_ms === 'number' && first.ttft_ms >= 0, `${first?.ttft_ms}`)
   const expectedCost = (1200 * 1 + 42 * 2 + 1080 * 0.1) / 1_000_000
   check('成本按单价折算', Math.abs((second?.cost ?? 0) - expectedCost) < 1e-9, `${second?.cost} vs ${expectedCost}`)
 
   const aRows = rows.filter((r) => r.alias === 'my-claude')
-  check('Anthropic 缓存读写入事件', aRows.at(-1)?.cacheReadTokens === 1080, `${aRows.at(-1)?.cacheReadTokens}`)
-  check('Anthropic 输入补足为总量', aRows.at(-1)?.inputTokens === 1200, `${aRows.at(-1)?.inputTokens}`)
-  check('Anthropic 输出 token 取自 message_delta', aRows.at(-1)?.outputTokens === 33, `${aRows.at(-1)?.outputTokens}`)
+  check('Anthropic 缓存读落库', aRows.at(-1)?.cache_read_tokens === 1080, `${aRows.at(-1)?.cache_read_tokens}`)
+  check('Anthropic 输入补足为总量', aRows.at(-1)?.input_tokens === 1200, `${aRows.at(-1)?.input_tokens}`)
+  check('Anthropic 输出 token 取自 message_delta', aRows.at(-1)?.output_tokens === 33, `${aRows.at(-1)?.output_tokens}`)
 
-  const plainRow = rows.filter((r) => r.ok && !r.stream && r.alias === 'gpt-mini' && r.inputTokens > 0).at(-1)
-  check('非流式记录 usage 且 TTFT 为空', plainRow?.inputTokens === 900 && plainRow?.ttftMs === null, `${plainRow?.inputTokens}`)
+  const plainRow = rows.filter((r) => r.ok === 1 && r.stream === 0 && r.alias === 'gpt-mini' && r.input_tokens > 0).at(-1)
+  check('非流式记录 usage 且 TTFT 为空', plainRow?.input_tokens === 900 && plainRow?.ttft_ms === null, `${plainRow?.input_tokens}`)
 
-  const failRow = rows.find((r) => !r.ok)
-  check('失败也落盘并带错误类型', Boolean(failRow?.errorKind), `${failRow?.errorKind}`)
+  const failRow = rows.find((r) => r.ok === 0)
+  check('失败也落库并带错误类型', Boolean(failRow?.error_kind), `${failRow?.error_kind}`)
 
-  const rollupDir = join(DATA, 'rollup')
-  await sleep(16_000)
-  const rollupFile = existsSync(rollupDir) ? readdirSync(rollupDir).find((n) => n.endsWith('.json')) : undefined
-  const rollupText = rollupFile ? readFileSync(join(rollupDir, rollupFile), 'utf8') : ''
-  check('分钟聚合已落盘且含成本', rollupText.includes('m1') && /"cost":[0-9.]+/.test(rollupText), rollupFile ?? '无文件')
+  const minute = dbRows('select * from rollup_minute where model_id = ?', 'm1')
+  check('分钟聚合同步写入', minute.length > 0 && Number(minute[0]?.cost) > 0, `count=${minute.length}`)
+  const dayRow = dbRows('select * from rollup_day where model_id = ?', 'm1')
+  check('日聚合同步写入', dayRow.length > 0 && Number(dayRow[0]?.requests) > 0, `count=${dayRow.length}`)
 
   check('渲染进程未白屏（加载产物）', appLog.join('').includes('overlay') || existsSync(join(ROOT, 'out', 'renderer', 'index.html')))
   const crash = appLog.join('').match(/Uncaught|ERR_FILE_NOT_FOUND|Failed to load/g)
@@ -240,9 +251,19 @@ try {
 } finally {
   electron.kill()
   upstream.kill()
-  await sleep(500)
+  await sleep(600)
   if (process.env.KEEP_PROFILE) console.log('profile:', PROFILE)
-  else rmSync(PROFILE, { recursive: true, force: true })
+  else {
+    // sqlite 可能还攥着文件，退几次再放弃
+    for (let i = 0; i < 6; i++) {
+      try {
+        rmSync(PROFILE, { recursive: true, force: true })
+        break
+      } catch {
+        await sleep(400)
+      }
+    }
+  }
 }
 
 const failed = results.filter((r) => !r.pass)

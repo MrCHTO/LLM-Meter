@@ -6,8 +6,9 @@ import type { ApiFormat, ErrorKind, ModelCfg, Provider, RequestEvent } from '../
 import { FORMAT_MOUNT } from '../../shared/types'
 import * as cfg from '../store/config'
 import * as live from '../store/live'
-import * as rollup from '../store/rollup'
-import * as events from '../store/events'
+import * as db from '../store/db'
+import * as repo from '../store/db/repo'
+import { dayKey } from '../store/paths'
 import { open as openKey } from '../security/keys'
 import * as token from '../security/token'
 import { adapterFor } from './adapters'
@@ -155,8 +156,16 @@ function recordEvent(input: {
     note: input.note
   }
   live.record(ev)
-  rollup.add(ev)
-  events.append(ev)
+  try {
+    repo.recordRequest(db.get(), ev, {
+      day: dayKey(ev.ts),
+      providerName: input.provider.name,
+      baseUrl: input.provider.baseUrl,
+      upstreamModel: input.model.upstreamModel
+    })
+  } catch (err) {
+    console.error('[db] 写入失败', err)
+  }
   deps.record(ev)
 }
 

@@ -1,0 +1,394 @@
+import type { RequestEvent } from '../../../shared/types'
+import type { Db, SqlValue } from './driver'
+
+const MINUTE = 60_000
+const HOUR = 3_600_000
+
+export interface Enrich {
+  day: string
+  providerName: string
+  baseUrl: string
+  upstreamModel: string
+}
+
+/** 一次请求：明细 + 两张聚合表，同一事务。 */
+export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
+  db.tx(() => {
+    db.run(
+      `insert into requests (
+        id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
+        input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+        cost, currency, model_id, alias, provider_id, provider_name, base_url, upstream_model, note
+      ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ev.id,
+      ev.ts,
+      extra.day,
+      ev.source,
+      ev.status,
+      ev.ok ? 1 : 0,
+      ev.errorKind,
+      ev.stream ? 1 : 0,
+      ev.ttftMs,
+      ev.durationMs,
+      ev.inputTokens,
+      ev.outputTokens,
+      ev.cacheReadTokens,
+      ev.cacheWriteTokens,
+      ev.cost,
+      ev.currency,
+      ev.modelId,
+      ev.alias,
+      ev.providerId,
+      extra.providerName,
+      extra.baseUrl,
+      extra.upstreamModel,
+      ev.note ?? null
+    )
+
+    const minute = Math.floor(ev.ts / MINUTE) * MINUTE
+    const errors = ev.ok ? 0 : 1
+    bump(db, 'rollup_minute', minute, ev, errors)
+    bump(db, 'rollup_day', extra.day, ev, errors)
+  })
+}
+
+function bump(db: Db, table: 'rollup_minute' | 'rollup_day', bucket: number | string, ev: RequestEvent, errors: number): void {
+  const keyCol = table === 'rollup_minute' ? 'minute' : 'day'
+  db.run(
+    `insert into ${table} (${keyCol}, model_id, provider_id, source, requests, errors, input, output, cache_read, cache_write, cost)
+     values (?,?,?,?,1,?,?,?,?,?,?)
+     on conflict (${keyCol}, model_id, source) do update set
+       requests = requests + 1,
+       errors = errors + excluded.errors,
+       input = input + excluded.input,
+       output = output + excluded.output,
+       cache_read = cache_read + excluded.cache_read,
+       cache_write = cache_write + excluded.cache_write,
+       cost = cost + excluded.cost`,
+    bucket,
+    ev.modelId,
+    ev.providerId,
+    ev.source,
+    errors,
+    ev.inputTokens,
+    ev.outputTokens,
+    ev.cacheReadTokens,
+    ev.cacheWriteTokens,
+    ev.cost
+  )
+}
+
+export interface TotalsRow {
+  requests: number
+  errors: number
+  input: number
+  output: number
+  cache_read: number
+  cache_write: number
+  cost: number
+}
+
+export function dayTotals(db: Db, modelId: string, day: string): TotalsRow {
+  const row = db.get<TotalsRow>(
+    `select coalesce(sum(requests),0) requests, coalesce(sum(errors),0) errors,
+            coalesce(sum(input),0) input, coalesce(sum(output),0) output,
+            coalesce(sum(cache_read),0) cache_read, coalesce(sum(cache_write),0) cache_write,
+            coalesce(sum(cost),0) cost
+     from rollup_day where day = ? and model_id = ? and source = 'proxy'`,
+    day,
+    modelId
+  )
+  return row ?? { requests: 0, errors: 0, input: 0, output: 0, cache_read: 0, cache_write: 0, cost: 0 }
+}
+
+export interface RecentRow {
+  id: string
+  ts: number
+  source: string
+  status: number
+  ok: number
+  error_kind: string | null
+  stream: number
+  ttft_ms: number | null
+  duration_ms: number
+  input_tokens: number
+  output_tokens: number
+  cache_read_tokens: number
+  cache_write_tokens: number
+  cost: number
+  currency: string
+  model_id: string
+  alias: string
+  provider_id: string
+  note: string | null
+}
+
+export function recentFor(db: Db, modelId: string, limit: number): RequestEvent[] {
+  const rows = db.all<RecentRow>(
+    `select id, ts, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
+            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+            cost, currency, model_id, alias, provider_id, note
+     from requests where model_id = ? order by ts desc limit ?`,
+    modelId,
+    limit
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    ts: r.ts,
+    source: r.source === 'probe' ? 'probe' : 'proxy',
+    modelId: r.model_id,
+    alias: r.alias,
+    providerId: r.provider_id,
+    status: r.status,
+    ok: r.ok === 1,
+    errorKind: (r.error_kind as RequestEvent['errorKind']) ?? null,
+    stream: r.stream === 1,
+    ttftMs: r.ttft_ms,
+    durationMs: r.duration_ms,
+    inputTokens: r.input_tokens,
+    outputTokens: r.output_tokens,
+    cacheReadTokens: r.cache_read_tokens,
+    cacheWriteTokens: r.cache_write_tokens,
+    cost: r.cost,
+    currency: r.currency,
+    note: r.note ?? undefined
+  }))
+}
+
+export function replaySince(db: Db, since: number): RequestEvent[] {
+  return recentFor(db, '', 0).length === 0
+    ? []
+    : recentAfter(db, since)
+}
+
+function recentAfter(db: Db, since: number): RequestEvent[] {
+  const rows = db.all<RecentRow>(
+    `select id, ts, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
+            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+            cost, currency, model_id, alias, provider_id, note
+     from requests where ts >= ? and ok = 1 order by ts asc`,
+    since
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    ts: r.ts,
+    source: r.source === 'probe' ? 'probe' : 'proxy',
+    modelId: r.model_id,
+    alias: r.alias,
+    providerId: r.provider_id,
+    status: r.status,
+    ok: true,
+    errorKind: null,
+    stream: r.stream === 1,
+    ttftMs: r.ttft_ms,
+    durationMs: r.duration_ms,
+    inputTokens: r.input_tokens,
+    outputTokens: r.output_tokens,
+    cacheReadTokens: r.cache_read_tokens,
+    cacheWriteTokens: r.cache_write_tokens,
+    cost: r.cost,
+    currency: r.currency,
+    note: r.note ?? undefined
+  }))
+}
+
+/* ------------------------------- 分析查询 ------------------------------- */
+
+export type Metric = 'requests' | 'errors' | 'input' | 'output' | 'cache_read' | 'cache_write' | 'cost' | 'tps'
+export type Granularity = 'minute' | 'hour' | 'day'
+export type GroupBy = 'model' | 'provider'
+export type SourceFilter = 'all' | 'proxy' | 'probe'
+
+const METRIC_COL: Record<Exclude<Metric, 'tps'>, string> = {
+  requests: 'requests',
+  errors: 'errors',
+  input: 'input',
+  output: 'output',
+  cache_read: 'cache_read',
+  cache_write: 'cache_write',
+  cost: 'cost'
+}
+
+export interface SeriesPointSet {
+  buckets: number[]
+  series: { key: string; points: number[] }[]
+}
+
+export function series(
+  db: Db,
+  opts: { from: number; to: number; granularity: Granularity; metric: Metric; groupBy: GroupBy; source: SourceFilter }
+): SeriesPointSet {
+  const { from, to, granularity, metric, groupBy, source } = opts
+  const keyCol = groupBy === 'model' ? 'model_id' : 'provider_id'
+  const table = granularity === 'day' ? 'rollup_day' : 'rollup_minute'
+  const bucketExpr =
+    granularity === 'day'
+      ? 'day'
+      : granularity === 'hour'
+        ? `(minute / ${HOUR}) * ${HOUR}`
+        : 'minute'
+  const timeCol = granularity === 'day' ? 'day' : 'minute'
+  const valueExpr = metric === 'tps' ? 'sum(output) * 1.0' : `sum(${METRIC_COL[metric]})`
+
+  const params: SqlValue[] = []
+  const where: string[] = []
+  if (granularity === 'day') {
+    where.push(`${timeCol} >= ? and ${timeCol} <= ?`)
+    params.push(dayKeyOf(from), dayKeyOf(to))
+  } else {
+    where.push(`${timeCol} >= ? and ${timeCol} < ?`)
+    params.push(from, to)
+  }
+  if (source !== 'all') {
+    where.push('source = ?')
+    params.push(source)
+  }
+
+  const rows = db.all<{ b: number | string; k: string; v: number }>(
+    `select ${bucketExpr} as b, ${keyCol} as k, ${valueExpr} as v
+     from ${table} where ${where.join(' and ')} group by b, k order by b`,
+    ...params
+  )
+
+  const buckets: number[] = []
+  const index = new Map<number, number>()
+  const byKey = new Map<string, number[]>()
+  const seconds = granularity === 'minute' ? 60 : granularity === 'hour' ? 3600 : 86400
+
+  for (const row of rows) {
+    const bucket = granularity === 'day' ? Date.parse(`${row.b}T00:00:00`) : Number(row.b)
+    let at = index.get(bucket)
+    if (at === undefined) {
+      at = buckets.length
+      index.set(bucket, at)
+      buckets.push(bucket)
+      for (const points of byKey.values()) points.push(0)
+    }
+    const value = metric === 'tps' ? (row.v ?? 0) / seconds : (row.v ?? 0)
+    const points = byKey.get(row.k) ?? []
+    while (points.length < buckets.length) points.push(0)
+    points[at] = value
+    byKey.set(row.k, points)
+  }
+
+  return { buckets, series: [...byKey.entries()].map(([key, points]) => ({ key, points })) }
+}
+
+export interface GroupTotals {
+  key: string
+  requests: number
+  errors: number
+  input: number
+  output: number
+  cache_read: number
+  cache_write: number
+  cost: number
+  avg_ttft: number | null
+  tps: number | null
+}
+
+export function totals(
+  db: Db,
+  opts: { from: number; to: number; groupBy: GroupBy; source: SourceFilter }
+): GroupTotals[] {
+  const keyCol = opts.groupBy === 'model' ? 'model_id' : 'provider_id'
+  const params: SqlValue[] = [opts.from, opts.to]
+  let where = 'ts >= ? and ts < ?'
+  if (opts.source !== 'all') {
+    where += ' and source = ?'
+    params.push(opts.source)
+  }
+  return db.all<GroupTotals>(
+    `select ${keyCol} as key,
+            sum(1) as requests,
+            sum(case when ok = 0 then 1 else 0 end) as errors,
+            coalesce(sum(input_tokens),0) as input,
+            coalesce(sum(output_tokens),0) as output,
+            coalesce(sum(cache_read_tokens),0) as cache_read,
+            coalesce(sum(cache_write_tokens),0) as cache_write,
+            coalesce(sum(cost),0) as cost,
+            avg(case when ok = 1 and ttft_ms is not null then ttft_ms end) as avg_ttft,
+            case when sum(case when ok = 1 then duration_ms else 0 end) > 0
+                 then sum(case when ok = 1 then output_tokens else 0 end) * 1000.0
+                      / sum(case when ok = 1 then duration_ms else 0 end)
+                 else null end as tps
+     from requests where ${where} group by ${keyCol} order by cost desc`,
+    ...params
+  )
+}
+
+export function top(
+  db: Db,
+  opts: { from: number; to: number; by: 'cost' | 'requests' | 'output'; source: SourceFilter; limit: number }
+): GroupTotals[] {
+  return totals(db, { ...opts, groupBy: 'model' })
+    .sort((a, b) => (b[opts.by] as number) - (a[opts.by] as number))
+    .slice(0, opts.limit)
+}
+
+export interface ExportRow extends RecentRow {
+  provider_name: string
+  base_url: string
+  upstream_model: string
+  day: string
+}
+
+export function exportRange(db: Db, from: number, to: number, source: SourceFilter): ExportRow[] {
+  const params: SqlValue[] = [from, to]
+  let where = 'ts >= ? and ts < ?'
+  if (source !== 'all') {
+    where += ' and source = ?'
+    params.push(source)
+  }
+  return db.all<ExportRow>(
+    `select id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
+            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost, currency,
+            model_id, alias, provider_id, provider_name, base_url, upstream_model, note
+     from requests where ${where} order by ts asc`,
+    ...params
+  )
+}
+
+/** 近 N 天的按日合计（图表用的旧接口） */
+export function daySeries(db: Db, days: number, modelId: string | null): { ts: number; out: number; req: number; err: number; cost: number }[] {
+  const from = new Date()
+  from.setDate(from.getDate() - (days - 1))
+  from.setHours(0, 0, 0, 0)
+  const rows = db.all<{ day: string; out: number; req: number; err: number; cost: number }>(
+    `select day, coalesce(sum(output),0) out, coalesce(sum(requests),0) req,
+            coalesce(sum(errors),0) err, coalesce(sum(cost),0) cost
+     from rollup_day where day >= ? ${modelId ? 'and model_id = ?' : ''}
+     group by day`,
+    ...(modelId ? [dayKeyOf(from.getTime()), modelId] : [dayKeyOf(from.getTime())])
+  )
+  const byDay = new Map(rows.map((r) => [r.day, r]))
+  const out: { ts: number; out: number; req: number; err: number; cost: number }[] = []
+  for (let i = 0; i < days; i++) {
+    const d = new Date(from)
+    d.setDate(from.getDate() + i)
+    const key = dayKeyOf(d.getTime())
+    const row = byDay.get(key)
+    out.push({ ts: d.getTime(), out: row?.out ?? 0, req: row?.req ?? 0, err: row?.err ?? 0, cost: row?.cost ?? 0 })
+  }
+  return out
+}
+
+export function prune(db: Db, now: number, detailDays: number, minuteDays: number): { requests: number; minutes: number } {  const detailCut = now - detailDays * 86_400_000
+  const minuteCut = now - minuteDays * 86_400_000
+  const before = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
+  db.run('delete from requests where ts < ?', detailCut)
+  const after = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
+  db.run('delete from rollup_minute where minute < ?', minuteCut)
+  db.exec('pragma incremental_vacuum')
+  return { requests: Math.max(0, before - after), minutes: 0 }
+}
+
+export function backupTo(db: Db, file: string): void {
+  db.exec(`vacuum into '${file.replace(/'/g, "''")}'`)
+}
+
+function dayKeyOf(ts: number): string {
+  const d = new Date(ts)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}

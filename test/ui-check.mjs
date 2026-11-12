@@ -52,16 +52,7 @@ const rows = [0, 1, 2].map((i) => ({
   currency: 'USD'
 }))
 writeFileSync(join(DATA, 'events', `${day}.jsonl`), rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8')
-const minute = String(Math.floor(t / 60000) * 60000)
-writeFileSync(
-  join(DATA, 'rollup', `${day}.json`),
-  JSON.stringify({
-    [minute]: {
-      m1: { out: 1380, req: 3, err: 0, cost: 0.0129, input: 3600, cacheRead: 2160, cacheWrite: 0 }
-    }
-  }),
-  'utf8'
-)
+// 只造明细，聚合由启动时的导入从明细派生，避免两处都写导致翻倍
 writeFileSync(
   join(DATA, 'config.json'),
   JSON.stringify({
@@ -213,7 +204,7 @@ try {
   await sleep(800)
 
   check('主窗标题正确', (await s.eval('document.title')) === 'LLM Meter')
-  check('表头三页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 3)
+  check('表头四页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 4)
   check('汇总条已移除', (await s.eval("document.querySelectorAll('.strip').length")) === 0)
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
@@ -243,13 +234,23 @@ try {
   check('contextIsolation 下 preload 正常暴露', sandboxOk === true)
   await s.shot('dashboard.png')
 
-  await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
+  await s.eval("document.querySelector('.tab:nth-child(3)')?.click()")
   await sleep(600)
   check('模型页列出供应商', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check('供应商显示掩码 Key', /••••/.test(await s.eval("document.body.innerText")))
   await s.shot('models.png')
 
-  await s.eval("document.querySelector('.tab:nth-child(3)')?.click()")
+  await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
+  await sleep(1500)
+  check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) >= 3)
+  check('分析页有明细表', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
+  check(
+    '分析页画出了曲线或空态',
+    (await s.eval("!!document.querySelector('.series-svg')")) || (await s.eval("!!document.querySelector('.chart-empty')"))
+  )
+  await s.shot('analysis.png')
+
+  await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")
   await sleep(600)
   check('设置页给出本地入口', (await s.eval("document.body.innerText")).includes('127.0.0.1'))
   check('设置页同时给出局域网入口', (await s.eval("document.body.innerText")).includes('局域网'))
@@ -298,7 +299,7 @@ try {
   await s.shot('detail.png')
 
   // 添加模型弹窗里按 id 查价
-  await s.eval("document.querySelector('.tab:nth-child(2)').click()")
+  await s.eval("document.querySelector('.tab:nth-child(3)').click()")
   await sleep(700)
   await s.eval("[...document.querySelectorAll('button')].find((b) => b.innerText === '添加模型').click()")
   for (let i = 0; i < 20; i++) {
@@ -396,9 +397,19 @@ try {
   console.log(log.join('').slice(-2000))
 } finally {
   electron.kill()
-  await sleep(500)
+  await sleep(600)
   if (process.env.KEEP_PROFILE) console.log('profile:', PROFILE)
-  else rmSync(PROFILE, { recursive: true, force: true })
+  else {
+    // sqlite 可能还攥着文件，退几次再放弃
+    for (let i = 0; i < 6; i++) {
+      try {
+        rmSync(PROFILE, { recursive: true, force: true })
+        break
+      } catch {
+        await sleep(400)
+      }
+    }
+  }
 }
 
 const failed = results.filter((x) => !x).length

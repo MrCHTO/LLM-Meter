@@ -1,0 +1,106 @@
+.series-wrap {
+  position: relative;
+  margin-top: 10px;
+}
+
+.series-svg {
+  width: 100%;
+  height: 260px;
+  display: block;
+}
+
+.series-svg .grid {
+  stroke: #eef1f5;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.series-svg .axis {
+  fill: var(--dim);
+  font-size: 11px;
+}
+
+.series-svg .crosshair {
+  stroke: #c9d3df;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.series-line {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.series-tip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 150px;
+  padding: 8px 10px;
+  background: rgb(255 255 255 / 96%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 12%);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.tip-time {
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tip-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.tip-row b {
+  margin-left: auto;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  font-size: 11px;
+}
+
+.legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.legend-item.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.chart-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--dim);
+}

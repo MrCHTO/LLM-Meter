@@ -7,7 +7,9 @@ import type {
   TodayTotals
 } from '../../shared/types'
 import * as cfg from './config'
-import * as rollup from './rollup'
+import * as db from './db'
+import * as repo from './db/repo'
+import { dayKey } from './paths'
 
 const BUCKETS = 60
 const RECENT_MAX = 200
@@ -88,14 +90,14 @@ export function init(): void {
   cfg.mutate((c) => {
     for (const m of c.models) {
       const s = ensure(m.id)
-      const t = rollup.todayTotals(m.id)
+      const t = repo.dayTotals(db.get(), m.id, dayKey(now))
       s.today = {
-        requests: t.req,
-        errors: t.err,
+        requests: t.requests,
+        errors: t.errors,
         input: t.input,
-        output: t.out,
-        cacheRead: t.cacheRead,
-        cacheWrite: t.cacheWrite,
+        output: t.output,
+        cacheRead: t.cache_read,
+        cacheWrite: t.cache_write,
         cost: t.cost
       }
       rollBuckets(s, now)
@@ -168,7 +170,11 @@ export function setProbing(modelId: string, value: boolean): void {
 }
 
 export function recentFor(modelId: string, limit = 20): RequestEvent[] {
-  return recent.filter((e) => e.modelId === modelId).slice(0, limit)
+  try {
+    return repo.recentFor(db.get(), modelId, limit)
+  } catch {
+    return recent.filter((e) => e.modelId === modelId).slice(0, limit)
+  }
 }
 
 export function tpsOf(s: ModelState): number {

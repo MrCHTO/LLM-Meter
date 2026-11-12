@@ -1,6 +1,6 @@
-import { app, ipcMain, shell } from 'electron'
+import { app, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { copyFileSync } from 'node:fs'
+import { copyFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CH } from '../shared/types'
 import type {
@@ -9,13 +9,20 @@ import type {
   IpcResult,
   ModelCfg,
   ProbeResult,
-  ProviderTestResult
+  ProviderTestResult,
+  RequestEvent,
+  StatsExportResult,
+  StatsGroup,
+  StatsQuery,
+  StatsRow,
+  StatsSeries,
+  StatsSeriesQuery
 } from '../shared/types'
 import * as cfg from './store/config'
 import * as live from './store/live'
-import * as rollup from './store/rollup'
-import * as events from './store/events'
-import { dataDir } from './store/paths'
+import * as db from './store/db'
+import * as repo from './store/db/repo'
+import { dataDir, dayKey } from './store/paths'
 import { mask, open as openKey, seal } from './security/keys'
 import * as token from './security/token'
 import * as probe from './probe/runner'
@@ -339,7 +346,7 @@ export function register(): void {
 
   ipcMain.handle(
     CH.history,
-    wrap((days: number, modelId: string | null) => rollup.history(Math.min(365, Math.max(1, days)), modelId))
+    wrap((days: number, modelId: string | null) => repo.daySeries(db.get(), Math.min(365, Math.max(1, days)), modelId))
   )
 
   ipcMain.handle(
@@ -358,9 +365,13 @@ export function register(): void {
   ipcMain.handle(
     CH.backup,
     wrap(() => {
-      const target = join(dataDir(), `config.backup-${Date.now()}.json`)
-      copyFileSync(join(dataDir(), 'config.json'), target)
-      return target
+      // 配置 JSON 原样拷走，数据库用 VACUUM INTO 取一致性快照
+      const stamp = Date.now()
+      const configTarget = join(dataDir(), `config.backup-${stamp}.json`)
+      copyFileSync(join(dataDir(), 'config.json'), configTarget)
+      const dbTarget = join(dataDir(), `data.backup-${stamp}.db`)
+      repo.backupTo(db.get(), dbTarget)
+      return `${configTarget}（数据库快照 ${dbTarget}）`
     })
   )
 
@@ -376,15 +387,190 @@ export function register(): void {
     return true
   }))
 
-  ipcMain.handle(CH.exportDaily, wrap(() => {
-    rollup.flush()
-    return join(dataDir(), 'rollup')
-  }))
+  const pruneNow = (): number => {
+    const s = cfg.get().settings
+    return repo.prune(db.get(), Date.now(), s.retentionDays, s.rollupRetentionDays).requests
+  }
 
-  ipcMain.handle(CH.eventsCleanup, wrap(() => {
-    events.cleanup(cfg.get().settings.retentionDays)
-    return true
-  }))
+  ipcMain.handle(
+    CH.exportDaily,
+    wrap(() => pruneNow())
+  )
+
+  ipcMain.handle(
+    CH.eventsCleanup,
+    wrap(() => {
+      pruneNow()
+      return true
+    })
+  )
+
+  // 分析
+  const labelOf = (group: 'model' | 'provider', key: string): string => {
+    if (!key) return '（已删除）'
+    const found = group === 'model' ? cfg.modelById(key)?.alias : cfg.providerById(key)?.name
+    if (found) return found
+    // 配置里删掉后，用历史行里的快照名兜底
+    const row =
+      group === 'model'
+        ? db.get().get<{ v: string }>("select alias v from requests where model_id = ? and alias <> '' limit 1", key)
+        : db
+            .get()
+            .get<{ v: string }>(
+              "select provider_name v from requests where provider_id = ? and provider_name <> '' limit 1",
+              key
+            )
+    return row?.v ?? key
+  }
+
+  const mapRow = (group: 'model' | 'provider') => (r: repo.GroupTotals): StatsRow => ({
+    key: r.key,
+    label: labelOf(group, r.key),
+    requests: r.requests,
+    errors: r.errors,
+    input: r.input,
+    output: r.output,
+    cacheRead: r.cache_read,
+    cacheWrite: r.cache_write,
+    cost: r.cost,
+    avgTtft: r.avg_ttft,
+    tps: r.tps
+  })
+
+  ipcMain.handle(
+    CH.statsSeries,
+    wrap((q: StatsSeriesQuery): StatsSeries => {
+      const out = repo.series(db.get(), q)
+      return {
+        buckets: out.buckets,
+        series: out.series.map((s) => ({ key: s.key, label: labelOf(q.groupBy, s.key), points: s.points }))
+      }
+    })
+  )
+
+  ipcMain.handle(
+    CH.statsTotals,
+    wrap((q: StatsQuery & { groupBy: StatsGroup }): StatsRow[] =>
+      repo.totals(db.get(), q).map(mapRow(q.groupBy))
+    )
+  )
+
+  ipcMain.handle(
+    CH.statsTop,
+    wrap((q: StatsQuery & { by: 'cost' | 'requests' | 'output'; limit: number }): StatsRow[] =>
+      repo.top(db.get(), q).map(mapRow('model'))
+    )
+  )
+
+  ipcMain.handle(
+    CH.statsExport,
+    wrap(async (q: StatsQuery): Promise<StatsExportResult> => {
+      const rows = repo.exportRange(db.get(), q.from, q.to, q.source)
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const picked = await dialog.showSaveDialog({
+        title: '导出区间明细',
+        defaultPath: join(app.getPath('downloads'), `llm-meter-${stamp}.csv`),
+        filters: [{ name: 'CSV', extensions: ['csv'] }]
+      })
+      if (picked.canceled || !picked.filePath) throw new Error('已取消')
+      const head = [
+        '时间',
+        '来源',
+        '模型',
+        '上游模型',
+        '供应商',
+        '地址',
+        '状态',
+        'ok',
+        'TTFT(ms)',
+        '耗时(ms)',
+        '输入',
+        '输出',
+        '缓存读',
+        '缓存写',
+        '成本',
+        '货币',
+        '备注'
+      ]
+      const cell = (v: unknown): string => `"${String(v ?? '').replace(/"/g, '""')}"`
+      const lines = [head.join(',')]
+      for (const r of rows) {
+        lines.push(
+          [
+            new Date(r.ts).toISOString(),
+            r.source,
+            r.alias,
+            r.upstream_model,
+            r.provider_name,
+            r.base_url,
+            r.status,
+            r.ok,
+            r.ttft_ms ?? '',
+            r.duration_ms,
+            r.input_tokens,
+            r.output_tokens,
+            r.cache_read_tokens,
+            r.cache_write_tokens,
+            r.cost,
+            r.currency,
+            r.note ?? ''
+          ]
+            .map(cell)
+            .join(',')
+        )
+      }
+      writeFileSync(picked.filePath, `\ufeff${lines.join('\n')}`, 'utf8')
+      return { path: picked.filePath, rows: rows.length }
+    })
+  )
+
+  ipcMain.handle(
+    CH.devSeed,
+    wrap((count: number) => {
+      const models = cfg.listModels().filter((m) => m.enabled)
+      if (models.length === 0) throw new Error('先配置模型')
+      const now = Date.now()
+      let made = 0
+      for (let i = 0; i < count; i++) {
+        const model = models[i % models.length] as ModelCfg
+        const provider = cfg.providerById(model.providerId)
+        if (!provider) continue
+        const ts = now - Math.floor((i / count) * 6 * 3_600_000) - Math.floor(Math.random() * 30_000)
+        const input = 400 + Math.floor(Math.random() * 3000)
+        const output = 40 + Math.floor(Math.random() * 500)
+        const cacheRead = Math.floor(input * (Math.random() * 0.9))
+        const duration = 600 + Math.floor(Math.random() * 4000)
+        const ev: RequestEvent = {
+          id: `seed-${ts}-${i}`,
+          ts,
+          source: Math.random() < 0.15 ? 'probe' : 'proxy',
+          modelId: model.id,
+          alias: model.alias,
+          providerId: provider.id,
+          status: 200,
+          ok: true,
+          errorKind: null,
+          stream: true,
+          ttftMs: 120 + Math.floor(Math.random() * 900),
+          durationMs: duration,
+          inputTokens: input,
+          outputTokens: output,
+          cacheReadTokens: cacheRead,
+          cacheWriteTokens: 0,
+          cost: ((input * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) / 1e6),
+          currency: model.currency
+        }
+        repo.recordRequest(db.get(), ev, {
+          day: dayKey(ts),
+          providerName: provider.name,
+          baseUrl: provider.baseUrl,
+          upstreamModel: model.upstreamModel
+        })
+        made++
+      }
+      return made
+    })
+  )
 
   // 悬浮窗
   ipcMain.handle(CH.overlayDragStart, wrap(() => overlayWin.startDrag()))

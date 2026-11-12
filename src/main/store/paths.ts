@@ -19,10 +19,9 @@ export function configPath(): string {
   return join(dataDir(), 'config.json')
 }
 
+/** 只建数据根目录；events/rollup 是旧版目录，导入后会改名，不再预先重建。 */
 export function ensureDirs(): void {
-  for (const d of [dataDir(), eventsDir(), rollupDir()]) {
-    mkdirSync(d, { recursive: true })
-  }
+  mkdirSync(dataDir(), { recursive: true })
 }
 
 /** 本地日期，用于文件名分片：YYYY-MM-DD */

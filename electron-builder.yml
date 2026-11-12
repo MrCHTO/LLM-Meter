@@ -3,6 +3,8 @@ productName: LLM Meter
 directories:
   output: dist
   buildResources: resources
+# 直接用已安装的 Electron 产物，避免打包时再联网下载
+electronDist: node_modules/electron/dist
 files:
   - out/**/*
   - resources/icon.png

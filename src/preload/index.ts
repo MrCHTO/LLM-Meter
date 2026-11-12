@@ -24,6 +24,11 @@ const api = {
   restartProxy: () => ipcRenderer.invoke(CH.proxyRestart),
 
   history: (days: number, modelId: string | null) => ipcRenderer.invoke(CH.history, days, modelId),
+  statsSeries: (q: unknown) => ipcRenderer.invoke(CH.statsSeries, q),
+  statsTotals: (q: unknown) => ipcRenderer.invoke(CH.statsTotals, q),
+  statsTop: (q: unknown) => ipcRenderer.invoke(CH.statsTop, q),
+  statsExport: (q: unknown) => ipcRenderer.invoke(CH.statsExport, q),
+  devSeed: (count: number) => ipcRenderer.invoke(CH.devSeed, count),
   recent: (modelId: string, limit?: number) => ipcRenderer.invoke(CH.recent, modelId, limit),
   openDataDir: () => ipcRenderer.invoke(CH.openDataDir),
   backup: () => ipcRenderer.invoke(CH.backup),
