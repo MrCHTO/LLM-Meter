@@ -2,7 +2,6 @@ import { BrowserWindow, Menu, app, screen } from 'electron'
 import { join } from 'node:path'
 import type { Rectangle } from 'electron'
 import * as cfg from '../store/config'
-import * as probe from '../probe/runner'
 import { getOverlay, send, setOverlay, showMain } from './registry'
 import { markQuitting } from './main-window'
 
@@ -195,16 +194,6 @@ export function showMenu(): void {
   const menu = Menu.buildFromTemplate([
     { label: '打开主窗口', click: () => showMain() },
     { label: '选择模型', submenu: modelSubmenu() },
-    { type: 'separator' },
-    {
-      label: settings.pauseProbe ? '恢复探针' : '暂停探针',
-      click: () => {
-        cfg.mutate((c) => {
-          c.settings.pauseProbe = !c.settings.pauseProbe
-        })
-        if (cfg.get().settings.pauseProbe) probe.stop()
-      }
-    },
     { type: 'separator' },
     {
       label: '透明度',

@@ -431,7 +431,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   }
 }
 
-function listenOn(port: number): Promise<number> {
+function listenOn(port: number, host: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const s = createServer((req, res) => {
       handle(req, res).catch((err: unknown) => {
@@ -442,10 +442,9 @@ function listenOn(port: number): Promise<number> {
     })
     s.on('error', (err: NodeJS.ErrnoException) => {
       s.close()
-      if (err.code === 'EADDRINUSE') reject(err)
-      else reject(err)
+      reject(err)
     })
-    s.listen(port, '127.0.0.1', () => {
+    s.listen(port, host, () => {
       server = s
       resolve(port)
     })
@@ -455,18 +454,20 @@ function listenOn(port: number): Promise<number> {
 export async function start(preferred: number): Promise<ProxyState> {
   await stop()
   state = { running: false, port: 0, error: null }
+  // 允许局域网访问时绑 0.0.0.0，否则只绑回环
+  const host = cfg.get().settings.allowLan ? '0.0.0.0' : '127.0.0.1'
   for (let i = 0; i < MAX_PORT_TRIES; i++) {
     const port = preferred + i
     if (port > 65535) break
     try {
-      await listenOn(port)
+      await listenOn(port, host)
       state = { running: true, port, error: null }
       if (port !== preferred) {
         cfg.mutate((c) => {
           c.settings.port = port
         })
       }
-      console.log(`[proxy] listening on 127.0.0.1:${port}`)
+      console.log(`[proxy] listening on ${host}:${port}`)
       return getState()
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EADDRINUSE') {

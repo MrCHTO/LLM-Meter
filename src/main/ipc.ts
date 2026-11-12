@@ -23,6 +23,7 @@ import * as proxy from './proxy/server'
 import { joinUrl } from './proxy/url'
 import { lookup as lookupPrice } from './pricing'
 import * as rate from './rate'
+import { lanIp } from './net'
 import * as overlayWin from './windows/overlay'
 import { showMain } from './windows/registry'
 
@@ -56,6 +57,8 @@ function view(): ConfigView {
     models: cfg.listModels(),
     settings: {
       port: c.settings.port,
+      allowLan: c.settings.allowLan,
+      lanIp: lanIp(),
       usdCny: c.settings.usdCny,
       usdCnyDate: c.settings.usdCnyDate,
       retentionDays: c.settings.retentionDays,
@@ -279,10 +282,13 @@ export function register(): void {
         overlayWidth?: number
         overlayVisible?: boolean
         overlayModelId?: string | null
+        allowLan?: boolean
       }) => {
         const portChanged = patch.port !== undefined && patch.port !== cfg.get().settings.port
+        const lanChanged = patch.allowLan !== undefined && patch.allowLan !== cfg.get().settings.allowLan
         cfg.mutate((c) => {
           if (patch.port !== undefined) c.settings.port = Math.min(65535, Math.max(1024, Math.round(patch.port)))
+          if (patch.allowLan !== undefined) c.settings.allowLan = patch.allowLan
           if (patch.usdCny !== undefined) c.settings.usdCny = Math.min(20, Math.max(1, patch.usdCny))
           if (patch.retentionDays !== undefined) c.settings.retentionDays = Math.max(1, Math.round(patch.retentionDays))
           if (patch.rollupRetentionDays !== undefined) {
@@ -299,7 +305,7 @@ export function register(): void {
         })
         overlayWin.applySettings()
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
-        if (portChanged) await proxy.start(cfg.get().settings.port)
+        if (portChanged || lanChanged) await proxy.start(cfg.get().settings.port)
         return true
       }
     )

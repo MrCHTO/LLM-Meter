@@ -35,17 +35,61 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
   }
 
   const overlayModel = config.models.find((m) => m.id === config.settings.overlay.modelId)
-  const base = snapshot?.baseUrl || `http://127.0.0.1:${config.settings.port}`
+  const localBase = `http://127.0.0.1:${config.settings.port}`
+  const lanBase = `http://${config.settings.lanIp}:${config.settings.port}`
+  const lanOn = config.settings.allowLan
+
+  const copy = async (text: string, label: string): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(text)
+      notify(`${label} 已复制`, 'ok')
+    } catch {
+      notify('复制失败，请手动选中', 'bad')
+    }
+  }
 
   return (
     <div className="section">
       <div className="card">
         <h2>客户端接入</h2>
         <dl className="kv kv-wide">
-          <dt>OpenAI 兼容</dt>
-          <dd className="mono selectable">{base}{FORMAT_MOUNT.openai}/v1</dd>
-          <dt>Anthropic</dt>
-          <dd className="mono selectable">{base}{FORMAT_MOUNT.anthropic}</dd>
+          <dt>本机 · OpenAI</dt>
+          <dd>
+            <div className="row nowrap">
+              <span className="mono selectable grow ellipsis">
+                {localBase}{FORMAT_MOUNT.openai}/v1
+              </span>
+              <button className="btn sm" onClick={() => void copy(`${localBase}${FORMAT_MOUNT.openai}/v1`, '本机地址')}>
+                复制
+              </button>
+            </div>
+          </dd>
+          <dt>本机 · Anthropic</dt>
+          <dd>
+            <div className="row nowrap">
+              <span className="mono selectable grow ellipsis">
+                {localBase}{FORMAT_MOUNT.anthropic}
+              </span>
+              <button className="btn sm" onClick={() => void copy(`${localBase}${FORMAT_MOUNT.anthropic}`, '本机地址')}>
+                复制
+              </button>
+            </div>
+          </dd>
+          <dt>局域网 · OpenAI</dt>
+          <dd className={lanOn ? undefined : 'dimmed'}>
+            <div className="row nowrap">
+              <span className="mono selectable grow ellipsis">
+                {lanBase}{FORMAT_MOUNT.openai}/v1
+              </span>
+              <button
+                className="btn sm"
+                disabled={!lanOn}
+                onClick={() => void copy(`${lanBase}${FORMAT_MOUNT.openai}/v1`, '局域网地址')}
+              >
+                复制
+              </button>
+            </div>
+          </dd>
           <dt>本地 token</dt>
           <dd>
             <div className="row nowrap">
@@ -79,6 +123,22 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
             </div>
           </dd>
         </dl>
+
+        <div className="divider" />
+
+        <div className="row">
+          <label className="row nowrap" style={{ gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={lanOn}
+              onChange={(e) => void patch({ allowLan: e.target.checked })}
+            />
+            <span>允许局域网访问</span>
+          </label>
+          <span className="muted">
+            {lanOn ? '同网段拿到 token 即可使用你的额度' : '默认只监听 127.0.0.1'}
+          </span>
+        </div>
 
         <div className="divider" />
 

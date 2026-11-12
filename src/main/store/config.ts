@@ -5,6 +5,7 @@ import type { ConfigFile, ModelCfg, Provider, Settings } from '../../shared/type
 
 const DEFAULT_SETTINGS: Settings = {
   port: 8787,
+  allowLan: false,
   usdCny: 7.2,
   usdCnyDate: '',
   localToken: '',
@@ -104,6 +105,7 @@ function normalize(raw: unknown): ConfigFile {
   const ov = (os.overlay ?? {}) as Record<string, unknown>
   const settings: Settings = {
     port: clamp(Math.round(num(os.port, DEFAULT_SETTINGS.port)), 1024, 65535),
+    allowLan: os.allowLan === true,
     usdCny: clamp(num(os.usdCny, DEFAULT_SETTINGS.usdCny), 1, 20),
     usdCnyDate: /^\d{4}-\d{2}-\d{2}$/.test(str(os.usdCnyDate)) ? str(os.usdCnyDate) : '',
     localToken: /^[0-9a-f]{32}$/.test(str(os.localToken)) ? str(os.localToken) : newToken(),

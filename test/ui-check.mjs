@@ -252,6 +252,8 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(3)')?.click()")
   await sleep(600)
   check('设置页给出本地入口', (await s.eval("document.body.innerText")).includes('127.0.0.1'))
+  check('设置页同时给出局域网入口', (await s.eval("document.body.innerText")).includes('局域网'))
+  check('局域网默认关闭且置灰', (await s.eval("document.querySelectorAll('dd.dimmed').length")) === 1)
   await s.shot('settings.png')
 
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")

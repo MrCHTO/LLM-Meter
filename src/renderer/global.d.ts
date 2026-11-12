@@ -60,6 +60,7 @@ declare global {
         overlayWidth?: number
         overlayVisible?: boolean
         overlayModelId?: string | null
+        allowLan?: boolean
       }) => Promise<IpcResult<boolean>>
       rotateToken: () => Promise<IpcResult<string>>
       refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>

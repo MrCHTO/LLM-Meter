@@ -59,6 +59,8 @@ export interface OverlayState {
 
 export interface Settings {
   port: number
+  /** 是否允许局域网访问（绑 0.0.0.0） */
+  allowLan: boolean
   /** USD → CNY 汇率，价格与成本一律按人民币显示 */
   usdCny: number
   /** 汇率对应的日期，YYYY-MM-DD；取到当天值后不再重复请求 */
@@ -243,7 +245,7 @@ export interface ProviderView extends Omit<Provider, 'keyCipher'> {
 export interface ConfigView {
   providers: ProviderView[]
   models: ModelCfg[]
-  settings: Omit<Settings, 'localToken'> & { localTokenMasked: string; localToken: string }
+  settings: Omit<Settings, 'localToken'> & { localTokenMasked: string; localToken: string; lanIp: string }
   dataDir: string
   version: string
 }

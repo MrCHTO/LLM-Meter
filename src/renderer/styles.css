@@ -801,6 +801,10 @@ tr.open > td {
   font-size: 12px;
 }
 
+.dimmed {
+  opacity: 0.45;
+}
+
 .kv-wide {
   grid-template-columns: 110px 1fr;
 }
