@@ -132,7 +132,6 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div>
             <h2>供应商</h2>
-            <p className="hint">Base URL 填到域名或前缀即可，例如 https://relay.example.com。Key 用 Windows DPAPI 加密后落盘。</p>
           </div>
           <button className="btn primary" onClick={() => setProvider({ ...EMPTY_PROVIDER })}>
             添加供应商
@@ -200,9 +199,6 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div>
             <h2>模型</h2>
-            <p className="hint">
-              别名是客户端要填的 model 名，全局唯一；上游模型名是真正发给供应商的名字。单价按每百万 token。
-            </p>
           </div>
           <button
             className="btn primary"

@@ -39,9 +39,6 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
     <div className="section">
       <div className="card">
         <h2>客户端接入</h2>
-        <p className="hint">
-          把客户端的 Base URL 指向下面地址，API Key 填本地 token，model 填模型别名。真实上游 Key 不会发到客户端。
-        </p>
         <div className="kv">
           <dt>OpenAI 兼容</dt>
           <dd>{base}{FORMAT_MOUNT.openai}/v1</dd>
@@ -139,7 +136,6 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
 
       <div className="card">
         <h2>悬浮窗</h2>
-        <p className="hint">只显示勾了「在悬浮窗显示」的模型。拖动面板移动，双击打开主窗，右键出菜单。</p>
         <div className="row">
           <button
             className="btn"
@@ -151,9 +147,6 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
           >
             {config.settings.overlay.visible ? '隐藏悬浮窗' : '显示悬浮窗'}
           </button>
-          <span className="hint" style={{ margin: 0 }}>
-            没有勾选模型时悬浮窗会显示空态。
-          </span>
         </div>
         <label className="field" style={{ marginTop: 12 }}>
           <span>不透明度 {opacity}%（鼠标悬停时会临时全不透明）</span>
@@ -179,7 +172,6 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
 
       <div className="card">
         <h2>数据</h2>
-        <p className="hint">全部落在本机文件里：config.json 是配置，events 是逐条明细，rollup 是分钟聚合。</p>
         <div className="kv">
           <dt>数据目录</dt>
           <dd>{config.dataDir}</dd>

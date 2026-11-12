@@ -93,7 +93,7 @@ function Overlay(): JSX.Element {
                   <i
                     key={index}
                     className={index >= 14 && value > 0 ? 'hot' : undefined}
-                    style={{ height: `${value > 0 ? Math.max(2, Math.round((value / max) * 14)) : 1}px` }}
+                    style={{ height: `${value > 0 ? Math.max(3, Math.round((value / max) * 14)) : 2}px` }}
                   />
                 ))}
               </span>

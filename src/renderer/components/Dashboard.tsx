@@ -76,14 +76,12 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
   }
 
   const models = snapshot?.models ?? []
-  const watched = models.filter((m) => config.models.find((x) => x.id === m.modelId)?.watch)
 
   if (config.models.length === 0) {
     return (
       <div className="section">
         <div className="card">
           <h2>还没有模型</h2>
-          <p className="hint">先到「模型与供应商」里填 Base URL、API Key，再添加模型别名，然后把客户端的 Base URL 指向本应用。</p>
           <div className="kv">
             <dt>本地入口</dt>
             <dd>{snapshot?.proxyRunning ? snapshot.baseUrl : '代理未启动'}</dd>
@@ -129,9 +127,6 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
 
       <div className="card">
         <h2>按模型</h2>
-        <p className="hint">
-          数字来自真实转发流量。点「测速」会用同一段长前缀连发两次，用第二次的缓存读取量判断缓存是否真的生效。
-        </p>
         <table>
           <thead>
             <tr>
@@ -225,11 +220,6 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
             ) : null}
           </tbody>
         </table>
-        {watched.length === 0 && config.models.length > 0 ? (
-          <p className="hint" style={{ marginTop: 10 }}>
-            当前没有模型勾选「在悬浮窗显示」，悬浮窗会是空的。
-          </p>
-        ) : null}
       </div>
     </div>
   )

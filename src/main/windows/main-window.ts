@@ -19,7 +19,7 @@ export function create(): BrowserWindow {
     minHeight: 640,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: '#0f1216',
+    backgroundColor: '#f5f6f8',
     title: 'LLM Meter',
     icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: {
