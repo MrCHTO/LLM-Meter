@@ -1,0 +1,22 @@
+appId: dev.edgeless.llmmeter
+productName: LLM Meter
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**/*
+  - resources/icon.png
+  - package.json
+asar: true
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ${productName}-${version}-setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: LLM Meter

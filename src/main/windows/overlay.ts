@@ -1,0 +1,223 @@
+import { BrowserWindow, Menu, app, screen } from 'electron'
+import { join } from 'node:path'
+import type { Rectangle } from 'electron'
+import * as cfg from '../store/config'
+import * as probe from '../probe/runner'
+import { getOverlay, send, setOverlay, showMain } from './registry'
+import { markQuitting } from './main-window'
+
+const MIN_WIDTH = 240
+const MIN_HEIGHT = 96
+
+let hovered = false
+let dragTimer: NodeJS.Timeout | null = null
+let dragOffset = { x: 0, y: 0 }
+
+function defaultBounds(): Rectangle {
+  const area = screen.getPrimaryDisplay().workArea
+  const width = Math.max(MIN_WIDTH, cfg.get().settings.overlay.width)
+  const height = 240
+  return {
+    width,
+    height,
+    x: area.x + area.width - width - 24,
+    y: area.y + 24
+  }
+}
+
+/** 落在已拔掉的显示器上时，钳回最近的主屏工作区。 */
+function clampBounds(b: Rectangle): Rectangle {
+  const display = screen.getDisplayMatching(b)
+  const area = display.workArea
+  const width = Math.min(Math.max(MIN_WIDTH, b.width), Math.max(MIN_WIDTH, area.width - 16))
+  const height = Math.min(Math.max(MIN_HEIGHT, b.height), Math.max(MIN_HEIGHT, area.height - 16))
+  const x = Math.min(Math.max(area.x, b.x), area.x + area.width - width)
+  const y = Math.min(Math.max(area.y, b.y), area.y + area.height - height)
+  return { x, y, width, height }
+}
+
+function currentBounds(): Rectangle {
+  const win = getOverlay()
+  if (!win) return defaultBounds()
+  return win.getBounds()
+}
+
+export function applySettings(): void {
+  const win = getOverlay()
+  if (!win) return
+  const s = cfg.get().settings
+  win.setOpacity(hovered ? 1 : s.overlayOpacity / 100)
+  const b = win.getBounds()
+  if (b.width !== s.overlay.width) {
+    win.setBounds(clampBounds({ ...b, width: s.overlay.width }))
+  }
+}
+
+export function create(): BrowserWindow {
+  const stored = cfg.get().settings.overlay
+  const base = stored.x === null || stored.y === null
+    ? defaultBounds()
+    : clampBounds({ x: stored.x, y: stored.y, width: stored.width, height: 280 })
+
+  const win = new BrowserWindow({
+    ...base,
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    movable: false,
+    alwaysOnTop: true,
+    title: 'LLM Meter',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      sandbox: true
+    }
+  })
+
+  win.setAlwaysOnTop(true, 'floating')
+  win.setMenuBarVisibility(false)
+  win.setOpacity(hovered ? 1 : cfg.get().settings.overlayOpacity / 100)
+
+  win.on('ready-to-show', () => {
+    const fresh = clampBounds(win.getBounds())
+    win.setBounds(fresh)
+    if (cfg.get().settings.overlay.visible) win.showInactive()
+    saveBounds()
+  })
+
+  win.on('closed', () => setOverlay(null))
+
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
+  if (process.env.ELECTRON_RENDERER_URL) {
+    void win.loadURL(`${process.env.ELECTRON_RENDERER_URL}/overlay.html`)
+  } else {
+    void win.loadFile(join(__dirname, '../renderer/overlay.html'))
+  }
+
+  setOverlay(win)
+  return win
+}
+
+let saveTimer: NodeJS.Timeout | null = null
+function saveBounds(): void {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    const win = getOverlay()
+    if (!win) return
+    const b = win.getBounds()
+    cfg.mutate((c) => {
+      c.settings.overlay.x = b.x
+      c.settings.overlay.y = b.y
+      c.settings.overlay.width = b.width
+    })
+  }, 400)
+}
+
+export function startDrag(): void {
+  const win = getOverlay()
+  if (!win) return
+  const cursor = screen.getCursorScreenPoint()
+  const b = win.getBounds()
+  dragOffset = { x: cursor.x - b.x, y: cursor.y - b.y }
+  if (dragTimer) clearInterval(dragTimer)
+  dragTimer = setInterval(() => {
+    const w = getOverlay()
+    if (!w) return
+    const p = screen.getCursorScreenPoint()
+    const next = clampBounds({ x: p.x - dragOffset.x, y: p.y - dragOffset.y, width: w.getBounds().width, height: w.getBounds().height })
+    w.setPosition(next.x, next.y)
+  }, 16)
+}
+
+export function stopDrag(): void {
+  if (dragTimer) clearInterval(dragTimer)
+  dragTimer = null
+  saveBounds()
+}
+
+export function resizeHeight(height: number): void {
+  const win = getOverlay()
+  if (!win) return
+  const b = win.getBounds()
+  const next = clampBounds({ ...b, height: Math.max(MIN_HEIGHT, Math.round(height)) })
+  win.setBounds(next)
+}
+
+export function setVisible(visible: boolean): void {
+  const win = getOverlay()
+  if (!win) return
+  if (visible) {
+    const fresh = clampBounds({ ...currentBounds(), width: cfg.get().settings.overlay.width })
+    win.setBounds(fresh)
+    win.showInactive()
+  } else {
+    win.hide()
+  }
+}
+
+export function setHover(value: boolean): void {
+  hovered = value
+  applySettings()
+}
+
+export function showMenu(): void {
+  const win = getOverlay()
+  if (!win) return
+  const settings = cfg.get().settings
+  const menu = Menu.buildFromTemplate([
+    { label: '打开主窗口', click: () => showMain() },
+    {
+      label: settings.pauseProbe ? '恢复探针' : '暂停探针',
+      click: () => {
+        cfg.mutate((c) => {
+          c.settings.pauseProbe = !c.settings.pauseProbe
+        })
+        if (cfg.get().settings.pauseProbe) probe.stop()
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '透明度',
+      submenu: [50, 70, 92, 100].map((value) => ({
+        label: `${value}%`,
+        type: 'radio' as const,
+        checked: settings.overlayOpacity === value,
+        click: () => {
+          cfg.mutate((c) => {
+            c.settings.overlayOpacity = value
+          })
+          applySettings()
+        }
+      }))
+    },
+    {
+      label: '回到默认位置',
+      click: () => {
+        const b = defaultBounds()
+        win.setBounds(b)
+        saveBounds()
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        markQuitting()
+        app.quit()
+      }
+    }
+  ])
+  menu.popup({ window: win })
+}
+
+export function notify(): void {
+  send('overlay:ping', Date.now())
+}

@@ -1,0 +1,73 @@
+import type {
+  ApiFormat,
+  ConfigView,
+  DayPoint,
+  IpcResult,
+  LiveSnapshot,
+  ModelCfg,
+  ProbeResult,
+  ProviderTestResult,
+  RequestEvent
+} from '../shared/types'
+
+declare global {
+  interface Window {
+    api: {
+      config: () => Promise<IpcResult<ConfigView>>
+      info: () => Promise<IpcResult<{ version: string; dataDir: string; platform: string }>>
+
+      createProvider: (input: {
+        name: string
+        baseUrl: string
+        format: ApiFormat
+        apiKey: string
+        enabled: boolean
+      }) => Promise<IpcResult<string>>
+      updateProvider: (
+        id: string,
+        patch: { name?: string; baseUrl?: string; format?: ApiFormat; apiKey?: string; enabled?: boolean }
+      ) => Promise<IpcResult<boolean>>
+      deleteProvider: (id: string) => Promise<IpcResult<boolean>>
+      testProvider: (id: string) => Promise<IpcResult<ProviderTestResult>>
+
+      createModel: (input: Omit<ModelCfg, 'id' | 'createdAt' | 'sort'>) => Promise<IpcResult<string>>
+      updateModel: (id: string, patch: Partial<ModelCfg>) => Promise<IpcResult<boolean>>
+      deleteModel: (id: string) => Promise<IpcResult<boolean>>
+      runProbe: (id: string) => Promise<IpcResult<ProbeResult>>
+      stopProbe: (id?: string) => Promise<IpcResult<boolean>>
+      pauseProbe: (value: boolean) => Promise<IpcResult<boolean>>
+
+      updateSettings: (patch: {
+        port?: number
+        retentionDays?: number
+        rollupRetentionDays?: number
+        overlayOpacity?: number
+        pauseProbe?: boolean
+        startMinimized?: boolean
+        overlayWidth?: number
+        overlayVisible?: boolean
+      }) => Promise<IpcResult<boolean>>
+      rotateToken: () => Promise<IpcResult<string>>
+      restartProxy: () => Promise<IpcResult<unknown>>
+
+      history: (days: number, modelId: string | null) => Promise<IpcResult<DayPoint[]>>
+      recent: (modelId: string, limit?: number) => Promise<IpcResult<RequestEvent[]>>
+      openDataDir: () => Promise<IpcResult<boolean>>
+      backup: () => Promise<IpcResult<string>>
+      exportDaily: () => Promise<IpcResult<string>>
+      cleanupEvents: () => Promise<IpcResult<boolean>>
+
+      overlayDragStart: () => Promise<IpcResult<void>>
+      overlayDragEnd: () => Promise<IpcResult<void>>
+      overlayHover: (value: boolean) => Promise<IpcResult<void>>
+      overlayMenu: () => Promise<IpcResult<void>>
+      overlayOpenMain: () => Promise<IpcResult<void>>
+      overlaySetHeight: (height: number) => Promise<IpcResult<void>>
+      openMain: () => Promise<IpcResult<void>>
+
+      onPush: (fn: (snapshot: LiveSnapshot) => void) => () => void
+    }
+  }
+}
+
+export {}

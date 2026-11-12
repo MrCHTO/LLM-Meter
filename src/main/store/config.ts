@@ -1,0 +1,197 @@
+import { randomBytes, randomUUID } from 'node:crypto'
+import { readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs'
+import { configPath, ensureDirs } from './paths'
+import type { ConfigFile, ModelCfg, Provider, Settings } from '../../shared/types'
+
+const DEFAULT_SETTINGS: Settings = {
+  port: 8787,
+  localToken: '',
+  retentionDays: 30,
+  rollupRetentionDays: 365,
+  overlay: { x: null, y: null, width: 320, visible: true },
+  overlayOpacity: 92,
+  pauseProbe: false,
+  startMinimized: false
+}
+
+let cache: ConfigFile | null = null
+const listeners = new Set<(c: ConfigFile) => void>()
+
+function newToken(): string {
+  return randomBytes(16).toString('hex')
+}
+
+function emptyConfig(): ConfigFile {
+  return {
+    version: 1,
+    providers: [],
+    models: [],
+    settings: { ...DEFAULT_SETTINGS, overlay: { ...DEFAULT_SETTINGS.overlay }, localToken: newToken() }
+  }
+}
+
+function num(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v))
+}
+
+function str(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback
+}
+
+/** 手改坏了也要能起来：字段逐个兜底，非法条目丢弃。 */
+function normalize(raw: unknown): ConfigFile {
+  const base = emptyConfig()
+  if (!raw || typeof raw !== 'object') return base
+  const r = raw as Record<string, unknown>
+
+  const providers: Provider[] = []
+  if (Array.isArray(r.providers)) {
+    for (const p of r.providers) {
+      if (!p || typeof p !== 'object') continue
+      const o = p as Record<string, unknown>
+      const baseUrl = str(o.baseUrl).trim().replace(/\/+$/, '')
+      if (!baseUrl) continue
+      providers.push({
+        id: str(o.id) || randomUUID(),
+        name: str(o.name).trim() || baseUrl,
+        baseUrl,
+        format: o.format === 'anthropic' ? 'anthropic' : 'openai',
+        keyCipher: str(o.keyCipher),
+        enabled: o.enabled !== false,
+        createdAt: num(o.createdAt, Date.now())
+      })
+    }
+  }
+
+  const ids = new Set(providers.map((p) => p.id))
+  const aliases = new Set<string>()
+  const models: ModelCfg[] = []
+  if (Array.isArray(r.models)) {
+    for (const m of r.models) {
+      if (!m || typeof m !== 'object') continue
+      const o = m as Record<string, unknown>
+      const providerId = str(o.providerId)
+      const alias = str(o.alias).trim()
+      const upstreamModel = str(o.upstreamModel).trim()
+      if (!ids.has(providerId) || !alias || !upstreamModel || aliases.has(alias)) continue
+      aliases.add(alias)
+      models.push({
+        id: str(o.id) || randomUUID(),
+        providerId,
+        upstreamModel,
+        alias,
+        enabled: o.enabled !== false,
+        watch: o.watch !== false,
+        priceIn: Math.max(0, num(o.priceIn, 0)),
+        priceOut: Math.max(0, num(o.priceOut, 0)),
+        priceCacheRead: Math.max(0, num(o.priceCacheRead, 0)),
+        priceCacheWrite: Math.max(0, num(o.priceCacheWrite, 0)),
+        currency: str(o.currency, 'USD') || 'USD',
+        dailyBudget: typeof o.dailyBudget === 'number' && o.dailyBudget > 0 ? o.dailyBudget : null,
+        sort: num(o.sort, models.length),
+        createdAt: num(o.createdAt, Date.now())
+      })
+    }
+  }
+
+  const os = (r.settings ?? {}) as Record<string, unknown>
+  const ov = (os.overlay ?? {}) as Record<string, unknown>
+  const settings: Settings = {
+    port: clamp(Math.round(num(os.port, DEFAULT_SETTINGS.port)), 1024, 65535),
+    localToken: /^[0-9a-f]{32}$/.test(str(os.localToken)) ? str(os.localToken) : newToken(),
+    retentionDays: clamp(Math.round(num(os.retentionDays, DEFAULT_SETTINGS.retentionDays)), 1, 3650),
+    rollupRetentionDays: clamp(
+      Math.round(num(os.rollupRetentionDays, DEFAULT_SETTINGS.rollupRetentionDays)),
+      1,
+      3650
+    ),
+    overlay: {
+      x: typeof ov.x === 'number' ? ov.x : null,
+      y: typeof ov.y === 'number' ? ov.y : null,
+      width: clamp(Math.round(num(ov.width, DEFAULT_SETTINGS.overlay.width)), 240, 720),
+      visible: ov.visible !== false
+    },
+    overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 30, 100),
+    pauseProbe: os.pauseProbe === true,
+    startMinimized: os.startMinimized === true
+  }
+
+  return { version: 1, providers, models, settings }
+}
+
+export function get(): ConfigFile {
+  if (cache) return cache
+  ensureDirs()
+  const file = configPath()
+  if (!existsSync(file)) {
+    cache = emptyConfig()
+    persist(cache)
+    return cache
+  }
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
+    cache = normalize(parsed)
+  } catch {
+    // 坏文件留证后从空配置起，不阻塞启动
+    try {
+      renameSync(file, `${file}.corrupt-${Date.now()}`)
+    } catch {
+      /* 忽略 */
+    }
+    cache = emptyConfig()
+    persist(cache)
+  }
+  return cache
+}
+
+function persist(cfg: ConfigFile): void {
+  ensureDirs()
+  const file = configPath()
+  const tmp = `${file}.tmp`
+  writeFileSync(tmp, JSON.stringify(cfg, null, 2), 'utf8')
+  renameSync(tmp, file)
+}
+
+/** 读-改-写。mutator 返回值会被忽略，改动直接体现在可变副本上。 */
+export function mutate(mutator: (cfg: ConfigFile) => void): ConfigFile {
+  const cfg = structuredClone(get())
+  mutator(cfg)
+  cache = cfg
+  persist(cfg)
+  for (const fn of listeners) fn(cfg)
+  return cfg
+}
+
+export function onChange(fn: (c: ConfigFile) => void): () => void {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
+}
+
+export function providerById(id: string): Provider | undefined {
+  return get().providers.find((p) => p.id === id)
+}
+
+export function modelByAlias(alias: string): ModelCfg | undefined {
+  return get().models.find((m) => m.alias === alias)
+}
+
+export function modelByUpstream(name: string): ModelCfg | undefined {
+  const hits = get().models.filter((m) => m.upstreamModel === name)
+  return hits.length === 1 ? hits[0] : undefined
+}
+
+export function modelById(id: string): ModelCfg | undefined {
+  return get().models.find((m) => m.id === id)
+}
+
+export function listModels(): ModelCfg[] {
+  return [...get().models].sort((a, b) => a.sort - b.sort || a.alias.localeCompare(b.alias))
+}
+
+export function listProviders(): Provider[] {
+  return [...get().providers].sort((a, b) => a.name.localeCompare(b.name))
+}
