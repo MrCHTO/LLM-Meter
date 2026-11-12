@@ -12,7 +12,7 @@ type Preset = 'today' | '24h' | '7d' | 'custom'
 
 const METRICS: { id: StatsMetric; label: string; unit: string; digits: number }[] = [
   { id: 'requests', label: '请求数', unit: '次', digits: 0 },
-  { id: 'tps', label: 'TPS', unit: 'tok/s', digits: 1 },
+  { id: 'tps', label: 'tok/s', unit: 'tok/s', digits: 1 },
   { id: 'input', label: '输入 token', unit: '个', digits: 0 },
   { id: 'output', label: '输出 token', unit: '个', digits: 0 },
   { id: 'cache_read', label: '缓存读 token', unit: '个', digits: 0 },
@@ -238,8 +238,10 @@ export function Analysis({ config, notify }: Props): JSX.Element {
               <th>输入</th>
               <th>输出</th>
               <th>缓存读</th>
-              <th>平均 TTFT</th>
-              <th>TPS</th>
+              <th>TTFT P50</th>
+              <th>TTFT P95</th>
+              <th>TTFT P99</th>
+              <th>tok/s</th>
               <th>成本</th>
             </tr>
           </thead>
@@ -252,14 +254,16 @@ export function Analysis({ config, notify }: Props): JSX.Element {
                 <td className="mono">{fmtTokens(r.input)}</td>
                 <td className="mono">{fmtTokens(r.output)}</td>
                 <td className="mono">{fmtTokens(r.cacheRead)}</td>
-                <td className="mono">{fmtMs(r.avgTtft)}</td>
+                <td className="mono">{fmtMs(r.ttftP50)}</td>
+                <td className="mono">{fmtMs(r.ttftP95)}</td>
+                <td className="mono">{fmtMs(r.ttftP99)}</td>
                 <td className="mono">{r.tps === null ? '—' : r.tps.toFixed(1)}</td>
                 <td className="mono">{fmtMoney(r.cost)}</td>
               </tr>
             ))}
             {totals.length === 0 ? (
               <tr>
-                <td colSpan={9} className="empty">
+                <td colSpan={11} className="empty">
                   {range ? '这个区间没有数据' : '选一个合法区间'}
                 </td>
               </tr>

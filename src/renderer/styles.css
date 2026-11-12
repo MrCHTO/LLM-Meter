@@ -642,18 +642,18 @@ body.overlay-body {
 }
 
 .tbl .c-model {
-  width: 19%;
+  width: 15%;
   white-space: normal;
 }
 
 .tbl .c-url {
-  width: 21%;
+  width: 18%;
   text-align: left;
   white-space: normal;
 }
 
 .tbl .c-format {
-  width: 12%;
+  width: 10%;
   text-align: left;
   white-space: normal;
 }
@@ -664,11 +664,11 @@ body.overlay-body {
 }
 
 .tbl .c-rate {
-  width: 9%;
+  width: 8%;
 }
 
 .tbl .c-ttft {
-  width: 8%;
+  width: 6%;
 }
 
 .tbl .c-hit {
@@ -676,7 +676,7 @@ body.overlay-body {
 }
 
 .tbl .c-tok {
-  width: 8%;
+  width: 7%;
 }
 
 .tbl .c-cost {

@@ -433,7 +433,9 @@ export function register(): void {
     cacheRead: r.cache_read,
     cacheWrite: r.cache_write,
     cost: r.cost,
-    avgTtft: r.avg_ttft,
+    ttftP50: r.ttft_p50,
+    ttftP95: r.ttft_p95,
+    ttftP99: r.ttft_p99,
     tps: r.tps
   })
 

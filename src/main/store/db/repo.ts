@@ -101,6 +101,17 @@ export function dayTotals(db: Db, modelId: string, day: string): TotalsRow {
   return row ?? { requests: 0, errors: 0, input: 0, output: 0, cache_read: 0, cache_write: 0, cost: 0 }
 }
 
+/** 今天的 TTFT 样本，供重启后回灌分位数 */
+export function ttftSamplesSince(db: Db, modelId: string, sinceTs: number): number[] {
+  return db
+    .all<{ v: number }>(
+      'select ttft_ms as v from requests where model_id = ? and ok = 1 and ttft_ms is not null and ts >= ? order by ts',
+      modelId,
+      sinceTs
+    )
+    .map((r) => Number(r.v))
+}
+
 export interface RecentRow {
   id: string
   ts: number
@@ -283,8 +294,17 @@ export interface GroupTotals {
   cache_read: number
   cache_write: number
   cost: number
-  avg_ttft: number | null
+  ttft_p50: number | null
+  ttft_p95: number | null
+  ttft_p99: number | null
   tps: number | null
+}
+
+/** 每组内最近邻法分位数 */
+function percentile(sortedAsc: number[], p: number): number | null {
+  if (sortedAsc.length === 0) return null
+  const idx = Math.min(sortedAsc.length - 1, Math.ceil((p / 100) * sortedAsc.length) - 1)
+  return Math.round(sortedAsc[Math.max(0, idx)] ?? sortedAsc[sortedAsc.length - 1] ?? 0)
 }
 
 export function totals(
@@ -298,7 +318,7 @@ export function totals(
     where += ' and source = ?'
     params.push(opts.source)
   }
-  return db.all<GroupTotals>(
+  const groups = db.all<GroupTotals>(
     `select ${keyCol} as key,
             sum(1) as requests,
             sum(case when ok = 0 then 1 else 0 end) as errors,
@@ -307,7 +327,6 @@ export function totals(
             coalesce(sum(cache_read_tokens),0) as cache_read,
             coalesce(sum(cache_write_tokens),0) as cache_write,
             coalesce(sum(cost),0) as cost,
-            avg(case when ok = 1 and ttft_ms is not null then ttft_ms end) as avg_ttft,
             case when sum(case when ok = 1 then duration_ms else 0 end) > 0
                  then sum(case when ok = 1 then output_tokens else 0 end) * 1000.0
                       / sum(case when ok = 1 then duration_ms else 0 end)
@@ -315,6 +334,26 @@ export function totals(
      from requests where ${where} group by ${keyCol} order by cost desc`,
     ...params
   )
+
+  // 分位数要逐样本，单独拉一列 ttft 再在内存里按组排序
+  const ttftRows = db.all<{ k: string; v: number }>(
+    `select ${keyCol} as k, ttft_ms as v from requests
+     where ${where} and ok = 1 and ttft_ms is not null`,
+    ...params
+  )
+  const byKey = new Map<string, number[]>()
+  for (const row of ttftRows) {
+    const list = byKey.get(row.k)
+    if (list) list.push(Number(row.v))
+    else byKey.set(row.k, [Number(row.v)])
+  }
+  for (const g of groups) {
+    const sorted = (byKey.get(g.key) ?? []).sort((a, b) => a - b)
+    g.ttft_p50 = percentile(sorted, 50)
+    g.ttft_p95 = percentile(sorted, 95)
+    g.ttft_p99 = percentile(sorted, 99)
+  }
+  return groups
 }
 
 export function top(

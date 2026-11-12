@@ -155,7 +155,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
   return (
     <div className="section">
       <div className="charts">
-        <ChartPanel title="TPS" buckets={snapshot?.totals.buckets ?? []} rate="tok/s" />
+        <ChartPanel title="tok/s" buckets={snapshot?.totals.buckets ?? []} rate="tok/s" />
         <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} rate="次/s" />
       </div>
 
@@ -166,8 +166,10 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
               <th className="c-model">模型</th>
               <th className="c-url">上游供应商/地址</th>
               <th className="c-format">上游协议</th>
-              <th className="c-rate">TPS</th>
-              <th className="c-ttft">TTFT</th>
+              <th className="c-rate">tok/s</th>
+              <th className="c-ttft">TTFT P50</th>
+              <th className="c-ttft">TTFT P95</th>
+              <th className="c-ttft">TTFT P99</th>
               <th className="c-hit">缓存命中率</th>
               <th className="c-tok">输入</th>
               <th className="c-tok">输出</th>
@@ -215,7 +217,9 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                         <Sparkline buckets={m.buckets} tail={18} />
                       </div>
                     </td>
-                    <td className="c-ttft mono">{fmtMs(m.lastTtftMs)}</td>
+                    <td className="c-ttft mono">{fmtMs(m.ttftP50)}</td>
+                    <td className="c-ttft mono">{fmtMs(m.ttftP95)}</td>
+                    <td className="c-ttft mono">{fmtMs(m.ttftP99)}</td>
                     <td className="c-hit mono">{fmtPct(m.hitRate)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.input)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
@@ -230,7 +234,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                   </tr>
                   {isOpen ? (
                     <tr className="detail-row">
-                      <td colSpan={9} style={{ padding: 0 }}>
+                      <td colSpan={11} style={{ padding: 0 }}>
                         <Recent modelId={m.modelId} />
                       </td>
                     </tr>
@@ -240,7 +244,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
             })}
             {models.length === 0 ? (
               <tr>
-                <td colSpan={9} className="empty">
+                      <td colSpan={11} className="empty">
                   还没有启用的模型
                 </td>
               </tr>

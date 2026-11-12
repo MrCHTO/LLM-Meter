@@ -238,8 +238,8 @@ try {
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
   check(
-    '曲线标题为 TPS 与请求量',
-    (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === 'TPS,请求量'
+    '曲线标题为 tok/s 与请求量',
+    (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === 'tok/s,请求量'
   )
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
@@ -249,7 +249,13 @@ try {
     !/\.\d/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''"))
   )
   check('曲线图下带峰值', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
-  check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)
+  check('表头是十一列', (await s.eval("document.querySelectorAll('thead th').length")) === 11)
+  const headText = await s.eval("[...document.querySelectorAll('thead th')].map((n) => n.innerText).join('|')")
+  check(
+    'TTFT 拆为三个分位列',
+    headText.split('|').filter((x) => x.startsWith('TTFT')).join(',') === 'TTFT P50,TTFT P95,TTFT P99'
+  )
+  check('速率列叫 tok/s', headText.includes('|tok/s|'))
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
   check('上游地址与协议列有值', (await s.eval("document.querySelector('td.c-url')?.innerText ?? ''")).includes('10.130.6.32'))
@@ -429,8 +435,10 @@ try {
   check('悬浮窗是胶囊且只有一个', (await o.eval("document.querySelectorAll('.capsule').length")) === 1)
   check('胶囊显示供应商与模型', (await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('·'))
   check(
-    '胶囊只有 TPS 与费用',
+    '胶囊只有 tok/s 与费用',
     (await o.eval("document.querySelectorAll('.capsule-metric').length")) === 1 &&
+      (await o.eval("document.querySelector('.capsule-metric')?.innerText ?? ''")).includes('tok/s') &&
+      !(await o.eval("document.querySelector('.capsule-metric')?.innerText ?? ''")).includes(' t/s') &&
       (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1 &&
       !(await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('%')
   )

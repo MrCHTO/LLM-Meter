@@ -13,7 +13,10 @@ import { dayKey } from './paths'
 
 const BUCKETS = 60
 const RECENT_MAX = 200
-const TPS_WINDOW = 10
+/** tok/s 按 1 秒窗口：最近 1 秒桶里的输出 token 数 */
+const TPS_WINDOW = 1
+/** TTFT 分位数的样本上限，够估 P99 又不至于无限涨 */
+const TTFT_SAMPLES_MAX = 500
 
 interface ModelState {
   buckets: number[]
@@ -24,6 +27,8 @@ interface ModelState {
   lastError: string | null
   lastErrorAt: number | null
   lastTtftMs: number | null
+  /** 今天的 TTFT 样本，重启时从明细回灌 */
+  ttftSamples: number[]
   probing: boolean
 }
 
@@ -65,6 +70,7 @@ function ensure(modelId: string): ModelState {
     lastError: null,
     lastErrorAt: null,
     lastTtftMs: null,
+    ttftSamples: [],
     probing: false
   }
   state.set(modelId, created)
@@ -87,6 +93,8 @@ function rollBuckets(s: ModelState, now = Date.now()): void {
 
 export function init(): void {
   const now = Date.now()
+  const dayStart = new Date()
+  dayStart.setHours(0, 0, 0, 0)
   cfg.mutate((c) => {
     for (const m of c.models) {
       const s = ensure(m.id)
@@ -100,6 +108,8 @@ export function init(): void {
         cacheWrite: t.cache_write,
         cost: t.cost
       }
+      // 今天的 TTFT 样本从明细回灌，重启后分位数不空；replay 不再补，避免最近 60 秒被算两遍
+      s.ttftSamples = repo.ttftSamplesSince(db.get(), m.id, dayStart.getTime())
       rollBuckets(s, now)
     }
   })
@@ -136,7 +146,10 @@ export function record(ev: RequestEvent): void {
     s.today.cacheRead += ev.cacheReadTokens
     s.today.cacheWrite += ev.cacheWriteTokens
     s.today.cost += ev.cost
-    if (ev.ttftMs !== null) s.lastTtftMs = ev.ttftMs
+    if (ev.ttftMs !== null) {
+      s.lastTtftMs = ev.ttftMs
+      pushTtftSample(s, ev.ttftMs)
+    }
     s.buckets[idx] = (s.buckets[idx] ?? 0) + ev.outputTokens
   } else {
     s.today.requests += 1
@@ -146,6 +159,19 @@ export function record(ev: RequestEvent): void {
   }
   recent.unshift(ev)
   if (recent.length > RECENT_MAX) recent.length = RECENT_MAX
+}
+
+function pushTtftSample(s: ModelState, ms: number): void {
+  s.ttftSamples.push(ms)
+  if (s.ttftSamples.length > TTFT_SAMPLES_MAX) s.ttftSamples.shift()
+}
+
+/** 最近邻法分位数，无样本返回 null */
+function ttftPct(samples: number[], p: number): number | null {
+  if (samples.length === 0) return null
+  const sorted = [...samples].sort((a, b) => a - b)
+  const idx = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)
+  return Math.round(sorted[Math.max(0, idx)] ?? sorted[sorted.length - 1] ?? 0)
 }
 
 function describe(ev: RequestEvent): string {
@@ -230,6 +256,9 @@ export function snapshot(
       lastError: s.lastError,
       lastErrorAt: s.lastErrorAt,
       lastTtftMs: s.lastTtftMs,
+      ttftP50: ttftPct(s.ttftSamples, 50),
+      ttftP95: ttftPct(s.ttftSamples, 95),
+      ttftP99: ttftPct(s.ttftSamples, 99),
       inflight: inflight.get(m.id) ?? 0,
       active:
         (inflight.get(m.id) ?? 0) > 0 || (graceUntil.get(m.id) ?? 0) > now,

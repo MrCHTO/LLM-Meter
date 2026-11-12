@@ -167,6 +167,19 @@ describe('查询', () => {
     const top = repo.top(conn, { from: now - 1000, to: now + 1000, by: 'cost', source: 'proxy', limit: 5 })
     expect(top.map((r) => r.key)).toEqual(['pricey', 'cheap'])
   })
+
+  it('分组合计给出 TTFT 分位数', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    const now = Date.now()
+    const samples = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    samples.forEach((ms, i) => repo.recordRequest(conn, ev({ ts: now + i, ttftMs: ms }), extra))
+
+    const rows = repo.totals(conn, { from: now - 1000, to: now + 1000, groupBy: 'model', source: 'proxy' })
+    expect(rows[0]?.ttft_p50).toBe(500)
+    expect(rows[0]?.ttft_p95).toBe(1000)
+    expect(rows[0]?.ttft_p99).toBe(1000)
+  })
 })
 
 describe('清理', () => {

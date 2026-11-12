@@ -162,6 +162,10 @@ export interface ModelLive {
   lastError: string | null
   lastErrorAt: number | null
   lastTtftMs: number | null
+  /** 今天的 TTFT 分位数（毫秒），无样本为 null */
+  ttftP50: number | null
+  ttftP95: number | null
+  ttftP99: number | null
   /** 正在进行的请求数 */
   inflight: number
   /** 是否该显示流光：进行中，或刚结束 3 秒内 */
@@ -301,7 +305,9 @@ export interface StatsRow {
   cacheRead: number
   cacheWrite: number
   cost: number
-  avgTtft: number | null
+  ttftP50: number | null
+  ttftP95: number | null
+  ttftP99: number | null
   tps: number | null
 }
 

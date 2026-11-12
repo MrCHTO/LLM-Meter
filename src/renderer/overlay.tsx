@@ -4,7 +4,7 @@ import type { LiveSnapshot } from '../shared/types'
 import { fmtMoney } from './format'
 import './styles.css'
 
-/** 单模型胶囊：供应商 · 模型 | TPS | 命中率 | 今日费用 */
+/** 单模型胶囊：供应商 · 模型 | tok/s | 今日费用 */
 function Capsule(): JSX.Element {
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -82,7 +82,7 @@ function Capsule(): JSX.Element {
             <span className="capsule-sep">·</span>
             <b>{model.alias}</b>
           </span>
-          <span className="capsule-metric mono">{Math.round(model.tps)} t/s</span>
+          <span className="capsule-metric mono">{Math.round(model.tps)} tok/s</span>
           <span className="capsule-cost mono">{fmtMoney(model.today.cost, model.currency)}</span>
         </>
       ) : (
