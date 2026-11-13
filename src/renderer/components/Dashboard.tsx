@@ -19,11 +19,9 @@ interface MenuState {
   y: number
 }
 
-function ChartPanel(props: { title: string; buckets: number[]; rate: string }): JSX.Element {
-  const { title, buckets, rate } = props
+function ChartPanel(props: { title: string; buckets: number[] }): JSX.Element {
+  const { title, buckets } = props
   const view = buckets.length ? buckets : [0]
-  // 峰值取单秒最大：一次请求就是 1 次/s，不按窗口摊薄；取整不保留小数
-  const peak = Math.round(Math.max(0, ...view))
   return (
     <div className="chart-card">
       <div className="chart-head">
@@ -31,11 +29,6 @@ function ChartPanel(props: { title: string; buckets: number[]; rate: string }): 
       </div>
       <div className="chart-body">
         <Sparkline buckets={view} tail={view.length} />
-      </div>
-      <div className="chart-foot mono">
-        <span>
-          峰值 {peak} {rate}
-        </span>
       </div>
     </div>
   )
@@ -137,7 +130,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             <MultiRate models={rateModels} colors={colors} />
           </div>
         </div>
-        <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} rate="次/s" />
+        <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} />
       </div>
 
       <div className="card">

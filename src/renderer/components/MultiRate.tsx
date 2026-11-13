@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import type { ModelLive } from '../../shared/types'
 
 /** 按顺序取色相：黄金角错开，低饱和；同表内相邻颜色区分明显 */
@@ -37,13 +36,6 @@ export function MultiRate({ models, colors }: Props): JSX.Element {
           )
         })}
       </svg>
-      <div className="multi-legend">
-        {models.map((m) => (
-          <span key={m.modelId} title={m.alias}>
-            <i style={{ '--mc': colors[m.modelId] } as CSSProperties} />
-          </span>
-        ))}
-      </div>
     </div>
   )
 }

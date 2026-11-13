@@ -245,31 +245,22 @@ try {
     '曲线标题为增量速率与请求量',
     (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === '增量速率 tok/s,请求量'
   )
+  check('两张曲线图都没有图例和峰值', (await s.eval("document.querySelectorAll('.multi-legend, .chart-foot').length")) === 0)
+  const chartSizes = await s.eval("JSON.stringify([...document.querySelectorAll('.chart-card')].map((c) => ({ h: c.offsetHeight, body: c.querySelector('.chart-body')?.offsetHeight ?? 0, gap: c.getBoundingClientRect().bottom - (c.querySelector('.chart-body')?.getBoundingClientRect().bottom ?? 0) })))")
+  const sizes = JSON.parse(chartSizes)
+  check('两张曲线同高同版式', sizes.length === 2 && sizes[0].h === sizes[1].h && sizes[0].body === sizes[1].body && sizes[0].body >= 100, chartSizes)
+  check('曲线贴近卡片底边', sizes.every((s) => s.gap <= 8), chartSizes)
   check(
-    '增量曲线有图例且颜色不同',
-    (await s.eval("document.querySelectorAll('.multi-legend span').length")) >= 2 &&
-      (await s.eval("[...document.querySelectorAll('.multi-legend i')].map((i) => getComputedStyle(i).backgroundColor).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
+    '增量曲线是折线加面积且颜色不同',
+    (await s.eval("document.querySelectorAll('.multi-svg .multi-line').length")) >= 2 &&
+      (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) >= 2 &&
+      (await s.eval("[...document.querySelectorAll('.multi-line')].map((l) => l.getAttribute('stroke')).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
   )
   check(
-    '增量曲线是折线加面积',
-    (await s.eval("document.querySelectorAll('.multi-svg .multi-line').length")) > 0 &&
-      (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) > 0
-  )
-  check('增量曲线下方没有峰值', (await s.eval("document.querySelectorAll('.chart-card:first-child .chart-foot').length")) === 0)
-  check(
-    '图例只有颜色块且在曲线下方',
-    (await s.eval("document.querySelector('.multi-legend span')?.innerText.trim()")) === '' &&
-      (await s.eval("document.querySelector('.multi-rate')?.lastElementChild?.className")) === 'multi-legend' &&
-      (await s.eval("document.querySelector('.multi-rate')?.firstElementChild?.getAttribute('class')")) === 'multi-svg',
-    `${await s.eval("document.querySelector('.multi-legend span')?.innerText")}|${await s.eval("document.querySelector('.multi-rate')?.lastElementChild?.className")}|${await s.eval("document.querySelector('.multi-rate')?.firstElementChild?.getAttribute('class')")}`
-  )
-  await s.eval("document.querySelector('.multi-legend span')?.click()")
-  await sleep(150)
-  check('图例不可点击', (await s.eval("document.querySelectorAll('.multi-legend button').length")) === 0)
-  check(
-    '模型名底纹为同色半透明斜纹',
-    (await s.eval("document.querySelector('td.c-model .model-name')?.style.getPropertyValue('--mc')")) ===
-      (await s.eval("document.querySelector('.multi-legend i')?.style.getPropertyValue('--mc')")) &&
+    '模型名底纹与曲线同色且为斜纹',
+    (await s.eval("document.querySelector('.multi-line')?.getAttribute('stroke') ?? ''")).includes(
+      await s.eval("document.querySelector('td.c-model .model-name')?.style.getPropertyValue('--mc') ?? 'x'")
+    ) &&
       /repeating-linear-gradient/.test(await s.eval("getComputedStyle(document.querySelector('td.c-model .model-name')).backgroundImage"))
   )
   // 仪表盘右键菜单的曲线开关
@@ -277,23 +268,18 @@ try {
   await sleep(300)
   const dashMenu = await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")
   check('仪表盘右键菜单含曲线开关', /^(测速),(隐藏|显示)曲线图,查看日志$/.test(dashMenu), dashMenu)
-  const legendsBefore = await s.eval("document.querySelectorAll('.multi-legend span').length")
+  const curvesBefore = await s.eval("document.querySelectorAll('.multi-line').length")
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText.includes('曲线图'))?.click()")
   await sleep(700)
-  check('隐藏后曲线图例少一个', (await s.eval("document.querySelectorAll('.multi-legend span').length")) === legendsBefore - 1)
+  check('隐藏后曲线少一条', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore - 1)
   await s.eval("(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); return true })()")
   await sleep(300)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '显示曲线图')?.click()")
   await sleep(700)
-  check('再显示后图例恢复', (await s.eval("document.querySelectorAll('.multi-legend span').length")) === legendsBefore)
+  check('再显示后曲线恢复', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore)
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
-  check(
-    '峰值不带小数',
-    !/\.\d/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''"))
-  )
-  check('曲线图下带峰值', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
   check('表头是十一列', (await s.eval("document.querySelectorAll('thead th').length")) === 11)
   const headText = await s.eval("[...document.querySelectorAll('thead th')].map((n) => n.innerText).join('|')")
   check(
