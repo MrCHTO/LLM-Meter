@@ -111,6 +111,7 @@ function normalize(raw: unknown): ConfigFile {
         priceOut: Math.max(0, num(o.priceOut, 0)),
         priceCacheRead: Math.max(0, num(o.priceCacheRead, 0)),
         priceCacheInput: Math.max(0, num(o.priceCacheInput, 0)),
+        cacheInputSupported: o.cacheInputSupported === true ? true : o.cacheInputSupported === false ? false : null,
         currency: str(o.currency, 'USD') || 'USD',
         priceSource: o.priceSource === 'manual' ? 'manual' : 'auto',
         autoProbe: o.autoProbe === true,

@@ -127,6 +127,7 @@ writeFileSync(
         priceOut: 15,
         priceCacheRead: 0.3,
         priceCacheInput: 3.75,
+        cacheInputSupported: false,
         currency: 'USD',
         dailyBudget: null,
         sort: 1,
@@ -409,6 +410,10 @@ try {
   const modelHeads = await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")
   check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|输入价格|输出价格|缓存读取|缓存输入|悬浮窗|自动探针'))
   check('模型表没有状态列', !modelHeads.includes('状态'))
+  check(
+    '不支持缓存输入的模型价显示破折号',
+    (await s.eval("[...document.querySelectorAll('.tbl-models tbody tr')].find((tr) => tr.innerText.includes('claude-x'))?.children[5]?.innerText")) === '—'
+  )
   check('模型行内没有编辑删除按钮', (await s.eval("[...document.querySelectorAll('.tbl-models tbody button')].some((b) => ['编辑', '删除'].includes(b.innerText))")) === false)
   check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 9)
   check('供应商表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.card:first-child thead .col-resize').length")) === 6)

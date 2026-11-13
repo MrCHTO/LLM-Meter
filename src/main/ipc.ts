@@ -276,6 +276,7 @@ export function register(): void {
         if (patch.priceOut !== undefined) m.priceOut = Math.max(0, patch.priceOut)
         if (patch.priceCacheRead !== undefined) m.priceCacheRead = Math.max(0, patch.priceCacheRead)
         if (patch.priceCacheInput !== undefined) m.priceCacheInput = Math.max(0, patch.priceCacheInput)
+        if (patch.cacheInputSupported !== undefined) m.cacheInputSupported = patch.cacheInputSupported
         if (patch.currency !== undefined) m.currency = patch.currency || 'USD'
         // 显式给了 priceSource 就照办（恢复自动）；否则只要动过价格就判为手动
         if (patch.priceSource !== undefined) m.priceSource = patch.priceSource === 'auto' ? 'auto' : 'manual'

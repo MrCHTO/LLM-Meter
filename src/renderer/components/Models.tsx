@@ -30,6 +30,7 @@ interface ModelDraft {
   priceOut: string
   priceCacheRead: string
   priceCacheInput: string
+  cacheInputSupported: boolean | null
   currency: string
   watch: boolean
 }
@@ -43,6 +44,7 @@ function emptyModel(providerId: string): ModelDraft {
     priceOut: '0',
     priceCacheRead: '0',
     priceCacheInput: '0',
+    cacheInputSupported: null,
     currency: 'CNY',
     watch: true
   }
@@ -90,6 +92,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       priceOut: (Math.round(m.priceOut * 10) / 10).toFixed(1),
       priceCacheRead: (Math.round(m.priceCacheRead * 10) / 10).toFixed(1),
       priceCacheInput: (Math.round(m.priceCacheInput * 10) / 10).toFixed(1),
+      cacheInputSupported: m.cacheInputSupported ?? null,
       currency: m.currency,
       watch: m.watch
     })
@@ -152,6 +155,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
               data.cacheWriteProbed && !data.cacheWriteReported
                 ? ''
                 : String(Math.round((data.priceCacheInput ?? 0) * 100) / 100),
+            cacheInputSupported: data.cacheWriteProbed ? data.cacheWriteReported === true : m.cacheInputSupported,
             currency: 'CNY'
           }
         : m
@@ -229,6 +233,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       priceOut: Number(model.priceOut) || 0,
       priceCacheRead: Number(model.priceCacheRead) || 0,
       priceCacheInput: Number(model.priceCacheInput) || 0,
+      cacheInputSupported: model.cacheInputSupported,
       currency: model.currency,
       priceSource: priceSourceFor(model),
       autoProbe: current?.autoProbe ?? false
@@ -410,7 +415,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                     <td className="mono">{fmtMoney(m.priceIn, m.currency)}</td>
                     <td className="mono">{fmtMoney(m.priceOut, m.currency)}</td>
                     <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
-                    <td className="mono">{fmtMoney(m.priceCacheInput, m.currency)}</td>
+                    <td className="mono">{m.cacheInputSupported === false ? '—' : fmtMoney(m.priceCacheInput, m.currency)}</td>
                     <td className="c-center">
                       <button
                         className={config.settings.overlay.modelId === m.id ? 'pick on' : 'pick'}

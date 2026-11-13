@@ -43,6 +43,8 @@ export interface ModelCfg {
   priceOut: number
   priceCacheRead: number
   priceCacheInput: number
+  /** 探测结果：上游是否上报缓存输入字段；null 未知 */
+  cacheInputSupported: boolean | null
   currency: string
   /** 价格来源：自动校准的会被每天刷新，手动改过的不动 */
   priceSource: 'auto' | 'manual'
