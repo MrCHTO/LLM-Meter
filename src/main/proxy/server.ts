@@ -161,7 +161,11 @@ function recordEvent(input: {
       day: dayKey(ev.ts),
       providerName: input.provider.name,
       baseUrl: input.provider.baseUrl,
-      upstreamModel: input.model.upstreamModel
+      upstreamModel: input.model.upstreamModel,
+      priceIn: input.model.priceIn,
+      priceOut: input.model.priceOut,
+      priceCacheRead: input.model.priceCacheRead,
+      priceCacheWrite: input.model.priceCacheWrite
     })
   } catch (err) {
     console.error('[db] 写入失败', err)

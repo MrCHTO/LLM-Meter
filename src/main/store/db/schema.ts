@@ -68,6 +68,13 @@ const MIGRATIONS: string[] = [
     primary key (day, model_id, source)
   );
   create index idx_day_day on rollup_day (day);
+  `,
+  // v2：请求落库时记录当时单价（每百万 token、人民币），成本可逐行复核
+  `
+  alter table requests add column price_in real;
+  alter table requests add column price_out real;
+  alter table requests add column price_cache_read real;
+  alter table requests add column price_cache_write real;
   `
 ]
 

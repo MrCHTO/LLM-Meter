@@ -75,7 +75,11 @@ function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, st
       day: dayKey(ev.ts),
       providerName: provider.name,
       baseUrl: provider.baseUrl,
-      upstreamModel: model.upstreamModel
+      upstreamModel: model.upstreamModel,
+      priceIn: model.priceIn,
+      priceOut: model.priceOut,
+      priceCacheRead: model.priceCacheRead,
+      priceCacheWrite: model.priceCacheWrite
     })
   } catch (err) {
     console.error('[db] 写入失败', err)

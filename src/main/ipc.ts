@@ -575,14 +575,18 @@ export function register(): void {
           outputTokens: output,
           cacheReadTokens: cacheRead,
           cacheWriteTokens: 0,
-          cost: ((input * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) / 1e6),
+          cost: (Math.max(0, input - cacheRead) * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) / 1e6,
           currency: model.currency
         }
         repo.recordRequest(db.get(), ev, {
           day: dayKey(ts),
           providerName: provider.name,
           baseUrl: provider.baseUrl,
-          upstreamModel: model.upstreamModel
+          upstreamModel: model.upstreamModel,
+          priceIn: model.priceIn,
+          priceOut: model.priceOut,
+          priceCacheRead: model.priceCacheRead,
+          priceCacheWrite: model.priceCacheWrite
         })
         made++
       }

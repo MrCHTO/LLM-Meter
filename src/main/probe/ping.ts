@@ -86,7 +86,11 @@ export async function ping(modelId: string): Promise<boolean> {
       day: dayKey(ev.ts),
       providerName: provider?.name ?? '',
       baseUrl: provider?.baseUrl ?? '',
-      upstreamModel: model.upstreamModel
+      upstreamModel: model.upstreamModel,
+      priceIn: model.priceIn,
+      priceOut: model.priceOut,
+      priceCacheRead: model.priceCacheRead,
+      priceCacheWrite: model.priceCacheWrite
     })
   } catch {
     /* 落库失败不影响探活结果 */

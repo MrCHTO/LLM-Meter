@@ -9,6 +9,11 @@ export interface Enrich {
   providerName: string
   baseUrl: string
   upstreamModel: string
+  /** 记录当时的单价（每百万 token、人民币），供成本复核 */
+  priceIn?: number
+  priceOut?: number
+  priceCacheRead?: number
+  priceCacheWrite?: number
 }
 
 /** 一次请求：明细 + 两张聚合表，同一事务。 */
@@ -18,8 +23,9 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
       `insert into requests (
         id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
         input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-        cost, currency, model_id, alias, provider_id, provider_name, base_url, upstream_model, note
-      ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        cost, currency, model_id, alias, provider_id, provider_name, base_url, upstream_model, note,
+        price_in, price_out, price_cache_read, price_cache_write
+      ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       ev.id,
       ev.ts,
       extra.day,
@@ -42,7 +48,11 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
       extra.providerName,
       extra.baseUrl,
       extra.upstreamModel,
-      ev.note ?? null
+      ev.note ?? null,
+      extra.priceIn ?? 0,
+      extra.priceOut ?? 0,
+      extra.priceCacheRead ?? 0,
+      extra.priceCacheWrite ?? 0
     )
 
     const minute = Math.floor(ev.ts / MINUTE) * MINUTE
