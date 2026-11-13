@@ -105,3 +105,7 @@ node test/cache-probe.mjs <baseUrl> <key> <model> identity      # 判断某家�
 - 上游 300 秒未完成会超时中断并记 `timeout`。
 - 请求体上限 64MB。
 - 测速不发 temperature（个别模型只接受固定值），遇 429 会按 Retry-After 退避重试两次；仍失败多为账号 TPM/RPM 用满，隔一分钟再测。
+
+## 变更记录
+
+当前版本 **v0.2.1**。完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
