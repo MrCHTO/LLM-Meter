@@ -106,7 +106,6 @@ function normalize(raw: unknown): ConfigFile {
         priceCacheRead: Math.max(0, num(o.priceCacheRead, 0)),
         priceCacheWrite: Math.max(0, num(o.priceCacheWrite, 0)),
         currency: str(o.currency, 'USD') || 'USD',
-        dailyBudget: typeof o.dailyBudget === 'number' && o.dailyBudget > 0 ? o.dailyBudget : null,
         sort: num(o.sort, models.length),
         createdAt: num(o.createdAt, Date.now())
       })
@@ -155,7 +154,6 @@ function normalize(raw: unknown): ConfigFile {
     m.priceOut *= rate
     m.priceCacheRead *= rate
     m.priceCacheWrite *= rate
-    if (m.dailyBudget) m.dailyBudget *= rate
     m.currency = 'CNY'
   }
 

@@ -57,7 +57,7 @@ npm test             # 单元测试
 
 ## 分析
 
-「分析」页把库里的流量按时间（今天 / 近 24 小时 / 近 7 天 / 自定义）、指标（请求数、tok/s、输入、输出、总 token、缓存读、成本、错误数）、分组（模型 / 供应商）、来源（真实流量 / 仅测速 / 全部）做成多序列时间轴分组柱状图与分组合计；0 值不画柱。TTFT 给 P50 / P95 / P99（按明细逐样本算分位数）。Top 10 按成本取，导出 CSV 带 BOM，Excel 直接能开。自动刷新是静默的，不会让按钮闪「查询中」。
+「分析」页把库里的流量按时间（今天 / 近 24 小时 / 近 7 天 / 自定义）、指标（请求数、总 token、输入 token、输出 token、成本）、分组（模型 / 供应商）做成多序列时间轴分组柱状图与分组合计，固定统计真实流量；0 值不画柱。TTFT 给 P50 / P95 / P99（按明细逐样本算分位数）。Top 10 按成本取，导出 CSV 带 BOM，Excel 直接能开。自动刷新是静默的，不会让按钮闪「查询中」。
 
 大区间默认走分钟或小时聚合，只有导出和 Top N 碰明细表。
 
@@ -91,7 +91,7 @@ npm test             # 单元测试
 ```bash
 npm test                                                       # 单测：SSE 跨块分帧、usage 提取、成本、URL 拼接、配置容错、库写入与清理
 node test/e2e.mjs                                              # 假上游端到端，28 项（含库断言与 token 迁移）
-node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），71 项
+node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），78 项
 node test/import-check.mjs <exe> <含 events/rollup 的备份目录>   # 打包产物的旧数据导入回归
 node test/installed-check.mjs                                   # 安装版实机核对（真实档案，会触发旧数据导入）
 node test/real-e2e.mjs <baseUrl> <key> <model>                  # 真实上游核对

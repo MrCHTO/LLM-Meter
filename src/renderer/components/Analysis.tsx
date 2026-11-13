@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsRow, StatsSeries, StatsSource } from '../../shared/types'
+import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsRow, StatsSeries } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtTokens } from '../format'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
 
@@ -12,13 +12,10 @@ type Preset = 'today' | '24h' | '7d' | 'custom'
 
 const METRICS: { id: StatsMetric; label: string; unit: string; digits: number }[] = [
   { id: 'requests', label: '请求数', unit: '次', digits: 0 },
-  { id: 'tps', label: 'tok/s', unit: 'tok/s', digits: 1 },
+  { id: 'total', label: '总 token', unit: '个', digits: 0 },
   { id: 'input', label: '输入 token', unit: '个', digits: 0 },
   { id: 'output', label: '输出 token', unit: '个', digits: 0 },
-  { id: 'total', label: '总 token', unit: '个', digits: 0 },
-  { id: 'cache_read', label: '缓存读 token', unit: '个', digits: 0 },
-  { id: 'cost', label: '成本', unit: '¥', digits: 2 },
-  { id: 'errors', label: '错误数', unit: '次', digits: 0 }
+  { id: 'cost', label: '成本', unit: '¥', digits: 2 }
 ]
 
 const COLORS = ['#1f6feb', '#0f9d63', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#65a30d', '#c026d3']
@@ -51,7 +48,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
   const [customTo, setCustomTo] = useState('')
   const [metric, setMetric] = useState<StatsMetric>('requests')
   const [groupBy, setGroupBy] = useState<StatsGroup>('model')
-  const [source, setSource] = useState<StatsSource>('proxy')
   const [hidden, setHidden] = useState<Record<string, boolean>>({})
   const [series, setSeries] = useState<StatsSeries | null>(null)
   const [totals, setTotals] = useState<StatsRow[]>([])
@@ -95,7 +91,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       // 轮询走静默：不换按钮文案，失败也不弹提示
       if (!silent) setBusy(true)
       try {
-        const q = { from: r.from, to: r.to, source }
+        const q = { from: r.from, to: r.to, source: 'proxy' as const }
         const [s, t] = await Promise.all([
           window.api.statsSeries({ ...q, granularity: granularityOf(r.to - r.from), metric, groupBy }),
           window.api.statsTotals({ ...q, groupBy })
@@ -108,7 +104,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
         if (!silent) setBusy(false)
       }
     },
-    [preset, customFrom, customTo, source, metric, groupBy, notify]
+    [preset, customFrom, customTo, metric, groupBy, notify]
   )
 
   useEffect(() => {
@@ -141,7 +137,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       notify('先选有效区间')
       return
     }
-    const res = await window.api.statsExport({ from: range.from, to: range.to, source })
+    const res = await window.api.statsExport({ from: range.from, to: range.to, source: 'proxy' })
     if (res.ok && res.data) notify(`已导出 ${res.data.rows} 行到 ${res.data.path}`, 'ok')
     else if (res.error && res.error !== '已取消') notify(res.error)
   }
@@ -186,14 +182,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
               <option value="model">按模型</option>
               <option value="provider">按供应商</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>来源</span>
-            <select value={source} onChange={(e) => setSource(e.target.value as StatsSource)}>
-              <option value="proxy">真实流量</option>
-              <option value="probe">仅测速</option>
-              <option value="all">全部</option>
             </select>
           </label>
           <div className="row nowrap" style={{ marginLeft: 'auto', gap: 8 }}>

@@ -29,7 +29,6 @@ interface ModelDraft {
   priceCacheRead: string
   priceCacheWrite: string
   currency: string
-  dailyBudget: string
   watch: boolean
 }
 
@@ -43,7 +42,6 @@ function emptyModel(providerId: string): ModelDraft {
     priceCacheRead: '0',
     priceCacheWrite: '0',
     currency: 'CNY',
-    dailyBudget: '',
     watch: true
   }
 }
@@ -125,8 +123,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
       priceOut: Number(model.priceOut) || 0,
       priceCacheRead: Number(model.priceCacheRead) || 0,
       priceCacheWrite: Number(model.priceCacheWrite) || 0,
-      currency: model.currency,
-      dailyBudget: Number(model.dailyBudget) || null
+      currency: model.currency
     }
     setBusy(true)
     const res = model.id
@@ -174,7 +171,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                 <th>Base URL</th>
                 <th>格式</th>
                 <th>Key</th>
-                <th>状态</th>
+                <th className="c-center">状态</th>
                 <th />
               </tr>
             </thead>
@@ -187,7 +184,18 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   </td>
                   <td>{FORMAT_LABEL[p.format]}</td>
                   <td className="mono">{p.keyMasked}</td>
-                  <td>{p.enabled ? <span className="pill ok">启用</span> : <span className="pill">停用</span>}</td>
+                  <td className="c-center">
+                    <button
+                      className={p.enabled ? 'state on' : 'state'}
+                      onClick={async () => {
+                        const res = await window.api.updateProvider(p.id, { enabled: !p.enabled })
+                        if (!res.ok) notify(res.error ?? '切换失败')
+                        else await onChanged()
+                      }}
+                    >
+                      {p.enabled ? '启用' : '停用'}
+                    </button>
+                  </td>
                   <td>
                     <button className="btn sm" onClick={() => void test(p)}>
                       测试
@@ -251,7 +259,6 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                 <th title="每百万 token 单价">输出</th>
                 <th title="每百万 token 单价">缓存读取</th>
                 <th title="每百万 token 单价">缓存写入</th>
-                <th>日预算</th>
                 <th className="c-center">悬浮窗</th>
                 <th className="c-center">状态</th>
                 <th />
@@ -268,7 +275,6 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   <td className="mono">{fmtMoney(m.priceOut, m.currency)}</td>
                   <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
                   <td className="mono">{fmtMoney(m.priceCacheWrite, m.currency)}</td>
-                  <td className="mono">{m.dailyBudget ? fmtMoney(m.dailyBudget, m.currency) : '—'}</td>
                   <td className="c-center">
                     <button
                       className={config.settings.overlay.modelId === m.id ? 'pick on' : 'pick'}
@@ -310,7 +316,6 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                           priceCacheRead: String(Math.round(m.priceCacheRead * 100) / 100),
                           priceCacheWrite: String(Math.round(m.priceCacheWrite * 100) / 100),
                           currency: m.currency,
-                          dailyBudget: m.dailyBudget ? String(m.dailyBudget) : '',
                           watch: m.watch
                         })
                       }}
@@ -485,15 +490,6 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                     step="0.01"
                     value={model.priceCacheWrite}
                     onChange={(e) => setModel({ ...model, priceCacheWrite: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>日预算 / ¥（留空不限）</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={model.dailyBudget}
-                    onChange={(e) => setModel({ ...model, dailyBudget: e.target.value })}
                   />
                 </label>
               </div>

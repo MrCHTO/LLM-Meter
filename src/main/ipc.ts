@@ -237,7 +237,6 @@ export function register(): void {
         if (patch.priceCacheRead !== undefined) m.priceCacheRead = Math.max(0, patch.priceCacheRead)
         if (patch.priceCacheWrite !== undefined) m.priceCacheWrite = Math.max(0, patch.priceCacheWrite)
         if (patch.currency !== undefined) m.currency = patch.currency || 'USD'
-        if (patch.dailyBudget !== undefined) m.dailyBudget = patch.dailyBudget && patch.dailyBudget > 0 ? patch.dailyBudget : null
       })
       return true
     })

@@ -259,10 +259,10 @@ try {
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
   check('上游地址与协议列有值', (await s.eval("document.querySelector('td.c-url')?.innerText ?? ''")).includes('10.130.6.32'))
-  check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark polyline').length")) > 0)
+  check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark path.spark-line').length")) > 0)
   check('金额用人民币', /¥/.test(await s.eval("document.querySelector('td.c-cost')?.innerText ?? ''")))
   check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('td.c-hit')?.innerText ?? ''")))
-  check('预算条出现', (await s.eval("document.querySelectorAll('.meter').length")) > 0)
+  check('不再有预算条', (await s.eval("document.querySelectorAll('.meter').length")) === 0)
   check('行内没有按钮', (await s.eval("document.querySelectorAll('tbody tr.clickable button').length")) === 0)
   check('代理状态点在跑', (await s.eval("document.querySelector('.dot')?.className")) === 'dot on')
   const sandboxOk = await s.eval("typeof window.api === 'object' && typeof window.api.config === 'function'")
@@ -272,6 +272,8 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(3)')?.click()")
   await sleep(600)
   check('模型页列出供应商', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
+  check('供应商与模型的状态都是可点文字按钮', (await s.eval("document.querySelectorAll('.state').length")) >= 4)
+  check('模型表没有日预算列', !(await s.eval("document.querySelector('thead')?.innerText ?? ''")).includes('日预算'))
   check('供应商显示掩码 Key', /••••/.test(await s.eval("document.body.innerText")))
   check('文案已改为 OpenAI', !(await s.eval('document.body.innerText')).includes('OpenAI 兼容'))
   check(
@@ -306,7 +308,13 @@ try {
 
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
   await sleep(1500)
-  check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) >= 3)
+  check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) === 3)
+  check('分析页没有来源下拉', !(await s.eval('document.body.innerText')).includes('来源'))
+  check(
+    '指标只剩五项',
+    (await s.eval("[...document.querySelectorAll('.card select')][1] ? [...[...document.querySelectorAll('.card select')][1].options].map((o) => o.text).join(',') : ''")) ===
+      '请求数,总 token,输入 token,输出 token,成本'
+  )
   check('分析页有明细表', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
   check(
@@ -359,14 +367,25 @@ try {
 
   await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")
   await sleep(600)
+  check('设置页有四个分组', (await s.eval("document.querySelectorAll('.settings-nav button').length")) === 4)
+  // 默认落在接入组
   check('设置页给出本地入口', (await s.eval("document.body.innerText")).includes('127.0.0.1'))
   check('设置页同时给出局域网入口', (await s.eval("document.body.innerText")).includes('局域网'))
   check('局域网默认关闭且置灰', (await s.eval("document.querySelectorAll('dd.dimmed').length")) === 1)
   check(
-    '暂停测速开关存在',
-    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('暂停测速'))")
+    '本地 token 是 sk- 签名票',
+    /^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
+      await s.eval("(async()=> (await window.api.config()).data?.settings.localToken ?? '')()", true)
+    )
   )
-  check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
+
+  const openGroup = async (label) => {
+    await s.eval(`[...document.querySelectorAll('.settings-nav button')].find((b) => b.innerText === '${label}')?.click()`)
+    await sleep(400)
+  }
+
+  await openGroup('悬浮窗')
+  check('悬浮窗组有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
   check(
     '透明度是数字输入',
     (await s.eval(
@@ -386,12 +405,16 @@ try {
       return i.value
     })()`, true) === '100'
   )
+
+  await openGroup('运行')
   check(
-    '本地 token 是 sk- 签名票',
-    /^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
-      await s.eval("(async()=> (await window.api.config()).data?.settings.localToken ?? '')()", true)
-    )
+    '暂停测速开关存在',
+    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('暂停测速'))")
   )
+
+  await openGroup('数据')
+  check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
+  check('数据组有清理入口', (await s.eval("document.body.innerText")).includes('清理过期数据'))
   await s.shot('settings.png')
 
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")

@@ -42,8 +42,6 @@ export interface ModelCfg {
   priceCacheRead: number
   priceCacheWrite: number
   currency: string
-  /** 当日预算，null 表示不限 */
-  dailyBudget: number | null
   sort: number
   createdAt: number
 }
@@ -150,15 +148,12 @@ export interface ModelLive {
   upstreamModel: string
   format: ApiFormat
   currency: string
-  dailyBudget: number | null
   watch: boolean
   buckets: number[]
   tps: number
   /** 今日缓存命中率，无输入 token 时为 null */
   hitRate: number | null
   today: TodayTotals
-  /** 今日成本 / 预算；无预算为 null */
-  budgetRatio: number | null
   lastError: string | null
   lastErrorAt: number | null
   lastTtftMs: number | null
@@ -180,8 +175,6 @@ export interface SnapshotTotals {
   todayCost: number
   requests: number
   errors: number
-  budgetRatio: number | null
-  budgetSum: number
   currency: string
   /** 各模型桶按秒相加，给汇总曲线用 */
   buckets: number[]
@@ -242,7 +235,6 @@ export interface ModelInput {
   priceCacheRead: number
   priceCacheWrite: number
   currency: string
-  dailyBudget: number | null
 }
 
 export interface AppInfo {

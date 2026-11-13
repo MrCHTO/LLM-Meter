@@ -31,10 +31,3 @@ export function fmtClock(ts: number): string {
   const p = (n: number): string => String(n).padStart(2, '0')
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
-
-export function budgetClass(ratio: number | null): '' | 'warn' | 'bad' {
-  if (ratio === null) return ''
-  if (ratio >= 1) return 'bad'
-  if (ratio >= 0.8) return 'warn'
-  return ''
-}

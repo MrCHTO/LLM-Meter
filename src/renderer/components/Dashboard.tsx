@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { ConfigView, LiveSnapshot, ModelLive, RequestEvent } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
-import { budgetClass, fmtClock, fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
+import { fmtClock, fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
 import { Sparkline } from './Sparkline'
 
 interface Props {
@@ -178,7 +178,6 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
           </thead>
           <tbody>
             {models.map((m: ModelLive) => {
-              const budget = budgetClass(m.budgetRatio)
               const isOpen = open === m.modelId
               const running = probing[m.modelId] === true || m.probing
               return (
@@ -223,14 +222,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                     <td className="c-hit mono">{fmtPct(m.hitRate)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.input)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
-                    <td className="c-cost mono">
-                      {fmtMoney(m.today.cost, m.currency)}
-                      {m.dailyBudget ? (
-                        <div className={`meter ${budget}`}>
-                          <div style={{ width: `${Math.min(100, (m.budgetRatio ?? 0) * 100)}%` }} />
-                        </div>
-                      ) : null}
-                    </td>
+                    <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>
                   </tr>
                   {isOpen ? (
                     <tr className="detail-row">

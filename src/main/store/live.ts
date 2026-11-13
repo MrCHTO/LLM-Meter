@@ -223,8 +223,6 @@ export function snapshot(
     todayCost: 0,
     requests: 0,
     errors: 0,
-    budgetRatio: null,
-    budgetSum: 0,
     currency: 'CNY',
     buckets: new Array<number>(BUCKETS).fill(0),
     reqBuckets: new Array<number>(BUCKETS).fill(0)
@@ -236,7 +234,6 @@ export function snapshot(
     const provider = providers.get(m.providerId)
     const tps = tpsOf(s)
     const hitRate = s.today.input > 0 ? s.today.cacheRead / s.today.input : null
-    const budgetRatio = m.dailyBudget && m.dailyBudget > 0 ? s.today.cost / m.dailyBudget : null
     models.push({
       modelId: m.id,
       alias: m.alias,
@@ -245,13 +242,11 @@ export function snapshot(
       upstreamModel: m.upstreamModel,
       format: provider?.format ?? 'openai',
       currency: m.currency,
-      dailyBudget: m.dailyBudget,
       watch: m.watch,
       buckets: [...s.buckets],
       tps,
       hitRate,
       today: { ...s.today },
-      budgetRatio,
       lastError: s.lastError,
       lastErrorAt: s.lastErrorAt,
       lastTtftMs: s.lastTtftMs,
@@ -273,13 +268,11 @@ export function snapshot(
     totals.requests += s.today.requests
     totals.errors += s.today.errors
     totals.currency = m.currency
-    if (m.dailyBudget) totals.budgetSum += m.dailyBudget
   }
 
   const inputTotal = models.reduce((a, x) => a + x.today.input, 0)
   const cacheTotal = models.reduce((a, x) => a + x.today.cacheRead, 0)
   totals.hitRate = inputTotal > 0 ? cacheTotal / inputTotal : null
-  if (totals.budgetSum > 0) totals.budgetRatio = totals.todayCost / totals.budgetSum
 
   return {
     ts: now,
