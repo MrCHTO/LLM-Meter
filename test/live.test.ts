@@ -104,3 +104,39 @@ describe('启动回放', () => {
     expect(snap.totals.buckets.reduce((a, b) => a + b, 0)).toBe(0)
   })
 })
+
+describe('流光可见性', () => {
+  it('请求开始至少亮 1.5 秒，结束当拍即可灭', async () => {
+    const live = await load()
+    const t0 = 1_700_000_000_000
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
+
+    live.begin('m1')
+    expect(live.snapshot(false, null, '', t0).models[0]?.active).toBe(true)
+
+    live.end('m1')
+    // 结束后 0.5 秒仍因最短可见时长保持
+    expect(live.snapshot(false, null, '', t0 + 500).models[0]?.active).toBe(true)
+    // 1.6 秒后熄灭，不再有额外的 3 秒
+    expect(live.snapshot(false, null, '', t0 + 1_600).models[0]?.active).toBe(false)
+
+    spy.mockRestore()
+  })
+
+  it('连续请求会续期，不会在间隙里闪灭', async () => {
+    const live = await load()
+    const t0 = 1_700_000_000_000
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
+
+    live.begin('m1')
+    live.end('m1')
+    spy.mockReturnValue(t0 + 1_000)
+    live.begin('m1')
+    live.end('m1')
+    // 第二个请求把可见期推到 t0+2.5s
+    expect(live.snapshot(false, null, '', t0 + 2_400).models[0]?.active).toBe(true)
+    expect(live.snapshot(false, null, '', t0 + 2_600).models[0]?.active).toBe(false)
+
+    spy.mockRestore()
+  })
+})

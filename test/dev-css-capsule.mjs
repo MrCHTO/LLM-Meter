@@ -48,8 +48,8 @@ body.overlay-body {
   cursor: default;
 }
 
-/* 有请求进行中：边框彩虹流动 */
-.capsule.inflight::before {
+/* 请求进行中：边框彩虹流动；结束后 300ms 淡出 */
+.capsule::before {
   content: '';
   position: absolute;
   inset: -2px;
@@ -57,6 +57,12 @@ body.overlay-body {
   z-index: -1;
   background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e891, #4da3ff, #b57bff, #ff5f6d);
   background-size: 300% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.capsule.inflight::before {
+  opacity: 1;
   animation: rainbow 3s linear infinite;
 }
 

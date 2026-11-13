@@ -546,21 +546,27 @@ body.overlay-body {
   cursor: default;
 }
 
-/* 有请求进行中：边框彩虹流动 */
-.capsule.inflight::before {
+/* 请求进行中：边框彩虹流动；结束后 300ms 淡出 */
+.capsule::before {
   content: '';
   position: absolute;
   inset: -2px;
   border-radius: 999px;
   background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e891, #4da3ff, #b57bff, #ff5f6d);
   background-size: 300% 100%;
-  animation: rainbow 3s linear infinite;
   padding: 2px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.capsule.inflight::before {
+  opacity: 1;
+  animation: rainbow 3s linear infinite;
 }
 
 /* 内容压在彩虹环之上，中间露出本体底色 */

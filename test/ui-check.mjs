@@ -524,14 +524,17 @@ try {
   check('请求期间出现流光', relayUp ? rainbow : true, relayUp ? '' : '跳过：测试中继不可达')
   await o.shot('overlay-inflight.png')
 
-  // 结束后仍应保留约 3 秒才恢复：2.5 秒时仍在（要么在跑，要么在缓冲期）
+  // 结束后不再固定保持 3 秒：请求一停，最迟下一个快照就该灭（最短可见只在开始侧生效）
   if (relayUp) {
-    await sleep(2500)
-    check('结束后有 3 秒缓冲', (await o.eval("!!document.querySelector('.capsule.inflight')")) === true)
-    for (let i = 0; i < 40; i++) {
+    let cleared = false
+    for (let i = 0; i < 120; i++) {
       await sleep(500)
-      if (!(await o.eval("!!document.querySelector('.capsule.inflight')"))) break
+      if (!(await o.eval("!!document.querySelector('.capsule.inflight')"))) {
+        cleared = true
+        break
+      }
     }
+    check('请求结束后流光熄灭', cleared)
   }
   check('缓冲过后恢复常态', (await o.eval("!!document.querySelector('.capsule.inflight')")) === false)
 

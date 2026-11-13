@@ -168,7 +168,7 @@ export interface ModelLive {
   ttftP99: number | null
   /** 正在进行的请求数 */
   inflight: number
-  /** 是否该显示流光：进行中，或刚结束 3 秒内 */
+  /** 是否该显示流光：进行中，或开始后不足 1.5 秒 */
   active: boolean
   probing: boolean
   paused: boolean
