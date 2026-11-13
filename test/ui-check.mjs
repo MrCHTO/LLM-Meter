@@ -555,7 +555,7 @@ try {
   if (/超时|不可达/.test(note)) {
     check('查价失败文案统一', note === '连接openrouter超时，请手动填写', note)
   } else {
-    check('查价命中并回填', /^已按照 .+ 查询并自动填写，人民币汇率为 [\d.]+/.test(note), note)
+    check('查价命中并回填', /^已按照 .+ 查询并自动填写（(官方价|OpenRouter 最低服务商价)），人民币汇率为 [\d.]+/.test(note), note)
     const filled = await s.eval(`document.querySelector('.modal input[step="0.01"]')?.value ?? ''`)
     check('单价已填', Number(filled) > 0, filled)
   }

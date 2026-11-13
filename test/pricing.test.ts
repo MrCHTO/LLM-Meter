@@ -52,6 +52,28 @@ describe('价格查询', () => {
     expect(out.matchedId).toBe('deepseek/deepseek-v4.1-flash')
   })
 
+  it('优先取 models.dev 官方价', async () => {
+    const catalog = {
+      deepseek: {
+        models: { 'deepseek-flash': { name: 'DeepSeek V4.1 Flash 1017', cost: { input: 0.15, output: 0.6, cache_read: 0.003 } } }
+      }
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('models.dev')) return new Response(JSON.stringify(catalog), { status: 200 })
+        return new Response(JSON.stringify(list), { status: 200 })
+      })
+    )
+    const { lookup } = await load()
+    const out = await lookup('DeepSeek-V4.1-Flash')
+    expect(out.found).toBe(true)
+    expect(out.source).toBe('official')
+    expect(out.matchedId).toBe('deepseek/deepseek-flash')
+    expect(out.priceIn).toBeCloseTo(0.15)
+    expect(out.priceOut).toBeCloseTo(0.6)
+  })
+
   it('带日期后缀的变体靠前缀兜底，且不选 :batch', async () => {
     vi.stubGlobal(
       'fetch',

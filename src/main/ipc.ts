@@ -274,7 +274,7 @@ export function register(): void {
     wrap(async (modelId: string) => {
       const out = await lookupPrice(modelId)
       if (!out.found) return out
-      // OpenRouter 报的是美元，按当天汇率折成人民币再给界面
+      // 价源报的是美元，按当天汇率折成人民币再给界面
       const today = await rate.current()
       const conv = (v?: number): number | undefined =>
         v === undefined ? undefined : Math.round(v * today.rate * 1e6) / 1e6
@@ -284,7 +284,9 @@ export function register(): void {
         priceOut: conv(out.priceOut),
         priceCacheRead: conv(out.priceCacheRead),
         priceCacheWrite: conv(out.priceCacheWrite),
-        note: `已按照 ${out.matchedId} 查询并自动填写，人民币汇率为 ${today.rate}${out.exact ? '' : '（近似匹配，请核对）'}`
+        note: `已按照 ${out.matchedId} 查询并自动填写${
+          out.source === 'official' ? '（官方价）' : '（OpenRouter 最低服务商价）'
+        }，人民币汇率为 ${today.rate}${out.exact ? '' : '（近似匹配，请核对）'}`
       }
     })
   )
