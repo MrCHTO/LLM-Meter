@@ -39,8 +39,15 @@ export default function App(): JSX.Element {
   useEffect(() => {
     void reload()
     const off = window.api.onPush((snap) => setSnapshot(snap))
-    return off
-  }, [reload])
+    const offCal = window.api.onCalibrated((r) => {
+      notify(`自动校准完成：汇率 ${r.rate}，更新 ${r.updated} 个 / 未匹配 ${r.missed} 个`)
+      void reload()
+    })
+    return () => {
+      off()
+      offCal()
+    }
+  }, [reload, notify])
 
   useEffect(() => {
     if (config) document.title = `LLM Meter ${config.version}`

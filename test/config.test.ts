@@ -115,6 +115,30 @@ describe('配置读写', () => {
     expect(cfg.get().settings.localKey).toEqual(key)
   })
 
+  it('价格来源缺省按自动，manual 原样保留；开机自启/自动校准有默认值', async () => {
+    const dir = join(root, 'data')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({
+        version: 1,
+        providers: [{ id: 'p1', name: 'p', baseUrl: 'https://x.test', format: 'openai', keyCipher: '', createdAt: 1 }],
+        models: [
+          { id: 'm1', providerId: 'p1', upstreamModel: 'u1', alias: 'a1', createdAt: 1 },
+          { id: 'm2', providerId: 'p1', upstreamModel: 'u2', alias: 'a2', priceSource: 'manual', createdAt: 2 }
+        ],
+        settings: {}
+      }),
+      'utf8'
+    )
+    const cfg = await load()
+    expect(cfg.get().models.find((m) => m.id === 'm1')?.priceSource).toBe('auto')
+    expect(cfg.get().models.find((m) => m.id === 'm2')?.priceSource).toBe('manual')
+    expect(cfg.get().settings.startAtLogin).toBe(false)
+    expect(cfg.get().settings.autoCalibrate).toBe(true)
+    expect(cfg.get().settings.lastCalibrate).toBeNull()
+  })
+
   it('baseUrl 去掉末尾斜杠', async () => {
     const dir = join(root, 'data')
     mkdirSync(dir, { recursive: true })

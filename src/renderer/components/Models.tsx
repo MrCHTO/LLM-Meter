@@ -111,6 +111,20 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
     await onChanged()
   }
 
+  // 改过价格就落手动；没动过保留原来源（表单按两位小数回显，比较时同样取整）
+  const priceSourceFor = (draft: ModelDraft): 'auto' | 'manual' => {
+    if (!draft.id) return 'manual'
+    const current = config.models.find((x) => x.id === draft.id)
+    if (!current) return 'manual'
+    const r2 = (n: number): number => Math.round(n * 100) / 100
+    const changed =
+      r2(current.priceIn) !== r2(Number(draft.priceIn) || 0) ||
+      r2(current.priceOut) !== r2(Number(draft.priceOut) || 0) ||
+      r2(current.priceCacheRead) !== r2(Number(draft.priceCacheRead) || 0) ||
+      r2(current.priceCacheWrite) !== r2(Number(draft.priceCacheWrite) || 0)
+    return changed ? 'manual' : current.priceSource
+  }
+
   const saveModel = async (): Promise<void> => {
     if (!model) return
     const payload: Omit<ModelCfg, 'id' | 'createdAt' | 'sort'> = {
@@ -123,7 +137,8 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
       priceOut: Number(model.priceOut) || 0,
       priceCacheRead: Number(model.priceCacheRead) || 0,
       priceCacheWrite: Number(model.priceCacheWrite) || 0,
-      currency: model.currency
+      currency: model.currency,
+      priceSource: priceSourceFor(model)
     }
     setBusy(true)
     const res = model.id
@@ -492,6 +507,30 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                     onChange={(e) => setModel({ ...model, priceCacheWrite: e.target.value })}
                   />
                 </label>
+              </div>
+              <div className="row mt" style={{ gap: 8 }}>
+                {(() => {
+                  const source = model.id ? config.models.find((x) => x.id === model.id)?.priceSource : undefined
+                  return model.id ? (
+                    <>
+                      <span className="muted">价格来源：{source === 'manual' ? '手动' : '自动校准'}</span>
+                      <button
+                        className="btn sm"
+                        disabled={source !== 'manual'}
+                        onClick={async () => {
+                          if (!model.id) return
+                          const res = await window.api.updateModel(model.id, { priceSource: 'auto' })
+                          if (!res.ok) notify(res.error ?? '恢复失败')
+                          else await onChanged()
+                        }}
+                      >
+                        恢复自动
+                      </button>
+                    </>
+                  ) : (
+                    <span className="muted">新建模型的价格按手动记，之后可「恢复自动」交给每天校准</span>
+                  )
+                })()}
               </div>
               <label className="row" style={{ gap: 8 }}>
                 <input

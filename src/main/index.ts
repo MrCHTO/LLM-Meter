@@ -6,6 +6,7 @@ import * as db from './store/db'
 import * as repo from './store/db/repo'
 import { ensureDirs } from './store/paths'
 import * as proxy from './proxy/server'
+import * as calibrate from './calibrate'
 import * as ipc from './ipc'
 import * as mainWindow from './windows/main-window'
 import * as overlay from './windows/overlay'
@@ -13,6 +14,7 @@ import * as tray from './windows/tray'
 import { send, getMain, setMain } from './windows/registry'
 
 let pushTimer: NodeJS.Timeout | null = null
+let calTimer: NodeJS.Timeout | null = null
 let proxyError: string | null = null
 
 const gotLock = app.requestSingleInstanceLock()
@@ -53,8 +55,17 @@ if (!gotLock) {
 
     if (settings.overlay.visible) overlay.create()
 
-    // 端口或局域网开关变了会自动重启代理（托盘、设置页共用这一条出口）
+    // 端口或局域网开关变了会自动重启代理，登录项变了同步注册表（托盘、设置页共用这一条出口）
     let lastNet = { port: settings.port, allowLan: settings.allowLan }
+    let lastLogin = settings.startAtLogin
+    const applyLogin = (on: boolean): void => {
+      try {
+        app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: [] })
+      } catch {
+        /* 注册表写不进去就下次再说 */
+      }
+    }
+    applyLogin(lastLogin)
     cfg.onChange(() => {
       const s = cfg.get().settings
       tray.rebuild()
@@ -67,12 +78,28 @@ if (!gotLock) {
           proxyError = st.error
         })
       }
+      if (s.startAtLogin !== lastLogin) {
+        lastLogin = s.startAtLogin
+        applyLogin(lastLogin)
+      }
     })
 
     pushTimer = setInterval(() => {
       const snap = live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl())
       send(CH.push, snap)
     }, 500)
+
+    // 启动 3 秒后跑一次自动校准，之后每天 00:00 一次
+    setTimeout(() => void calibrate.run(), 3000)
+    const scheduleMidnight = (): void => {
+      const now = new Date()
+      const next = new Date(now)
+      next.setHours(24, 0, 0, 0)
+      calTimer = setTimeout(() => {
+        void calibrate.run().finally(scheduleMidnight)
+      }, next.getTime() - now.getTime())
+    }
+    scheduleMidnight()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow.create()
@@ -87,6 +114,8 @@ if (!gotLock) {
     mainWindow.markQuitting()
     if (pushTimer) clearInterval(pushTimer)
     pushTimer = null
+    if (calTimer) clearTimeout(calTimer)
+    calTimer = null
     tray.destroy()
     db.close()
     void proxy.stop()

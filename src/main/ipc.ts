@@ -30,6 +30,7 @@ import * as proxy from './proxy/server'
 import { joinUrl } from './proxy/url'
 import { lookup as lookupPrice } from './pricing'
 import * as rate from './rate'
+import * as calibrate from './calibrate'
 import { lanIp } from './net'
 import * as overlayWin from './windows/overlay'
 import { showMain } from './windows/registry'
@@ -74,6 +75,9 @@ function view(): ConfigView {
       overlayOpacity: c.settings.overlayOpacity,
       pauseProbe: c.settings.pauseProbe,
       startMinimized: c.settings.startMinimized,
+      startAtLogin: c.settings.startAtLogin,
+      autoCalibrate: c.settings.autoCalibrate,
+      lastCalibrate: c.settings.lastCalibrate,
       localToken: c.settings.localToken,
       localKey: c.settings.localKey,
       localTokenMasked: token.masked(c.settings.localToken)
@@ -207,6 +211,7 @@ export function register(): void {
           alias,
           upstreamModel: input.upstreamModel.trim(),
           currency: input.currency || 'USD',
+          priceSource: input.priceSource === 'auto' ? 'auto' : 'manual',
           sort: c.models.length,
           createdAt: Date.now()
         })
@@ -237,6 +242,16 @@ export function register(): void {
         if (patch.priceCacheRead !== undefined) m.priceCacheRead = Math.max(0, patch.priceCacheRead)
         if (patch.priceCacheWrite !== undefined) m.priceCacheWrite = Math.max(0, patch.priceCacheWrite)
         if (patch.currency !== undefined) m.currency = patch.currency || 'USD'
+        // 显式给了 priceSource 就照办（恢复自动）；否则只要动过价格就判为手动
+        if (patch.priceSource !== undefined) m.priceSource = patch.priceSource === 'auto' ? 'auto' : 'manual'
+        else if (
+          patch.priceIn !== undefined ||
+          patch.priceOut !== undefined ||
+          patch.priceCacheRead !== undefined ||
+          patch.priceCacheWrite !== undefined
+        ) {
+          m.priceSource = 'manual'
+        }
       })
       return true
     })
@@ -272,6 +287,7 @@ export function register(): void {
     })
   )
   ipcMain.handle(CH.rateRefresh, wrap(() => rate.refresh()))
+  ipcMain.handle(CH.calibrate, wrap(() => calibrate.run()))
   ipcMain.handle(CH.probeRun, wrap((id: string): Promise<ProbeResult> => probe.run(id)))
   ipcMain.handle(CH.probeStop, wrap((id?: string) => probe.stop(id)))
 
@@ -292,6 +308,8 @@ export function register(): void {
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
+        startAtLogin?: boolean
+        autoCalibrate?: boolean
       }) => {
         cfg.mutate((c) => {
           if (patch.port !== undefined) c.settings.port = Math.min(65535, Math.max(1024, Math.round(patch.port)))
@@ -311,6 +329,8 @@ export function register(): void {
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
           if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
           if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
+          if (patch.startAtLogin !== undefined) c.settings.startAtLogin = patch.startAtLogin
+          if (patch.autoCalibrate !== undefined) c.settings.autoCalibrate = patch.autoCalibrate
         })
         overlayWin.applySettings()
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)

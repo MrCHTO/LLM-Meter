@@ -24,7 +24,6 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
   const [port, setPort] = useState(String(config.settings.port))
   const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
-  const [rate, setRate] = useState(String(config.settings.usdCny))
   const tokenRef = useRef<HTMLInputElement>(null)
 
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
@@ -293,48 +292,50 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
                 />
                 <span>暂停测速（悬浮窗与仪表盘仍照常记录真实流量）</span>
               </label>
-              <div className="field mt">
-                <span>
-                  美元换人民币汇率{config.settings.usdCnyDate ? ` · ${config.settings.usdCnyDate} 自动` : ' · 未取到'}
-                </span>
-                <div className="row nowrap">
-                  <input
-                    className="mono w-sm"
-                    type="number"
-                    step="0.01"
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                  />
-                  <button
-                    className="btn"
-                    onClick={async () => {
-                      const value = Number(rate)
-                      if (!value || value < 1 || value > 20) {
-                        notify('汇率需要在 1-20 之间')
-                        return
-                      }
-                      await patch({ usdCny: value })
-                      notify(`汇率已设为 ¥${value}/$`, 'ok')
-                    }}
-                  >
-                    应用
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={async () => {
-                      const res = await window.api.refreshRate()
-                      if (!res.ok || !res.data) {
-                        notify(res.error ?? '取汇率失败，沿用旧值')
-                      } else {
-                        setRate(String(res.data.rate))
-                        notify(`已更新为 ¥${res.data.rate}/$（${res.data.date}）`, 'ok')
-                      }
-                      await onChanged()
-                    }}
-                  >
-                    取当天
-                  </button>
-                </div>
+              <label className="row nowrap mt" style={{ gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={config.settings.startAtLogin}
+                  onChange={(e) => {
+                    const on = e.target.checked
+                    // 开机自启时顺手勾上只留托盘，避免开机弹窗；可再手动取消
+                    void patch(on ? { startAtLogin: true, startMinimized: true } : { startAtLogin: false })
+                  }}
+                />
+                <span>开机自启</span>
+                <span className="muted">若未生效，检查安全软件的启动项拦截</span>
+              </label>
+              <label className="row nowrap mt" style={{ gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={config.settings.autoCalibrate}
+                  onChange={(e) => void patch({ autoCalibrate: e.target.checked })}
+                />
+                <span>启动与每天 00:00 自动校准汇率和自动价（手动价不动）</span>
+              </label>
+              <dl className="kv kv-wide mt">
+                <dt>当前汇率</dt>
+                <dd>
+                  ¥{config.settings.usdCny}/{config.settings.usdCnyDate ? `$ · ${config.settings.usdCnyDate}` : '$ · 未取到'}
+                </dd>
+                <dt>上次校准</dt>
+                <dd>
+                  {config.settings.lastCalibrate
+                    ? `${new Date(config.settings.lastCalibrate.at).toLocaleString()} · 汇率 ${config.settings.lastCalibrate.rate} · 更新 ${config.settings.lastCalibrate.updated} 个 / 未匹配 ${config.settings.lastCalibrate.missed} 个`
+                    : '还没有跑过'}
+                </dd>
+              </dl>
+              <div className="row mt">
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const res = await window.api.calibrate()
+                    if (!res.ok) notify(res.error ?? '校准失败')
+                    await onChanged()
+                  }}
+                >
+                  立即校准
+                </button>
               </div>
             </div>
           ) : null}

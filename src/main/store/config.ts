@@ -24,7 +24,10 @@ const DEFAULT_SETTINGS: Settings = {
   },
   overlayOpacity: 100,
   pauseProbe: false,
-  startMinimized: false
+  startMinimized: false,
+  startAtLogin: false,
+  autoCalibrate: true,
+  lastCalibrate: null
 }
 
 let cache: ConfigFile | null = null
@@ -106,6 +109,7 @@ function normalize(raw: unknown): ConfigFile {
         priceCacheRead: Math.max(0, num(o.priceCacheRead, 0)),
         priceCacheWrite: Math.max(0, num(o.priceCacheWrite, 0)),
         currency: str(o.currency, 'USD') || 'USD',
+        priceSource: o.priceSource === 'manual' ? 'manual' : 'auto',
         sort: num(o.sort, models.length),
         createdAt: num(o.createdAt, Date.now())
       })
@@ -143,7 +147,13 @@ function normalize(raw: unknown): ConfigFile {
     },
     overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 10, 100),
     pauseProbe: os.pauseProbe === true,
-    startMinimized: os.startMinimized === true
+    startMinimized: os.startMinimized === true,
+    startAtLogin: os.startAtLogin === true,
+    autoCalibrate: os.autoCalibrate !== false,
+    lastCalibrate:
+      os.lastCalibrate && typeof os.lastCalibrate === 'object'
+        ? (os.lastCalibrate as { at: number; rate: number; updated: number; missed: number })
+        : null
   }
 
   // 历史配置里的外币单价一次性折成人民币，之后不再重复折算

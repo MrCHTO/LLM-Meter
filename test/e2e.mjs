@@ -242,7 +242,8 @@ try {
   check('失败也落库并带错误类型', Boolean(failRow?.error_kind), `${failRow?.error_kind}`)
 
   const minute = dbRows('select * from rollup_minute where model_id = ?', 'm1')
-  check('分钟聚合同步写入', minute.length > 0 && Number(minute[0]?.cost) > 0, `count=${minute.length}`)
+  const minuteCost = minute.reduce((sum, r) => sum + Number(r.cost ?? 0), 0)
+  check('分钟聚合同步写入', minute.length > 0 && minuteCost > 0, `count=${minute.length} cost=${minuteCost}`)
   const dayRow = dbRows('select * from rollup_day where model_id = ?', 'm1')
   check('日聚合同步写入', dayRow.length > 0 && Number(dayRow[0]?.requests) > 0, `count=${dayRow.length}`)
 

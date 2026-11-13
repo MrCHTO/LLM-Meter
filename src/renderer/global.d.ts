@@ -69,9 +69,12 @@ declare global {
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
+        startAtLogin?: boolean
+        autoCalibrate?: boolean
       }) => Promise<IpcResult<boolean>>
       rotateToken: () => Promise<IpcResult<string>>
       refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>
+      calibrate: () => Promise<IpcResult<void>>
       restartProxy: () => Promise<IpcResult<unknown>>
 
       history: (days: number, modelId: string | null) => Promise<IpcResult<DayPoint[]>>
@@ -97,6 +100,7 @@ declare global {
       openMain: () => Promise<IpcResult<void>>
 
       onPush: (fn: (snapshot: LiveSnapshot) => void) => () => void
+      onCalibrated: (fn: (result: { rate: number; updated: number; missed: number }) => void) => () => void
     }
   }
 }

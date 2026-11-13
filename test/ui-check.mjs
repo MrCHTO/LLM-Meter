@@ -366,7 +366,11 @@ try {
   await s.shot('analysis.png')
 
   await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")
-  await sleep(600)
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("!!document.querySelector('.settings-nav')")) break
+    await sleep(300)
+  }
+  await sleep(300)
   check('设置页有四个分组', (await s.eval("document.querySelectorAll('.settings-nav button').length")) === 4)
   // 默认落在接入组
   check('设置页给出本地入口', (await s.eval("document.body.innerText")).includes('127.0.0.1'))
@@ -411,6 +415,15 @@ try {
     '暂停测速开关存在',
     await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('暂停测速'))")
   )
+  check(
+    '开机自启开关存在',
+    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('开机自启'))")
+  )
+  check(
+    '汇率只展示不可改',
+    !(await s.eval("[...document.querySelectorAll('.field')].some((f) => f.innerText.includes('汇率') && f.querySelector('input'))"))
+  )
+  check('有立即校准入口', (await s.eval("document.body.innerText")).includes('立即校准'))
 
   await openGroup('数据')
   check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))

@@ -21,6 +21,7 @@ const api = {
   updateSettings: (patch: unknown) => ipcRenderer.invoke(CH.settingsUpdate, patch),
   rotateToken: () => ipcRenderer.invoke(CH.tokenRotate),
   refreshRate: () => ipcRenderer.invoke(CH.rateRefresh),
+  calibrate: () => ipcRenderer.invoke(CH.calibrate),
   restartProxy: () => ipcRenderer.invoke(CH.proxyRestart),
 
   history: (days: number, modelId: string | null) => ipcRenderer.invoke(CH.history, days, modelId),
@@ -48,6 +49,11 @@ const api = {
     const handler = (_e: Electron.IpcRendererEvent, payload: unknown): void => fn(payload)
     ipcRenderer.on(CH.push, handler)
     return () => ipcRenderer.removeListener(CH.push, handler)
+  },
+  onCalibrated: (fn: (result: unknown) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, payload: unknown): void => fn(payload)
+    ipcRenderer.on(CH.calibrated, handler)
+    return () => ipcRenderer.removeListener(CH.calibrated, handler)
   }
 }
 

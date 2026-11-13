@@ -219,7 +219,12 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                     <td className="c-ttft mono">{fmtMs(m.ttftP50)}</td>
                     <td className="c-ttft mono">{fmtMs(m.ttftP95)}</td>
                     <td className="c-ttft mono">{fmtMs(m.ttftP99)}</td>
-                    <td className="c-hit mono">{fmtPct(m.hitRate)}</td>
+                    <td
+                      className="c-hit mono"
+                      title={`缓存读 ${fmtTokens(m.today.cacheRead)} / 输入 ${fmtTokens(m.today.input)}`}
+                    >
+                      {fmtPct(m.hitRate)}
+                    </td>
                     <td className="c-tok mono">{fmtTokens(m.today.input)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
                     <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>

@@ -23,7 +23,10 @@ export function fmtMs(ms: number | null): string {
 
 export function fmtPct(v: number | null): string {
   if (v === null) return '—'
-  return `${Math.round(v * 100)}%`
+  const pct = v * 100
+  // 99.x 给一位小数，免得 99.94% 四舍五入成「100%」看着像没生效
+  if (pct >= 99 && pct < 100) return `${pct.toFixed(1)}%`
+  return `${Math.round(pct)}%`
 }
 
 export function fmtClock(ts: number): string {

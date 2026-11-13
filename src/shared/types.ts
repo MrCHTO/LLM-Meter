@@ -42,6 +42,8 @@ export interface ModelCfg {
   priceCacheRead: number
   priceCacheWrite: number
   currency: string
+  /** 价格来源：自动校准的会被每天刷新，手动改过的不动 */
+  priceSource: 'auto' | 'manual'
   sort: number
   createdAt: number
 }
@@ -80,6 +82,12 @@ export interface Settings {
   /** 暂停探针（代理不受影响） */
   pauseProbe: boolean
   startMinimized: boolean
+  /** 开机自启 */
+  startAtLogin: boolean
+  /** 启动与每天 00:00 自动校准汇率和自动价（手动价不动） */
+  autoCalibrate: boolean
+  /** 最近一次自动校准的结果 */
+  lastCalibrate: { at: number; rate: number; updated: number; missed: number } | null
 }
 
 export interface ConfigFile {
@@ -354,5 +362,7 @@ export const CH = {
   statsTotals: 'stats:totals',
   statsTop: 'stats:top',
   statsExport: 'stats:export',
+  calibrated: 'app:calibrated',
+  calibrate: 'app:calibrate',
   devSeed: 'dev:seed'
 } as const
