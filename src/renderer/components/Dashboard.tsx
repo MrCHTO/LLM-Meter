@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ConfigView, LiveSnapshot, ModelLive } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
 import { useColumnWidths } from '../columns'
-import { MultiRate } from './MultiRate'
+import { MultiRate, colorOf } from './MultiRate'
 import { Sparkline } from './Sparkline'
 
 interface Props {
@@ -182,7 +182,11 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                       setMenu({ modelId: m.modelId, x: event.clientX, y: event.clientY })
                     }}
                   >
-                    <td className="c-model">{m.alias}</td>
+                    <td className="c-model">
+                      <span className="model-name" style={{ background: colorOf(m.modelId) }}>
+                        {m.alias}
+                      </span>
+                    </td>
                     <td className="c-url" title={`${m.providerName} ${m.baseUrl}`}>
                       {m.providerName}
                     </td>
@@ -235,6 +239,18 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
           onClick={(e) => e.stopPropagation()}
         >
           <button onClick={() => void runProbe(menu.modelId)}>测速</button>
+          <button
+            onClick={async () => {
+              const target = config.models.find((m) => m.id === menu.modelId)
+              setMenu(null)
+              if (!target) return
+              const res = await window.api.updateModel(target.id, { showRate: target.showRate === false })
+              if (!res.ok) notify(res.error ?? '切换失败')
+              else await onChanged()
+            }}
+          >
+            {config.models.find((m) => m.id === menu.modelId)?.showRate === false ? '显示曲线图' : '隐藏曲线图'}
+          </button>
           <button onClick={() => onOpenLogs(menu.modelId)}>查看日志</button>
         </div>
       ) : null}
