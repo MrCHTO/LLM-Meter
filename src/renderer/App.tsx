@@ -92,7 +92,7 @@ export default function App(): JSX.Element {
           <Dashboard snapshot={snapshot} config={config} notify={notify} onChanged={reload} />
         )}
         {tab === 'analysis' && <Analysis config={config} notify={notify} />}
-        {tab === 'models' && <Models config={config} notify={notify} onChanged={reload} />}
+        {tab === 'models' && <Models config={config} snapshot={snapshot} notify={notify} onChanged={reload} />}
         {tab === 'settings' && (
           <SettingsView config={config} snapshot={snapshot} notify={notify} onChanged={reload} />
         )}

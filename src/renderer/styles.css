@@ -694,6 +694,20 @@ body.overlay-body {
   width: 9%;
 }
 
+/* 仪表盘：除模型、上游供应商/地址外全部居中（含表头） */
+.tbl th.c-rate,
+.tbl td.c-rate,
+.tbl th.c-ttft,
+.tbl td.c-ttft,
+.tbl th.c-hit,
+.tbl td.c-hit,
+.tbl th.c-tok,
+.tbl td.c-tok,
+.tbl th.c-cost,
+.tbl td.c-cost {
+  text-align: center;
+}
+
 tr.clickable {
   cursor: pointer;
 }
@@ -745,6 +759,25 @@ tr.open > td {
   text-align: center;
 }
 
+/* 供应商：协议与 Key 左对齐 */
+.tbl-left th.c-left,
+.tbl-left td.c-left {
+  text-align: left;
+}
+
+/* 模型表：除别名/上游模型外全部居中（含表头） */
+.tbl-models th,
+.tbl-models td {
+  text-align: center;
+}
+
+.tbl-models th:nth-child(1),
+.tbl-models td:nth-child(1),
+.tbl-models th:nth-child(2),
+.tbl-models td:nth-child(2) {
+  text-align: left;
+}
+
 .pick,
 .state {
   padding: 3px 6px;
@@ -758,6 +791,28 @@ tr.open > td {
 .state.on {
   color: var(--ok);
   font-weight: 600;
+}
+
+.probe-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dim);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.probe-dot.on {
+  background: #34d399;
+}
+
+.probe-dot.off {
+  background: #f26d6d;
+}
+
+.probe-dot.idle {
+  opacity: 0.35;
 }
 
 .ellipsis {

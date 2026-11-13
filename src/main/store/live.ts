@@ -30,6 +30,9 @@ interface ModelState {
   /** 今天的 TTFT 样本，重启时从明细回灌 */
   ttftSamples: number[]
   probing: boolean
+  probeFails: number
+  lastProbeAt: number | null
+  lastProbeOk: boolean | null
 }
 
 const state = new Map<string, ModelState>()
@@ -70,7 +73,10 @@ function ensure(modelId: string): ModelState {
     lastErrorAt: null,
     lastTtftMs: null,
     ttftSamples: [],
-    probing: false
+    probing: false,
+    probeFails: 0,
+    lastProbeAt: null,
+    lastProbeOk: null
   }
   state.set(modelId, created)
   return created
@@ -194,6 +200,18 @@ export function setProbing(modelId: string, value: boolean): void {
   ensure(modelId).probing = value
 }
 
+/** 自动探活结果：成功清零，失败累计 */
+export function markProbe(modelId: string, ok: boolean): void {
+  const s = ensure(modelId)
+  s.lastProbeAt = Date.now()
+  s.lastProbeOk = ok
+  s.probeFails = ok ? 0 : s.probeFails + 1
+}
+
+export function probeFailsOf(modelId: string): number {
+  return state.get(modelId)?.probeFails ?? 0
+}
+
 export function recentFor(modelId: string, limit = 20): RequestEvent[] {
   try {
     return repo.recentFor(db.get(), modelId, limit)
@@ -257,7 +275,10 @@ export function snapshot(
       active:
         (inflight.get(m.id) ?? 0) > 0 || (visibleUntil.get(m.id) ?? 0) > now,
       probing: s.probing,
-      paused: settings.pauseProbe
+      autoProbe: m.autoProbe === true,
+      lastProbeAt: s.lastProbeAt,
+      lastProbeOk: s.lastProbeOk,
+      probeFails: s.probeFails,
     })
     totals.tps += tps
     for (let i = 0; i < BUCKETS; i++) {

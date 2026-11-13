@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import type { ApiFormat, ConfigView, ModelCfg, ProviderView } from '../../shared/types'
+import type { ApiFormat, ConfigView, LiveSnapshot, ModelCfg, ProviderView } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney } from '../format'
 
 interface Props {
   config: ConfigView
+  snapshot: LiveSnapshot | null
   notify: (text: string, kind?: 'ok' | 'bad') => void
   onChanged: () => Promise<void>
 }
@@ -46,7 +47,7 @@ function emptyModel(providerId: string): ModelDraft {
   }
 }
 
-export function Models({ config, notify, onChanged }: Props): JSX.Element {
+export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Element {
   const [provider, setProvider] = useState<ProviderDraft | null>(null)
   const [model, setModel] = useState<ModelDraft | null>(null)
   const [busy, setBusy] = useState(false)
@@ -138,7 +139,8 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
       priceCacheRead: Number(model.priceCacheRead) || 0,
       priceCacheWrite: Number(model.priceCacheWrite) || 0,
       currency: model.currency,
-      priceSource: priceSourceFor(model)
+      priceSource: priceSourceFor(model),
+      autoProbe: model.id ? (config.models.find((x) => x.id === model.id)?.autoProbe ?? false) : false
     }
     setBusy(true)
     const res = model.id
@@ -184,8 +186,8 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
               <tr>
                 <th>名称</th>
                 <th>Base URL</th>
-                <th>格式</th>
-                <th>Key</th>
+                <th className="c-left">协议</th>
+                <th className="c-left">Key</th>
                 <th className="c-center">状态</th>
                 <th />
               </tr>
@@ -197,8 +199,8 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   <td className="mono" style={{ textAlign: 'left' }}>
                     {p.baseUrl}
                   </td>
-                  <td>{FORMAT_LABEL[p.format]}</td>
-                  <td className="mono">{p.keyMasked}</td>
+                  <td className="c-left">{FORMAT_LABEL[p.format]}</td>
+                  <td className="mono c-left">{p.keyMasked}</td>
                   <td className="c-center">
                     <button
                       className={p.enabled ? 'state on' : 'state'}
@@ -265,7 +267,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
         {config.models.length === 0 ? (
           <div className="empty">{providers.length === 0 ? '先添加供应商' : '还没有模型'}</div>
         ) : (
-          <table className="tbl-left">
+          <table className="tbl-left tbl-models">
             <thead>
               <tr>
                 <th>别名</th>
@@ -276,13 +278,32 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                 <th title="每百万 token 单价">缓存写入</th>
                 <th className="c-center">悬浮窗</th>
                 <th className="c-center">状态</th>
+                <th className="c-center">自动探针</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {config.models.map((m) => (
-                <tr key={m.id}>
-                  <td>{m.alias}</td>
+              {config.models.map((m) => {
+                const live = snapshot?.models.find((x) => x.modelId === m.id)
+                const probeTime = live?.lastProbeAt ?? null
+                const probeTitle = probeTime
+                  ? `上次探针：${new Date(probeTime).toLocaleTimeString()}`
+                  : m.autoProbe
+                    ? '尚未探测'
+                    : '自动探针未开启'
+                return (
+                  <tr key={m.id} className={m.autoProbe && (live?.probeFails ?? 0) >= 3 ? 'bad-flash' : undefined}>
+                    <td>
+                      <span
+                        className={
+                          'probe-dot' +
+                          (probeTime === null ? '' : live?.lastProbeOk ? ' on' : ' off') +
+                          (m.autoProbe ? '' : ' idle')
+                        }
+                        title={probeTitle}
+                      />
+                      {m.alias}
+                    </td>
                   <td className="mono" style={{ textAlign: 'left' }}>
                     {m.upstreamModel}
                   </td>
@@ -313,6 +334,18 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                       }}
                     >
                       {m.enabled ? '启用' : '停用'}
+                    </button>
+                  </td>
+                  <td className="c-center">
+                    <button
+                      className={m.autoProbe ? 'state on' : 'state'}
+                      onClick={async () => {
+                        const res = await window.api.updateModel(m.id, { autoProbe: !m.autoProbe })
+                        if (!res.ok) notify(res.error ?? '切换失败')
+                        else await onChanged()
+                      }}
+                    >
+                      {m.autoProbe ? '关闭' : '开启'}
                     </button>
                   </td>
                   <td>
@@ -353,7 +386,8 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                     </button>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -384,7 +418,7 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                 />
               </label>
               <label className="field">
-                <span>API 格式</span>
+                <span>协议</span>
                 <select
                   value={provider.format}
                   onChange={(e) => setProvider({ ...provider, format: e.target.value as ApiFormat })}

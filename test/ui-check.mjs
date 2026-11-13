@@ -273,6 +273,27 @@ try {
   await sleep(600)
   check('模型页列出供应商', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check('供应商与模型的状态都是可点文字按钮', (await s.eval("document.querySelectorAll('.state').length")) >= 4)
+  check(
+    '模型表有自动探针列',
+    await s.eval("[...document.querySelectorAll('thead')].some((th) => th.innerText.includes('自动探针'))")
+  )
+  const firstProbeBtn = await s.eval(
+    "[...document.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('button')].find((b) => b.innerText === '开启')).find(Boolean)?.innerText ?? ''"
+  )
+  check('自动探针有开启按钮', firstProbeBtn === '开启')
+  await s.eval(
+    "[...document.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('button')].find((b) => b.innerText === '开启')).find(Boolean)?.click()"
+  )
+  await sleep(900)
+  check(
+    '开启后变为关闭且探活点可悬停',
+    (await s.eval("[...document.querySelectorAll('tbody button')].some((b) => b.innerText === '关闭')")) &&
+      (await s.eval("[...document.querySelectorAll('.probe-dot')].some((d) => d.title && d.title !== '自动探针未开启')"))
+  )
+  check(
+    '探活点在最前面',
+    (await s.eval("document.querySelector('tbody tr .probe-dot')?.parentElement?.firstElementChild?.className ?? ''")) === 'probe-dot'
+  )
   check('模型表没有日预算列', !(await s.eval("document.querySelector('thead')?.innerText ?? ''")).includes('日预算'))
   check('供应商显示掩码 Key', /••••/.test(await s.eval("document.body.innerText")))
   check('文案已改为 OpenAI', !(await s.eval('document.body.innerText')).includes('OpenAI 兼容'))
@@ -412,12 +433,12 @@ try {
 
   await openGroup('运行')
   check(
-    '暂停测速开关存在',
-    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('暂停测速'))")
-  )
-  check(
     '开机自启开关存在',
     await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('开机自启'))")
+  )
+  check(
+    '自动探针间隔是数字输入',
+    (await s.eval("[...document.querySelectorAll('.field')].filter((f) => f.innerText.includes('自动探针间隔')).length")) === 1
   )
   check(
     '汇率只展示不可改',

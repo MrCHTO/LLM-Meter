@@ -24,6 +24,7 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
   const [port, setPort] = useState(String(config.settings.port))
   const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
+  const [probeInterval, setProbeInterval] = useState(String(config.settings.autoProbeIntervalSec))
   const tokenRef = useRef<HTMLInputElement>(null)
 
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
@@ -287,14 +288,6 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
               <label className="row nowrap mt" style={{ gap: 8 }}>
                 <input
                   type="checkbox"
-                  checked={config.settings.pauseProbe}
-                  onChange={(e) => void patch({ pauseProbe: e.target.checked })}
-                />
-                <span>暂停测速（悬浮窗与仪表盘仍照常记录真实流量）</span>
-              </label>
-              <label className="row nowrap mt" style={{ gap: 8 }}>
-                <input
-                  type="checkbox"
                   checked={config.settings.startAtLogin}
                   onChange={(e) => {
                     const on = e.target.checked
@@ -304,6 +297,27 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
                 />
                 <span>开机自启</span>
                 <span className="muted">若未生效，检查安全软件的启动项拦截</span>
+              </label>
+              <label className="field mt">
+                <span>自动探针间隔 / 秒（60–3600，每个开启探针的模型各算各的）</span>
+                <div className="row nowrap">
+                  <input
+                    className="mono w-sm"
+                    type="number"
+                    value={probeInterval}
+                    onChange={(e) => setProbeInterval(e.target.value)}
+                  />
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      const value = Math.min(3600, Math.max(60, Math.round(Number(probeInterval) || 300)))
+                      setProbeInterval(String(value))
+                      await patch({ autoProbeIntervalSec: value })
+                    }}
+                  >
+                    应用
+                  </button>
+                </div>
               </label>
               <label className="row nowrap mt" style={{ gap: 8 }}>
                 <input

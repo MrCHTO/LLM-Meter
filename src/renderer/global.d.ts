@@ -53,7 +53,6 @@ declare global {
       >
       runProbe: (id: string) => Promise<IpcResult<ProbeResult>>
       stopProbe: (id?: string) => Promise<IpcResult<boolean>>
-      pauseProbe: (value: boolean) => Promise<IpcResult<boolean>>
 
       updateSettings: (patch: {
         port?: number
@@ -61,7 +60,6 @@ declare global {
         retentionDays?: number
         rollupRetentionDays?: number
         overlayOpacity?: number
-        pauseProbe?: boolean
         startMinimized?: boolean
         overlayWidth?: number
         overlayVisible?: boolean
@@ -71,6 +69,7 @@ declare global {
         overlayLocked?: boolean
         startAtLogin?: boolean
         autoCalibrate?: boolean
+        autoProbeIntervalSec?: number
       }) => Promise<IpcResult<boolean>>
       rotateToken: () => Promise<IpcResult<string>>
       refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>

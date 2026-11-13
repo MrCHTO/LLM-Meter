@@ -27,7 +27,7 @@ npm test             # 单元测试
 
 ## 接入客户端
 
-1. 「模型与供应商」→ 添加供应商：填 Base URL、选 API 格式、填真实 Key。
+1. 「模型与供应商」→ 添加供应商：填 Base URL、选协议、填真实 Key。
 2. 添加模型：上游模型名填上游真实名字，别名随便取（客户端里填这个）。
 3. 「设置」里复制本地 token（形如 `sk-…`，Ed25519 签名票据；重签后旧值立即失效）。
 4. 客户端配置：
@@ -91,7 +91,7 @@ npm test             # 单元测试
 ```bash
 npm test                                                       # 单测：SSE 跨块分帧、usage 提取、成本、URL 拼接、配置容错、库写入与清理
 node test/e2e.mjs                                              # 假上游端到端，28 项（含库断言与 token 迁移）
-node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），78 项
+node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），85 项
 node test/import-check.mjs <exe> <含 events/rollup 的备份目录>   # 打包产物的旧数据导入回归
 node test/installed-check.mjs                                   # 安装版实机核对（真实档案，会触发旧数据导入）
 node test/real-e2e.mjs <baseUrl> <key> <model>                  # 真实上游核对

@@ -23,10 +23,10 @@ const DEFAULT_SETTINGS: Settings = {
     theme: 'dark'
   },
   overlayOpacity: 100,
-  pauseProbe: false,
   startMinimized: false,
   startAtLogin: false,
   autoCalibrate: true,
+  autoProbeIntervalSec: 300,
   lastCalibrate: null
 }
 
@@ -110,6 +110,7 @@ function normalize(raw: unknown): ConfigFile {
         priceCacheWrite: Math.max(0, num(o.priceCacheWrite, 0)),
         currency: str(o.currency, 'USD') || 'USD',
         priceSource: o.priceSource === 'manual' ? 'manual' : 'auto',
+        autoProbe: o.autoProbe === true,
         sort: num(o.sort, models.length),
         createdAt: num(o.createdAt, Date.now())
       })
@@ -146,10 +147,10 @@ function normalize(raw: unknown): ConfigFile {
       theme: ov.theme === 'light' ? 'light' : 'dark'
     },
     overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 10, 100),
-    pauseProbe: os.pauseProbe === true,
     startMinimized: os.startMinimized === true,
     startAtLogin: os.startAtLogin === true,
     autoCalibrate: os.autoCalibrate !== false,
+    autoProbeIntervalSec: clamp(Math.round(num(os.autoProbeIntervalSec, 300)), 60, 3600),
     lastCalibrate:
       os.lastCalibrate && typeof os.lastCalibrate === 'object'
         ? (os.lastCalibrate as { at: number; rate: number; updated: number; missed: number })

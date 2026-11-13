@@ -110,7 +110,6 @@ export async function run(modelId: string): Promise<ProbeResult> {
   const model = cfg.modelById(modelId)
   if (!model) return { ...blank, message: '模型不存在' }
   const base: ProbeResult = { ...blank, alias: model.alias }
-  if (cfg.get().settings.pauseProbe) return { ...base, message: '测速已暂停，右键悬浮窗或到设置里恢复' }
   if (active.has(modelId)) return { ...base, message: '该模型正在测速' }
 
   const provider = cfg.providerById(model.providerId)

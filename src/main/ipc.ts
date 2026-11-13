@@ -73,10 +73,10 @@ function view(): ConfigView {
       rollupRetentionDays: c.settings.rollupRetentionDays,
       overlay: c.settings.overlay,
       overlayOpacity: c.settings.overlayOpacity,
-      pauseProbe: c.settings.pauseProbe,
       startMinimized: c.settings.startMinimized,
       startAtLogin: c.settings.startAtLogin,
       autoCalibrate: c.settings.autoCalibrate,
+      autoProbeIntervalSec: c.settings.autoProbeIntervalSec,
       lastCalibrate: c.settings.lastCalibrate,
       localToken: c.settings.localToken,
       localKey: c.settings.localKey,
@@ -212,6 +212,7 @@ export function register(): void {
           upstreamModel: input.upstreamModel.trim(),
           currency: input.currency || 'USD',
           priceSource: input.priceSource === 'auto' ? 'auto' : 'manual',
+          autoProbe: input.autoProbe === true,
           sort: c.models.length,
           createdAt: Date.now()
         })
@@ -236,6 +237,7 @@ export function register(): void {
           m.providerId = patch.providerId
         }
         if (patch.enabled !== undefined) m.enabled = patch.enabled
+        if (patch.autoProbe !== undefined) m.autoProbe = patch.autoProbe
         if (patch.watch !== undefined) m.watch = patch.watch
         if (patch.priceIn !== undefined) m.priceIn = Math.max(0, patch.priceIn)
         if (patch.priceOut !== undefined) m.priceOut = Math.max(0, patch.priceOut)
@@ -300,7 +302,6 @@ export function register(): void {
         retentionDays?: number
         rollupRetentionDays?: number
         overlayOpacity?: number
-        pauseProbe?: boolean
         startMinimized?: boolean
         overlayWidth?: number
         overlayVisible?: boolean
@@ -310,6 +311,7 @@ export function register(): void {
         overlayLocked?: boolean
         startAtLogin?: boolean
         autoCalibrate?: boolean
+        autoProbeIntervalSec?: number
       }) => {
         cfg.mutate((c) => {
           if (patch.port !== undefined) c.settings.port = Math.min(65535, Math.max(1024, Math.round(patch.port)))
@@ -322,7 +324,6 @@ export function register(): void {
           if (patch.overlayOpacity !== undefined) {
             c.settings.overlayOpacity = Math.min(100, Math.max(10, Math.round(patch.overlayOpacity)))
           }
-          if (patch.pauseProbe !== undefined) c.settings.pauseProbe = patch.pauseProbe
           if (patch.startMinimized !== undefined) c.settings.startMinimized = patch.startMinimized
           if (patch.overlayWidth !== undefined) c.settings.overlay.width = Math.min(720, Math.max(240, Math.round(patch.overlayWidth)))
           if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
@@ -331,6 +332,9 @@ export function register(): void {
           if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
           if (patch.startAtLogin !== undefined) c.settings.startAtLogin = patch.startAtLogin
           if (patch.autoCalibrate !== undefined) c.settings.autoCalibrate = patch.autoCalibrate
+          if (patch.autoProbeIntervalSec !== undefined) {
+            c.settings.autoProbeIntervalSec = Math.min(3600, Math.max(60, Math.round(patch.autoProbeIntervalSec)))
+          }
         })
         overlayWin.applySettings()
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
@@ -395,13 +399,6 @@ export function register(): void {
     CH.recent,
     wrap((modelId: string, limit?: number) => live.recentFor(modelId, limit ?? 20))
   )
-
-  ipcMain.handle(CH.probePause, wrap((value: boolean) => {
-    cfg.mutate((c) => {
-      c.settings.pauseProbe = value
-    })
-    return true
-  }))
 
   const pruneNow = (): number => {
     const s = cfg.get().settings

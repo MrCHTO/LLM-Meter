@@ -16,7 +16,6 @@ const api = {
   lookupPrice: (modelId: string) => ipcRenderer.invoke(CH.priceLookup, modelId),
   runProbe: (id: string) => ipcRenderer.invoke(CH.probeRun, id),
   stopProbe: (id?: string) => ipcRenderer.invoke(CH.probeStop, id),
-  pauseProbe: (value: boolean) => ipcRenderer.invoke(CH.probePause, value),
 
   updateSettings: (patch: unknown) => ipcRenderer.invoke(CH.settingsUpdate, patch),
   rotateToken: () => ipcRenderer.invoke(CH.tokenRotate),

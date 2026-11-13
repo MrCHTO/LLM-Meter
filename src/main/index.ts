@@ -7,6 +7,7 @@ import * as repo from './store/db/repo'
 import { ensureDirs } from './store/paths'
 import * as proxy from './proxy/server'
 import * as calibrate from './calibrate'
+import * as autoProbe from './probe/auto'
 import * as ipc from './ipc'
 import * as mainWindow from './windows/main-window'
 import * as overlay from './windows/overlay'
@@ -100,6 +101,7 @@ if (!gotLock) {
       }, next.getTime() - now.getTime())
     }
     scheduleMidnight()
+    autoProbe.start()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow.create()
@@ -116,6 +118,7 @@ if (!gotLock) {
     pushTimer = null
     if (calTimer) clearTimeout(calTimer)
     calTimer = null
+    autoProbe.stop()
     tray.destroy()
     db.close()
     void proxy.stop()

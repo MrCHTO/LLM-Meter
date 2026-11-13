@@ -44,6 +44,8 @@ export interface ModelCfg {
   currency: string
   /** 价格来源：自动校准的会被每天刷新，手动改过的不动 */
   priceSource: 'auto' | 'manual'
+  /** 自动探活：开启后按设置的间隔向该模型发极轻请求 */
+  autoProbe: boolean
   sort: number
   createdAt: number
 }
@@ -79,9 +81,9 @@ export interface Settings {
   overlay: OverlayState
   /** 悬浮窗不透明度 30-100 */
   overlayOpacity: number
-  /** 暂停探针（代理不受影响） */
-  pauseProbe: boolean
   startMinimized: boolean
+  /** 自动探活的间隔秒数，60–3600 */
+  autoProbeIntervalSec: number
   /** 开机自启 */
   startAtLogin: boolean
   /** 启动与每天 00:00 自动校准汇率和自动价（手动价不动） */
@@ -174,7 +176,11 @@ export interface ModelLive {
   /** 是否该显示流光：进行中，或开始后不足 1.5 秒 */
   active: boolean
   probing: boolean
-  paused: boolean
+  /** 自动探活开关与最近结果 */
+  autoProbe: boolean
+  lastProbeAt: number | null
+  lastProbeOk: boolean | null
+  probeFails: number
 }
 
 export interface SnapshotTotals {
@@ -347,7 +353,6 @@ export const CH = {
   recent: 'history:recent',
   openDataDir: 'app:openDataDir',
   backup: 'app:backup',
-  probePause: 'probe:pause',
   exportDaily: 'app:exportDaily',
   eventsCleanup: 'app:eventsCleanup',
   overlayState: 'overlay:state',

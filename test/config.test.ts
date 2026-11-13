@@ -125,7 +125,7 @@ describe('配置读写', () => {
         providers: [{ id: 'p1', name: 'p', baseUrl: 'https://x.test', format: 'openai', keyCipher: '', createdAt: 1 }],
         models: [
           { id: 'm1', providerId: 'p1', upstreamModel: 'u1', alias: 'a1', createdAt: 1 },
-          { id: 'm2', providerId: 'p1', upstreamModel: 'u2', alias: 'a2', priceSource: 'manual', createdAt: 2 }
+          { id: 'm2', providerId: 'p1', upstreamModel: 'u2', alias: 'a2', priceSource: 'manual', autoProbe: true, createdAt: 2 }
         ],
         settings: {}
       }),
@@ -134,8 +134,11 @@ describe('配置读写', () => {
     const cfg = await load()
     expect(cfg.get().models.find((m) => m.id === 'm1')?.priceSource).toBe('auto')
     expect(cfg.get().models.find((m) => m.id === 'm2')?.priceSource).toBe('manual')
+    expect(cfg.get().models.find((m) => m.id === 'm1')?.autoProbe).toBe(false)
+    expect(cfg.get().models.find((m) => m.id === 'm2')?.autoProbe).toBe(true)
     expect(cfg.get().settings.startAtLogin).toBe(false)
     expect(cfg.get().settings.autoCalibrate).toBe(true)
+    expect(cfg.get().settings.autoProbeIntervalSec).toBe(300)
     expect(cfg.get().settings.lastCalibrate).toBeNull()
   })
 
