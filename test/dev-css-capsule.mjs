@@ -31,14 +31,12 @@ body.overlay-body {
   /* 默认黑色外观 */
   background: rgb(18 22 27 / 96%);
   border: 1px solid #333d49;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 35%);
   color: #e8eef6;
 }
 
 .capsule.theme-light {
   background: rgb(255 255 255 / 97%);
   border-color: #dbe1e9;
-  box-shadow: 0 6px 18px rgb(15 23 42 / 16%);
   color: var(--text);
 }
 
@@ -48,10 +46,6 @@ body.overlay-body {
 
 .capsule.locked:active {
   cursor: default;
-}
-
-.capsule.adjusting {
-  cursor: ew-resize;
 }
 
 /* 有请求进行中：边框彩虹流动 */

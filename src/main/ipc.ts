@@ -75,6 +75,7 @@ function view(): ConfigView {
       pauseProbe: c.settings.pauseProbe,
       startMinimized: c.settings.startMinimized,
       localToken: c.settings.localToken,
+      localKey: c.settings.localKey,
       localTokenMasked: token.masked(c.settings.localToken)
     },
     dataDir: dataDir(),
@@ -292,10 +293,7 @@ export function register(): void {
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
-        overlayAdjusting?: boolean
       }) => {
-        const portChanged = patch.port !== undefined && patch.port !== cfg.get().settings.port
-        const lanChanged = patch.allowLan !== undefined && patch.allowLan !== cfg.get().settings.allowLan
         cfg.mutate((c) => {
           if (patch.port !== undefined) c.settings.port = Math.min(65535, Math.max(1024, Math.round(patch.port)))
           if (patch.allowLan !== undefined) c.settings.allowLan = patch.allowLan
@@ -314,11 +312,10 @@ export function register(): void {
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
           if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
           if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
-          if (patch.overlayAdjusting !== undefined) c.settings.overlay.adjusting = patch.overlayAdjusting
         })
         overlayWin.applySettings()
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
-        if (portChanged || lanChanged) await proxy.start(cfg.get().settings.port)
+        // 端口 / 局域网开关变化后的代理重启统一由 index.ts 的 cfg.onChange 处理
         return true
       }
     )
@@ -327,12 +324,12 @@ export function register(): void {
   ipcMain.handle(
     CH.tokenRotate,
     wrap(() => {
-      let next = ''
+      const issued = token.issue()
       cfg.mutate((c) => {
-        c.settings.localToken = token.generate()
-        next = c.settings.localToken
+        c.settings.localKey = issued.key
+        c.settings.localToken = issued.token
       })
-      return next
+      return issued.token
     })
   )
 

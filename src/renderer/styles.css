@@ -136,7 +136,6 @@ button {
 }
 
 .section {
-  max-width: 1080px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -530,14 +529,12 @@ body.overlay-body {
   /* 默认黑色外观 */
   background: #12161b;
   border: 1px solid #333d49;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 35%);
   color: #e8eef6;
 }
 
 .capsule.theme-light {
   background: #fff;
   border-color: #dbe1e9;
-  box-shadow: 0 6px 18px rgb(15 23 42 / 16%);
   color: var(--text);
 }
 
@@ -547,10 +544,6 @@ body.overlay-body {
 
 .capsule.locked:active {
   cursor: default;
-}
-
-.capsule.adjusting {
-  cursor: ew-resize;
 }
 
 /* 有请求进行中：边框彩虹流动 */
@@ -632,8 +625,9 @@ body.overlay-body {
   color: var(--muted);
 }
 
-.capsule-hint {
+.capsule-lock {
   color: #93a1b1;
+  font-size: 11px;
 }
 
 /* ---------- 按模型表 ---------- */

@@ -58,8 +58,6 @@ export interface OverlayState {
   /** 锁定后拖不动，防误碰 */
   locked: boolean
   theme: 'dark' | 'light'
-  /** 调节透明度模式：此时拖动改的是透明度而不是位置 */
-  adjusting: boolean
 }
 
 export interface Settings {
@@ -70,8 +68,10 @@ export interface Settings {
   usdCny: number
   /** 汇率对应的日期，YYYY-MM-DD；取到当天值后不再重复请求 */
   usdCnyDate: string
-  /** 本地入口 token，32 位 hex */
+  /** 本地入口 token，Ed25519 签名的 sk- 票据 */
   localToken: string
+  /** 签发本地 token 的密钥对；没有时验签退回明文比较 */
+  localKey: { kid: string; privateKey: string } | null
   /** 明细保留天数 */
   retentionDays: number
   /** 分钟聚合保留天数 */

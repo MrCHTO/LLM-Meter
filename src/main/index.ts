@@ -12,11 +12,6 @@ import * as overlay from './windows/overlay'
 import * as tray from './windows/tray'
 import { send, getMain, setMain } from './windows/registry'
 
-// Intel UHD 的 MPO 会把 DirectComposition 透明窗垫成灰底（肉眼可见的灰框；
-// 抓屏走另一条合成路径，看不到这个叠加层，所以截图复现不出来）。
-// 关掉 DC 视觉树，退回老的 layered window 路径，透明区域恢复逐像素 alpha。
-app.commandLine.appendSwitch('disable-features', 'DirectCompositionVisuals')
-
 let pushTimer: NodeJS.Timeout | null = null
 let proxyError: string | null = null
 
@@ -58,11 +53,20 @@ if (!gotLock) {
 
     if (settings.overlay.visible) overlay.create()
 
+    // 端口或局域网开关变了会自动重启代理（托盘、设置页共用这一条出口）
+    let lastNet = { port: settings.port, allowLan: settings.allowLan }
     cfg.onChange(() => {
+      const s = cfg.get().settings
       tray.rebuild()
       overlay.applySettings()
       // 配置一变就推一帧，胶囊不用等 500ms 轮询，选中状态与列表始终一致
       send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
+      if (s.port !== lastNet.port || s.allowLan !== lastNet.allowLan) {
+        lastNet = { port: s.port, allowLan: s.allowLan }
+        void proxy.start(s.port).then((st) => {
+          proxyError = st.error
+        })
+      }
     })
 
     pushTimer = setInterval(() => {

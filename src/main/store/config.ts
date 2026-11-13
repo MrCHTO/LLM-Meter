@@ -1,6 +1,7 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs'
 import { configPath, ensureDirs } from './paths'
+import * as token from '../security/token'
 import type { ConfigFile, ModelCfg, Provider, Settings } from '../../shared/types'
 
 const DEFAULT_SETTINGS: Settings = {
@@ -9,6 +10,7 @@ const DEFAULT_SETTINGS: Settings = {
   usdCny: 7.2,
   usdCnyDate: '',
   localToken: '',
+  localKey: null,
   retentionDays: 30,
   rollupRetentionDays: 365,
   overlay: {
@@ -18,8 +20,7 @@ const DEFAULT_SETTINGS: Settings = {
     visible: true,
     modelId: null,
     locked: false,
-    theme: 'dark',
-    adjusting: false
+    theme: 'dark'
   },
   overlayOpacity: 92,
   pauseProbe: false,
@@ -29,16 +30,18 @@ const DEFAULT_SETTINGS: Settings = {
 let cache: ConfigFile | null = null
 const listeners = new Set<(c: ConfigFile) => void>()
 
-function newToken(): string {
-  return randomBytes(16).toString('hex')
-}
-
 function emptyConfig(): ConfigFile {
+  const issued = token.issue()
   return {
     version: 1,
     providers: [],
     models: [],
-    settings: { ...DEFAULT_SETTINGS, overlay: { ...DEFAULT_SETTINGS.overlay }, localToken: newToken() }
+    settings: {
+      ...DEFAULT_SETTINGS,
+      overlay: { ...DEFAULT_SETTINGS.overlay },
+      localKey: issued.key,
+      localToken: issued.token
+    }
   }
 }
 
@@ -112,12 +115,18 @@ function normalize(raw: unknown): ConfigFile {
 
   const os = (r.settings ?? {}) as Record<string, unknown>
   const ov = (os.overlay ?? {}) as Record<string, unknown>
+  // 已有的 sk- token + 密钥对原样保留；旧 16 字节 hex 或缺密钥的，迁移成签名 token
+  const storedKey = token.parseKey(os.localKey)
+  const storedToken = str(os.localToken)
+  const keep = storedKey !== null && storedToken.startsWith('sk-')
+  const issued = keep ? null : token.issue()
   const settings: Settings = {
     port: clamp(Math.round(num(os.port, DEFAULT_SETTINGS.port)), 1024, 65535),
     allowLan: os.allowLan === true,
     usdCny: clamp(num(os.usdCny, DEFAULT_SETTINGS.usdCny), 1, 20),
     usdCnyDate: /^\d{4}-\d{2}-\d{2}$/.test(str(os.usdCnyDate)) ? str(os.usdCnyDate) : '',
-    localToken: /^[0-9a-f]{32}$/.test(str(os.localToken)) ? str(os.localToken) : newToken(),
+    localToken: keep ? storedToken : issued!.token,
+    localKey: keep ? storedKey : issued!.key,
     retentionDays: clamp(Math.round(num(os.retentionDays, DEFAULT_SETTINGS.retentionDays)), 1, 3650),
     rollupRetentionDays: clamp(
       Math.round(num(os.rollupRetentionDays, DEFAULT_SETTINGS.rollupRetentionDays)),
@@ -131,8 +140,7 @@ function normalize(raw: unknown): ConfigFile {
       visible: ov.visible !== false,
       modelId: typeof ov.modelId === 'string' && ov.modelId ? ov.modelId : null,
       locked: ov.locked === true,
-      theme: ov.theme === 'light' ? 'light' : 'dark',
-      adjusting: ov.adjusting === true
+      theme: ov.theme === 'light' ? 'light' : 'dark'
     },
     overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 10, 100),
     pauseProbe: os.pauseProbe === true,

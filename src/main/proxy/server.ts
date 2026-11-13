@@ -183,7 +183,8 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   }
 
   const auth = token.fromHeaders(req.headers)
-  if (!token.equals(cfg.get().settings.localToken, auth)) {
+  const settings = cfg.get().settings
+  if (!token.verifyToken(settings.localKey, settings.localToken, auth)) {
     fail(res, 401, '本地 token 不对，请在设置里复制正确的 token', 'auth')
     return
   }

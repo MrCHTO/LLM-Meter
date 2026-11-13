@@ -342,6 +342,12 @@ try {
     await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('暂停测速'))")
   )
   check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
+  check(
+    '本地 token 是 sk- 签名票',
+    /^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
+      await s.eval("(async()=> (await window.api.config()).data?.settings.localToken ?? '')()", true)
+    )
+  )
   await s.shot('settings.png')
 
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")
@@ -452,11 +458,12 @@ try {
   check('可切白色外观', (await o.eval("document.querySelector('.capsule')?.classList.contains('theme-light')")) === true)
   await o.shot('overlay-light.png')
 
-  // 锁定与调节模式
-  await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true, overlayAdjusting:true}))()")
+  // 锁定
+  await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true}))()")
   await sleep(800)
   check('锁定状态有标记', (await o.eval("document.querySelector('.capsule')?.classList.contains('locked')")) === true)
-  check('调节模式有标记与提示', (await o.eval("!!document.querySelector('.capsule.adjusting .capsule-hint')")) === true)
+  check('锁定时显示锁标', (await o.eval("!!document.querySelector('.capsule-lock')")) === true)
+  check('不再有调节模式标记', (await o.eval("!!document.querySelector('.capsule.adjusting')")) === false)
 
   // 有请求应出彩虹边框，结束恢复（依赖测试中继，不通就跳过）
   await o.eval("window.api.runProbe('m1')")

@@ -23,10 +23,11 @@ afterEach(() => {
 })
 
 describe('配置读写', () => {
-  it('首次启动生成 32 位 hex token 与默认端口', async () => {
+  it('首次启动生成 sk- 签名 token、密钥对与默认端口', async () => {
     const cfg = await load()
     const current = cfg.get()
-    expect(current.settings.localToken).toMatch(/^[0-9a-f]{32}$/)
+    expect(current.settings.localToken).toMatch(/^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
+    expect(current.settings.localKey?.kid).toBeTruthy()
     expect(current.settings.port).toBe(8787)
     expect(readdirSync(join(root, 'data'))).toContain('config.json')
   })
@@ -73,7 +74,7 @@ describe('配置读写', () => {
     expect(cfg.get().models.map((m) => m.alias)).toEqual(['same'])
   })
 
-  it('端口被钳制在合法区间，非法 token 会重生成', async () => {
+  it('端口被钳制在合法区间，非法 token 会迁移成 sk- 且旧 hex 也保留不改', async () => {
     const dir = join(root, 'data')
     mkdirSync(dir, { recursive: true })
     writeFileSync(
@@ -83,7 +84,35 @@ describe('配置读写', () => {
     )
     const cfg = await load()
     expect(cfg.get().settings.port).toBe(1024)
-    expect(cfg.get().settings.localToken).toMatch(/^[0-9a-f]{32}$/)
+    expect(cfg.get().settings.localToken).toMatch(/^sk-/)
+  })
+
+  it('旧 32 位 hex token 会连密钥对一起迁移成 sk-', async () => {
+    const dir = join(root, 'data')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({ version: 1, providers: [], models: [], settings: { localToken: 'a'.repeat(32) } }),
+      'utf8'
+    )
+    const cfg = await load()
+    expect(cfg.get().settings.localToken).toMatch(/^sk-/)
+    expect(cfg.get().settings.localKey).not.toBeNull()
+  })
+
+  it('已有的 sk- token 与密钥对原样保留', async () => {
+    const { issue } = await import('../src/main/security/token')
+    const { key, token: sk } = issue()
+    const dir = join(root, 'data')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({ version: 1, providers: [], models: [], settings: { localToken: sk, localKey: key } }),
+      'utf8'
+    )
+    const cfg = await load()
+    expect(cfg.get().settings.localToken).toBe(sk)
+    expect(cfg.get().settings.localKey).toEqual(key)
   })
 
   it('baseUrl 去掉末尾斜杠', async () => {

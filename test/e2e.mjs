@@ -14,7 +14,7 @@ const ROOT = process.cwd()
 /** 临时档案目录：不覆盖用户真实配置 */
 const PROFILE = mkdtempSync(join(tmpdir(), 'llmmeter-e2e-'))
 const DATA = join(PROFILE, 'data')
-const TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef'
+let TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef'
 const PROXY = 'http://127.0.0.1:8787'
 const UPSTREAM = 'http://127.0.0.1:18999'
 
@@ -159,6 +159,10 @@ try {
     const res = await fetch(`${PROXY}/healthz`)
     return res.ok
   }, '代理就绪')
+
+  // 种子里的 hex token 会被迁移成 sk- 签名票，改成读迁移后的实际值
+  TOKEN = JSON.parse(readFileSync(join(DATA, 'config.json'), 'utf8')).settings.localToken
+  check('本地 token 已迁移为 sk- 且带签名', /^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(TOKEN), TOKEN.slice(0, 14))
 
   const models = await call('/openai/v1/models', { method: 'GET' })
   check('带 token 的 GET /openai/v1/models 透传', models.status === 200 && models.text.includes('gpt-4o-mini'), `${models.status}`)

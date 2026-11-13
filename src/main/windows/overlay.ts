@@ -1,9 +1,9 @@
-import { BrowserWindow, Menu, app, screen } from 'electron'
+import { BrowserWindow, Menu, screen } from 'electron'
 import { join } from 'node:path'
 import type { Rectangle } from 'electron'
 import * as cfg from '../store/config'
-import { getOverlay, send, setOverlay, showMain } from './registry'
-import { markQuitting } from './main-window'
+import { getOverlay, send, setOverlay } from './registry'
+import * as opacitySlider from './opacity-slider'
 
 const MIN_WIDTH = 220
 const MIN_HEIGHT = 36
@@ -118,36 +118,11 @@ function saveBounds(): void {
   }, 400)
 }
 
-let adjustStart = { x: 0, opacity: 100 }
-
-/**
- * 拖动入口分两种：
- * - 调节模式：横向拖动改透明度（1px ≈ 1%，10–100）
- * - 普通模式：拖动挪位置，锁定时不动
- */
+/** 普通拖动挪位置；锁定时不动。透明度在菜单弹层里调。 */
 export function startDrag(): void {
   const win = getOverlay()
   if (!win) return
-  const settings = cfg.get().settings
-
-  if (settings.overlay.adjusting) {
-    adjustStart = { x: screen.getCursorScreenPoint().x, opacity: settings.overlayOpacity }
-    if (dragTimer) clearInterval(dragTimer)
-    dragTimer = setInterval(() => {
-      const w = getOverlay()
-      if (!w) return
-      const delta = screen.getCursorScreenPoint().x - adjustStart.x
-      const value = Math.min(100, Math.max(10, Math.round(adjustStart.opacity + delta)))
-      if (value === cfg.get().settings.overlayOpacity) return
-      cfg.mutate((c) => {
-        c.settings.overlayOpacity = value
-      })
-      w.setOpacity(value / 100)
-    }, 30)
-    return
-  }
-
-  if (settings.overlay.locked) return
+  if (cfg.get().settings.overlay.locked) return
 
   const cursor = screen.getCursorScreenPoint()
   const b = win.getBounds()
@@ -218,9 +193,7 @@ export function showMenu(): void {
   if (!win) return
   const settings = cfg.get().settings
   const menu = Menu.buildFromTemplate([
-    { label: '打开主窗口', click: () => showMain() },
     { label: '选择模型', submenu: modelSubmenu() },
-    { type: 'separator' },
     {
       label: '锁定位置',
       type: 'checkbox',
@@ -256,32 +229,7 @@ export function showMenu(): void {
         }
       ]
     },
-    {
-      label: `调节透明度（当前 ${settings.overlayOpacity}%）`,
-      type: 'checkbox',
-      checked: settings.overlay.adjusting,
-      click: () => {
-        cfg.mutate((c) => {
-          c.settings.overlay.adjusting = !c.settings.overlay.adjusting
-        })
-      }
-    },
-    {
-      label: '回到默认位置',
-      click: () => {
-        const b = defaultBounds()
-        win.setBounds(b)
-        saveBounds()
-      }
-    },
-    { type: 'separator' },
-    {
-      label: '退出',
-      click: () => {
-        markQuitting()
-        app.quit()
-      }
-    }
+    { label: '调节透明度', click: () => opacitySlider.open() }
   ])
   menu.popup({ window: win })
 }

@@ -1,6 +1,7 @@
 import { Menu, Tray, app } from 'electron'
 import { join } from 'node:path'
 import * as cfg from '../store/config'
+import * as proxy from '../proxy/server'
 import * as overlay from './overlay'
 import { markQuitting } from './main-window'
 import { showMain } from './registry'
@@ -20,17 +21,34 @@ export function create(): void {
 
 export function rebuild(): void {
   if (!tray) return
-  const visible = cfg.get().settings.overlay.visible
+  const s = cfg.get().settings
   const menu = Menu.buildFromTemplate([
     { label: '打开主窗口', click: () => showMain() },
     {
-      label: visible ? '隐藏悬浮窗' : '显示悬浮窗',
+      label: s.overlay.visible ? '隐藏悬浮窗' : '显示悬浮窗',
       click: () => {
         cfg.mutate((c) => {
           c.settings.overlay.visible = !c.settings.overlay.visible
         })
-        overlay.setVisible(!visible)
+        overlay.setVisible(!s.overlay.visible)
         rebuild()
+      }
+    },
+    {
+      label: '局域网访问',
+      type: 'checkbox',
+      checked: s.allowLan,
+      // 开关后由 index.ts 的 cfg.onChange 统一重启代理
+      click: () => {
+        cfg.mutate((c) => {
+          c.settings.allowLan = !c.settings.allowLan
+        })
+      }
+    },
+    {
+      label: '重启代理',
+      click: () => {
+        void proxy.start(cfg.get().settings.port)
       }
     },
     { type: 'separator' },
