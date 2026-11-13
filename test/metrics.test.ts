@@ -36,10 +36,17 @@ describe('tok/s', () => {
 describe('成本', () => {
   const model = { priceIn: 3, priceOut: 15, priceCacheRead: 0.3, priceCacheWrite: 3.75 }
 
-  it('按每百万 token 折算四项', () => {
+  it('缓存部分不再按原价重复计费', () => {
+    // 未命中部分 = 1200 - 1080 - 100 = 20
     const c = cost(model, { input: 1200, output: 460, cacheRead: 1080, cacheWrite: 100 })
-    const expected = (1200 * 3 + 460 * 15 + 1080 * 0.3 + 100 * 3.75) / 1_000_000
+    const expected = (20 * 3 + 460 * 15 + 1080 * 0.3 + 100 * 3.75) / 1_000_000
     expect(c).toBeCloseTo(expected)
+  })
+
+  it('与手算一致：320M 输入 99.5% 命中、0.296M 输出', () => {
+    const m = { priceIn: 2.01, priceOut: 8.02, priceCacheRead: 0.04, priceCacheWrite: 0 }
+    const c = cost(m, { input: 320_000_000, output: 296_000, cacheRead: 318_400_000, cacheWrite: 0 })
+    expect(c).toBeCloseTo(18.32592, 4)
   })
 
   it('全零价格得零', () => {

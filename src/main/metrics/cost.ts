@@ -5,7 +5,8 @@ import type { ModelCfg, RequestEvent } from '../../shared/types'
  *
  * 命中率 = 缓存读 token / 输入 token 总量（输入已含缓存部分）
  * tok/s  = 输出 token / 生成窗口秒数；生成窗口 = 总耗时 - 首字耗时
- * 成本   = 输入×单价 + 输出×单价 + 缓存读×单价 + 缓存写×单价（单价按每百万 token）
+ * 成本   = 未命中输入×输入单价 + 输出×输出单价 + 缓存读×缓存读单价 + 缓存写×缓存写单价
+ *          「未命中输入」= 输入总量 − 缓存读 − 缓存写（缓存部分不再按原价重复计费）
  *
  * 非流式没有首字时间，算不出速率，返回 null，界面标「仅总时长」。
  */
@@ -29,8 +30,9 @@ export function tps(output: number, durationMs: number, ttftMs: number | null): 
 }
 
 export function cost(model: Pick<ModelCfg, 'priceIn' | 'priceOut' | 'priceCacheRead' | 'priceCacheWrite'>, u: Usage): number {
+  const fullPriceInput = Math.max(0, u.input - u.cacheRead - u.cacheWrite)
   const c =
-    u.input * model.priceIn +
+    fullPriceInput * model.priceIn +
     u.output * model.priceOut +
     u.cacheRead * model.priceCacheRead +
     u.cacheWrite * model.priceCacheWrite

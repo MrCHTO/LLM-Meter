@@ -227,7 +227,7 @@ try {
   check('输出 token 记录正确', first?.output_tokens === 42, `${first?.output_tokens}`)
   check('输入 token 记录正确', first?.input_tokens === 1200, `${first?.input_tokens}`)
   check('TTFT 已测量', typeof first?.ttft_ms === 'number' && first.ttft_ms >= 0, `${first?.ttft_ms}`)
-  const expectedCost = (1200 * 1 + 42 * 2 + 1080 * 0.1) / 1_000_000
+  const expectedCost = ((1200 - 1080) * 1 + 42 * 2 + 1080 * 0.1) / 1_000_000
   check('成本按单价折算', Math.abs((second?.cost ?? 0) - expectedCost) < 1e-9, `${second?.cost} vs ${expectedCost}`)
 
   const aRows = rows.filter((r) => r.alias === 'my-claude')
