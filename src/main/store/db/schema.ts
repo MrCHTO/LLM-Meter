@@ -120,6 +120,22 @@ const MIGRATIONS: string[] = [
     primary key (day, token_remark, source)
   );
   create index idx_token_day on rollup_token_day (day);
+  `,
+  // v5：历史请求没有 token 备注，统一记为「默认」，并从明细回填 token 聚合
+  `
+  update requests set token_remark = '默认' where token_remark is null;
+  insert into rollup_token_minute (minute, token_remark, source, requests, errors, input, output, cache_read, cache_write, cost)
+  select (ts / 60000) * 60000, '默认', source,
+         count(*), sum(case when ok = 0 then 1 else 0 end),
+         coalesce(sum(input_tokens),0), coalesce(sum(output_tokens),0),
+         coalesce(sum(cache_read_tokens),0), coalesce(sum(cache_write_tokens),0), coalesce(sum(cost),0)
+  from requests group by (ts / 60000) * 60000, source;
+  insert into rollup_token_day (day, token_remark, source, requests, errors, input, output, cache_read, cache_write, cost)
+  select day, '默认', source,
+         count(*), sum(case when ok = 0 then 1 else 0 end),
+         coalesce(sum(input_tokens),0), coalesce(sum(output_tokens),0),
+         coalesce(sum(cache_read_tokens),0), coalesce(sum(cache_write_tokens),0), coalesce(sum(cost),0)
+  from requests group by day, source;
   `
 ]
 

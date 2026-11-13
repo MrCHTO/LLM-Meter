@@ -98,6 +98,14 @@ describe('写入', () => {
     expect(row).toEqual({ errors: 1, requests: 1, output: 0 })
   })
 
+  it('探针没有 token 时备注落为默认', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    repo.recordRequest(conn, ev({ source: 'probe' }), extra)
+    expect(conn.get<{ v: string }>('select token_remark v from requests')?.v).toBe('默认')
+    expect(conn.get<{ c: number }>('select count(*) c from rollup_token_minute')?.c).toBe(1)
+  })
+
   it('主键冲突时整条事务回滚', async () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>

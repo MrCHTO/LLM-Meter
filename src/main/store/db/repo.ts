@@ -21,6 +21,8 @@ export interface Enrich {
 
 /** 一次请求：明细 + 两张聚合表，同一事务。 */
 export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
+  // 探针没有命中的 token，统一归到「默认」，保证按 token 统计不留空洞
+  const remark = extra.tokenRemark ?? '默认'
   db.tx(() => {
     db.run(
       `insert into requests (
@@ -57,15 +59,15 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
       extra.priceCacheRead ?? 0,
       extra.priceCacheWrite ?? 0,
       extra.tokenId ?? null,
-      extra.tokenRemark ?? null
+      remark
     )
 
     const minute = Math.floor(ev.ts / MINUTE) * MINUTE
     const errors = ev.ok ? 0 : 1
     bump(db, 'rollup_minute', minute, ev, errors)
     bump(db, 'rollup_day', extra.day, ev, errors)
-    if (extra.tokenRemark) bumpToken(db, 'rollup_token_minute', minute, ev, errors, extra.tokenRemark)
-    if (extra.tokenRemark) bumpToken(db, 'rollup_token_day', extra.day, ev, errors, extra.tokenRemark)
+    bumpToken(db, 'rollup_token_minute', minute, ev, errors, remark)
+    bumpToken(db, 'rollup_token_day', extra.day, ev, errors, remark)
   })
 }
 
