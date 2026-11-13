@@ -111,7 +111,7 @@ describe('写入', () => {
 })
 
 describe('查询', () => {
-  it('按 model 分组的时间序列只在有数据的桶上有值', async () => {
+  it('时间序列铺满区间，只有有数据的桶有值', async () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>
     const base = new Date('2026-11-12T10:00:00').getTime()
@@ -126,9 +126,12 @@ describe('查询', () => {
       groupBy: 'model',
       source: 'proxy'
     })
-    expect(out.buckets.length).toBe(2)
+    expect(out.buckets.length).toBe(11)
     expect(out.series[0]?.key).toBe('m1')
-    expect(out.series[0]?.points).toEqual([100, 300])
+    expect(out.series[0]?.points.length).toBe(11)
+    expect(out.series[0]?.points[1]).toBe(100)
+    expect(out.series[0]?.points[3]).toBe(300)
+    expect(out.series[0]?.points.reduce((a, b) => a + b, 0)).toBe(400)
   })
 
   it('按供应商分组把同一供应商的模型合并', async () => {
@@ -167,6 +170,18 @@ describe('查询', () => {
     expect(s.series.map((x) => x.key).sort()).toEqual(['笔记本', '脚本'])
     const t = repo.totals(conn, { from: now - 1000, to: now + 1000, groupBy: 'token', source: 'all' })
     expect(t.find((x) => x.key === '笔记本')?.output).toBe(10)
+  })
+
+  it('空时段也占用时间桶，不跳过', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    const base = Math.floor(Date.now() / 60000) * 60000
+    repo.recordRequest(conn, ev({ ts: base }), extra)
+    repo.recordRequest(conn, ev({ ts: base + 120_000 }), extra)
+    const s = repo.series(conn, { from: base, to: base + 180_000, granularity: 'minute', metric: 'requests', groupBy: 'model', source: 'all' })
+    expect(s.buckets).toHaveLength(3)
+    expect(s.series[0]?.points).toHaveLength(3)
+    expect(s.series[0]?.points[1]).toBe(0)
   })
 
   it('Top N 按指定指标排序', async () => {

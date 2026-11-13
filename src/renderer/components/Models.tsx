@@ -56,7 +56,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   const [lookedUpFor, setLookedUpFor] = useState('')
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
-  const cols = useColumnWidths('models', [210, 130, 85, 85, 85, 85, 80, 88, 110, 34])
+  const cols = useColumnWidths('models', [210, 130, 85, 85, 85, 85, 80, 88, 34])
   const providerCols = useColumnWidths('providers', [150, 220, 110, 140, 80, 150])
 
   useEffect(() => {
@@ -357,8 +357,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                 <th title="每百万 token 单价">缓存写入{cols.resizer(5)}</th>
                 <th className="c-center">悬浮窗{cols.resizer(6)}</th>
                 <th className="c-center">自动探针{cols.resizer(7)}</th>
-                <th>{cols.resizer(8)}</th>
-                <th className="c-drag">{cols.resizer(9)}</th>
+                <th className="c-drag">{cols.resizer(8)}</th>
               </tr>
             </thead>
             <tbody>
@@ -420,14 +419,6 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                         }}
                       >
                         {m.autoProbe ? '关闭' : '开启'}
-                      </button>
-                    </td>
-                    <td>
-                      <button className="btn sm" onClick={() => openEdit(m)}>
-                        编辑
-                      </button>{' '}
-                      <button className="btn sm" onClick={() => void remove(m)}>
-                        删除
                       </button>
                     </td>
                     <td className="c-drag">

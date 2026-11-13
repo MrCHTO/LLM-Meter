@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ConfigView } from '../../shared/types'
 
 interface Props {
@@ -11,6 +11,23 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
   const [remark, setRemark] = useState('')
   const [modal, setModal] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [port, setPort] = useState(String(config.settings.port))
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  /** 正在改备注的 token；null 表示新建 */
+  const [editing, setEditing] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!menu) return
+    const close = (): void => setMenu(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [menu])
+
+  const patch = async (value: { allowLan?: boolean; port?: number }): Promise<void> => {
+    const res = await window.api.updateSettings(value)
+    if (!res.ok) notify(res.error ?? '保存失败')
+    else await onChanged()
+  }
 
   const copy = async (text: string): Promise<void> => {
     try {
@@ -27,24 +44,26 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
       return
     }
     setBusy(true)
-    const res = await window.api.createToken(remark.trim())
+    const res = editing
+      ? await window.api.updateToken(editing, remark.trim())
+      : await window.api.createToken(remark.trim())
     setBusy(false)
     if (!res.ok) {
-      notify(res.error ?? '生成失败')
+      notify(res.error ?? '保存失败')
       return
     }
     setRemark('')
+    setEditing(null)
     setModal(false)
-    notify('已生成', 'ok')
+    notify(editing ? '备注已修改' : '已生成', 'ok')
     await onChanged()
   }
 
   const remove = async (id: string, label: string): Promise<void> => {
-    if (!confirm(`删除 token「${label}」？`)) return
     const res = await window.api.deleteToken(id)
     if (!res.ok) notify(res.error ?? '删除失败')
     else {
-      notify('已删除', 'ok')
+      notify(`已删除「${label}」`, 'ok')
       await onChanged()
     }
   }
@@ -77,25 +96,77 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
       </div>
 
       <div className="card">
+        <div className="access-split">
+          <div className="access-half">
+            <span className="muted">监听端口</span>
+            <div className="row nowrap" style={{ gap: 8 }}>
+              <input
+                className="mono w-sm"
+                type="number"
+                min={1024}
+                max={65535}
+                value={port}
+                onChange={(e) => setPort(e.target.value)}
+              />
+              <button
+                className="btn sm"
+                onClick={async () => {
+                  const value = Number(port)
+                  if (!value || value < 1024 || value > 65535) {
+                    notify('端口需要在 1024-65535')
+                    return
+                  }
+                  await patch({ port: value })
+                  notify('端口已应用', 'ok')
+                }}
+              >
+                应用
+              </button>
+            </div>
+          </div>
+          <div className="access-half">
+            <span className="muted">允许局域网访问</span>
+            <input
+              type="checkbox"
+              checked={config.settings.allowLan}
+              onChange={(e) => void patch({ allowLan: e.target.checked })}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0 }}>接入 Token</h2>
-          <button className="btn primary" onClick={() => setModal(true)}>
+          <button
+            className="btn primary"
+            onClick={() => {
+              setEditing(null)
+              setRemark('')
+              setModal(true)
+            }}
+          >
             生成 Token
           </button>
         </div>
 
-        <table className="tbl tbl-left tbl-access mt col-fixed">
+        <table className="tbl tbl-left tbl-access mt">
           <thead>
             <tr>
               <th>备注</th>
               <th>Token（点击复制）</th>
               <th>创建时间</th>
-              <th />
             </tr>
           </thead>
           <tbody>
             {config.settings.tokens.map((t) => (
-              <tr key={t.id}>
+              <tr
+                key={t.id}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setMenu({ id: t.id, x: e.clientX, y: e.clientY })
+                }}
+              >
                 <td>{t.remark}</td>
                 <td>
                   <span className="copy-text mono" onClick={() => void copy(t.token)}>
@@ -103,25 +174,49 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
                   </span>
                 </td>
                 <td className="mono">{new Date(t.createdAt).toLocaleString()}</td>
-                <td>
-                  <button
-                    className="btn sm"
-                    disabled={config.settings.tokens.length <= 1}
-                    onClick={() => void remove(t.id, t.remark)}
-                  >
-                    删除
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        {menu
+          ? (() => {
+              const t = config.settings.tokens.find((x) => x.id === menu.id)
+              if (!t) return null
+              return (
+                <div
+                  className="ctxmenu"
+                  style={{ left: Math.min(menu.x, window.innerWidth - 140), top: Math.min(menu.y, window.innerHeight - 90) }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => {
+                      setMenu(null)
+                      setEditing(t.id)
+                      setRemark(t.remark)
+                      setModal(true)
+                    }}
+                  >
+                    修改备注
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenu(null)
+                      void remove(t.id, t.remark)
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
+              )
+            })()
+          : null}
       </div>
 
       {modal ? (
-        <div className="mask" onClick={() => setModal(false)}>
+        <div className="mask" onClick={() => { setModal(false); setEditing(null) }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>生成 Token</h3>
+            <h3>{editing ? '修改备注' : '生成 Token'}</h3>
             <label className="field">
               <span>备注（必填）</span>
               <input
@@ -136,11 +231,11 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
               />
             </label>
             <div className="actions">
-              <button className="btn" onClick={() => setModal(false)}>
+              <button className="btn" onClick={() => { setModal(false); setEditing(null) }}>
                 取消
               </button>
               <button className="btn primary" disabled={busy} onClick={() => void create()}>
-                生成
+                {editing ? '保存' : '生成'}
               </button>
             </div>
           </div>

@@ -425,6 +425,24 @@ export function series(
   const index = new Map<number, number>()
   const byKey = new Map<string, number[]>()
   const seconds = granularity === 'minute' ? 60 : granularity === 'hour' ? 3600 : 86400
+  const stepMs = seconds * 1000
+  // 先把整个区间的桶占满，空时段也占时间轴，曲线不会从一段直接跳到另一段
+  if (granularity === 'day') {
+    const end = Date.parse(`${to}T00:00:00`)
+    let time = Date.parse(`${from}T00:00:00`)
+    for (let guard = 0; guard < 5000 && time <= end; guard++) {
+      index.set(time, buckets.length)
+      buckets.push(time)
+      time += 86400_000
+    }
+  } else {
+    const start = Math.floor(from / stepMs) * stepMs
+    for (let guard = 0; guard < 5000 && start + guard * stepMs < to; guard++) {
+      const time = start + guard * stepMs
+      index.set(time, buckets.length)
+      buckets.push(time)
+    }
+  }
 
   for (const row of rows) {
     const bucket = granularity === 'day' ? Date.parse(`${row.b}T00:00:00`) : Number(row.b)
@@ -442,6 +460,9 @@ export function series(
     byKey.set(row.k, points)
   }
 
+  for (const points of byKey.values()) {
+    while (points.length < buckets.length) points.push(0)
+  }
   return { buckets, series: [...byKey.entries()].map(([key, points]) => ({ key, points })) }
 }
 

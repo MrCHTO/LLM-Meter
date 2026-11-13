@@ -50,11 +50,14 @@ button {
 
 .shell {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
 }
 
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -210,6 +213,39 @@ button {
 .setting-row > span:first-child {
   color: var(--muted);
   font-size: 12px;
+}
+
+.setting-row .row,
+.setting-row .btn {
+  flex: none;
+}
+
+.setting-row .btn {
+  white-space: nowrap;
+}
+
+.access-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.access-half {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+}
+
+.access-half:first-child {
+  padding-left: 0;
+}
+
+.access-half + .access-half {
+  border-left: 1px solid var(--line);
+}
+
+.access-half .w-sm {
+  width: 96px;
 }
 
 .card {

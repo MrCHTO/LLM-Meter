@@ -430,6 +430,24 @@ export function register(): void {
   )
 
   ipcMain.handle(
+    CH.tokenUpdate,
+    wrap((id: string, remarkInput: string) => {
+      const remark = String(remarkInput ?? '').trim()
+      if (!remark) throw new Error('备注必须填写')
+      if (remark.length > 40) throw new Error('备注最长 40 个字')
+      const list = cfg.get().settings.tokens
+      const target = list.find((t) => t.id === id)
+      if (!target) throw new Error('token 不存在')
+      if (list.some((t) => t.id !== id && t.remark === remark)) throw new Error(`备注 ${remark} 已存在`)
+      cfg.mutate((c) => {
+        const t = c.settings.tokens.find((x) => x.id === id)
+        if (t) t.remark = remark
+      })
+      return true
+    })
+  )
+
+  ipcMain.handle(
     CH.proxyRestart,
     wrap(async () => {
       const state = await proxy.start(cfg.get().settings.port)

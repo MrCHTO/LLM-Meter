@@ -243,8 +243,8 @@ try {
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
   check(
-    '曲线标题为增量速率与请求量',
-    (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === '增量速率 tok/s,请求量'
+    '曲线标题为速率与请求量',
+    (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === '速率,请求量'
   )
   check('两张曲线图都没有图例和峰值', (await s.eval("document.querySelectorAll('.multi-legend, .chart-foot').length")) === 0)
   const chartSizes = await s.eval("JSON.stringify([...document.querySelectorAll('.chart-card')].map((c) => ({ h: c.offsetHeight, body: c.querySelector('.chart-body')?.offsetHeight ?? 0, gap: c.getBoundingClientRect().bottom - (c.querySelector('.chart-body')?.getBoundingClientRect().bottom ?? 0) })))")
@@ -405,7 +405,8 @@ try {
   const modelHeads = await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")
   check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|输入价格|输出价格|缓存读取|缓存写入|悬浮窗|自动探针'))
   check('模型表没有状态列', !modelHeads.includes('状态'))
-  check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 10)
+  check('模型行内没有编辑删除按钮', (await s.eval("[...document.querySelectorAll('.tbl-models tbody button')].some((b) => ['编辑', '删除'].includes(b.innerText))")) === false)
+  check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 9)
   check('供应商表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.card:first-child thead .col-resize').length")) === 6)
   // 右键菜单：关闭该行后整行变灰，再开启恢复
   const rowsBeforeMenu = await s.eval("document.querySelectorAll('.tbl-models tbody tr').length")
@@ -501,47 +502,67 @@ try {
     input.dispatchEvent(new Event('input', { bubbles: true }))
     return true
   })()`)
+  await sleep(200)
   await s.eval("document.querySelector('.modal .btn.primary')?.click()")
   await sleep(800)
   check('生成后弹窗关闭', (await s.eval("document.querySelectorAll('.modal').length")) === 0)
   check(
     '备注 token 生成成功',
-    /测试备注/.test(await s.eval("document.querySelector('.card:nth-child(2) tbody')?.innerText ?? ''")) &&
-      (await s.eval("(async () => (await window.api.config()).data.settings.tokens.some((t) => t.remark === '测试备注'))()", true))
+    /测试备注/.test(await s.eval("document.querySelector('.tbl-access tbody')?.innerText ?? ''")) &&
+      (await s.eval("(async () => (await window.api.config()).data.settings.tokens.some((t) => t.remark === '测试备注'))()", true)),
+    await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ')")
   )
   check('token 是 sk- 加十六进制', (await s.eval("(async () => (await window.api.config()).data.settings.tokens.every((t) => /^sk-[0-9a-f]{32}$/.test(t.token)))()", true)) === true)
   check('token 列表全部左对齐', (await s.eval("[...document.querySelectorAll('.tbl-access th, .tbl-access td')].every((n) => getComputedStyle(n).textAlign === 'left')")) === true)
-  // 局域网地址随设置出现
-  await s.eval("(async () => await window.api.updateSettings({ allowLan: true }))()", true)
-  await s.eval('location.reload()')
-  for (let i = 0; i < 40; i++) {
-    try {
-      if (await s.eval("!!document.querySelector('.tab')")) break
-    } catch {
-      /* 重载中 */
-    }
-    await sleep(300)
-  }
-  await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")
+  check('token 行内没有删除按钮', (await s.eval("[...document.querySelectorAll('.tbl-access tbody button')].length")) === 0)
+  // 行右键：修改备注、删除
+  await s.eval("(() => { const tr = [...document.querySelectorAll('.tbl-access tbody tr')].find((r) => r.innerText.includes('测试备注')); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 80, clientY: 80 })); return true })()")
+  await sleep(300)
+  check('token 右键菜单有修改与删除', (await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")) === '修改备注,删除')
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '修改备注')?.click()")
+  await sleep(300)
+  check('修改弹窗回填旧备注', (await s.eval("document.querySelector('.modal input')?.value")) === '测试备注')
+  await s.eval(`(() => {
+    const input = document.querySelector('.modal input')
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+    setter.call(input, '测试备注2')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    return true
+  })()`)
+  await sleep(200)
+  await s.eval("document.querySelector('.modal .btn.primary')?.click()")
+  await sleep(800)
+  check('备注修改成功', /测试备注2/.test(await s.eval("document.querySelector('.tbl-access tbody')?.innerText ?? ''")))
+  await s.eval("(() => { const tr = [...document.querySelectorAll('.tbl-access tbody tr')].find((r) => r.innerText.includes('测试备注2')); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 80, clientY: 80 })); return true })()")
+  await sleep(300)
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '删除')?.click()")
+  await sleep(500)
+  // 端口与局域网同一行分两半
+  check(
+    '端口与局域网在一行两半',
+    (await s.eval("document.querySelectorAll('.access-split .access-half').length")) === 2 &&
+      (await s.eval("document.querySelector('.access-split .access-half:first-child input[type=number]') ? 1 : 0")) === 1 &&
+      (await s.eval("document.querySelector('.access-split .access-half:last-child input[type=checkbox]') ? 1 : 0")) === 1
+  )
+  await s.eval("document.querySelector('.access-split input[type=checkbox]')?.click()")
   for (let i = 0; i < 20; i++) {
     if (await s.eval("document.body.innerText.includes('局域网地址')")) break
     await sleep(300)
   }
   check('开启局域网后接入页出现局域网地址', (await s.eval("document.body.innerText")).includes('局域网地址'))
-  await s.eval("(async () => await window.api.updateSettings({ allowLan: false }))()", true)
-  await s.eval('location.reload()')
-  for (let i = 0; i < 40; i++) {
-    try {
-      if (await s.eval("!!document.querySelector('.tab')")) break
-    } catch {
-      /* 重载中 */
-    }
+  await s.eval("document.querySelector('.access-split input[type=checkbox]')?.click()")
+  for (let i = 0; i < 20; i++) {
+    if (!(await s.eval("document.body.innerText.includes('局域网地址')"))) break
     await sleep(300)
   }
 
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
   await sleep(1500)
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) === 3)
+  check(
+    '请求数卡片标题后没有说明文字',
+    (await s.eval("(() => { const h = [...document.querySelectorAll('.card h2')].find((x) => x.innerText === '请求数'); return h?.parentElement?.innerText ?? '' })()")).startsWith('请求数')
+  )
   check(
     '明细只有模型列左对齐',
     (await s.eval("[...document.querySelectorAll('.tbl-detail thead th')].map((th) => getComputedStyle(th).textAlign).join(',')"))
@@ -638,11 +659,10 @@ try {
     await sleep(300)
   }
   await sleep(300)
-  check('设置页按职责分成五张卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) === '接入,悬浮窗,启动,探针与校准,数据')
+  check('设置页按职责分成四张卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) === '悬浮窗,启动,探针与校准,数据')
   check('设置页不再有左导航', (await s.eval("document.querySelectorAll('.settings-nav').length")) === 0)
-  check('设置项按行排布', (await s.eval("document.querySelectorAll('.setting-row').length")) >= 8)
-  check('端口与局域网在接入卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card')][0]?.innerText ?? ''")).includes('监听端口') &&
-    (await s.eval("[...document.querySelectorAll('.settings-cards .card')][0]?.innerText ?? ''")).includes('允许局域网访问'))
+  check('设置项按行排布', (await s.eval("document.querySelectorAll('.setting-row').length")) >= 7)
+  check('端口与局域网已不在设置页', !(await s.eval("document.body.innerText")).includes('监听端口') && !(await s.eval("document.body.innerText")).includes('允许局域网访问'))
   check('右上角不再显示 IP 地址', (await s.eval("document.querySelectorAll('.status .mono').length")) === 0)
   check('悬浮窗卡片有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
   check(
@@ -681,6 +701,9 @@ try {
   )
   check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
   check('数据卡片有清理入口', (await s.eval("document.body.innerText")).includes('清理过期数据'))
+  await s.eval("document.querySelector('.content').scrollTop = 2000")
+  await sleep(300)
+  check('滚动后顶栏仍在', (await s.eval("document.querySelector('.topbar')?.getBoundingClientRect().top")) === 0)
   await s.shot('settings.png')
 
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")

@@ -412,6 +412,7 @@ export const CH = {
   tokenRotate: 'settings:rotateToken',
   tokenCreate: 'token:create',
   tokenDelete: 'token:delete',
+  tokenUpdate: 'token:update',
   proxyRestart: 'proxy:restart',
   history: 'history:read',
   recent: 'history:recent',

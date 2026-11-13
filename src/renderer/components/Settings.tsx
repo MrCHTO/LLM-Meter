@@ -11,7 +11,6 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
   const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
   const [probeInterval, setProbeInterval] = useState(String(config.settings.autoProbeIntervalSec))
-  const [port, setPort] = useState(String(config.settings.port))
 
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
     const res = await window.api.updateSettings(values)
@@ -29,45 +28,6 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
 
   return (
     <div className="section settings-cards">
-      <div className="card">
-        <h2>接入</h2>
-        <div className="setting-row">
-          <span>监听端口</span>
-          <div className="row nowrap">
-            <input
-              className="mono w-sm"
-              type="number"
-              min={1024}
-              max={65535}
-              value={port}
-              onChange={(e) => setPort(e.target.value)}
-            />
-            <button
-              className="btn sm"
-              onClick={async () => {
-                const value = Number(port)
-                if (!value || value < 1024 || value > 65535) {
-                  notify('端口需要在 1024-65535')
-                  return
-                }
-                await patch({ port: value })
-                notify('端口已应用', 'ok')
-              }}
-            >
-              应用
-            </button>
-          </div>
-        </div>
-        <label className="setting-row">
-          <span>允许局域网访问</span>
-          <input
-            type="checkbox"
-            checked={config.settings.allowLan}
-            onChange={(e) => void patch({ allowLan: e.target.checked })}
-          />
-        </label>
-      </div>
-
       <div className="card">
         <h2>悬浮窗</h2>
         <div className="setting-row">

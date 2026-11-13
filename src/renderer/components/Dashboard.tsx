@@ -124,7 +124,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
       <div className="charts">
         <div className="chart-card">
           <div className="chart-head">
-            <span className="chart-title">增量速率 tok/s</span>
+            <span className="chart-title">速率</span>
           </div>
           <div className="chart-body">
             <MultiRate models={rateModels} colors={colors} />

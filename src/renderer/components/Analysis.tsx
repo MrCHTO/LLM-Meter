@@ -201,10 +201,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       <div className="card">
         <div className="row">
           <h2 style={{ margin: 0 }}>{meta.label}</h2>
-          <span className="muted">
-            {groupBy === 'model' ? '按模型' : groupBy === 'provider' ? '按供应商' : '按 Token 备注'} · {granularity === 'day' ? '按天' : granularity === 'hour' ? '按小时' : '按分钟'}
-            {preset !== 'custom' ? ' · 每 5 秒刷新' : ''}
-          </span>
           <span className="muted" style={{ marginLeft: 'auto' }}>
             区间合计 {fmt(totalOf((r) => (metric === 'cost' ? r.cost : metric === 'tps' ? (r.tps ?? 0) : metric === 'total' ? r.total : (r[metric === 'cache_read' ? 'cacheRead' : metric] as number))))} {meta.unit}
           </span>

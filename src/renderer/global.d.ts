@@ -80,6 +80,7 @@ declare global {
       rotateToken: () => Promise<IpcResult<string>>
       createToken: (remark: string) => Promise<IpcResult<AccessToken>>
       deleteToken: (id: string) => Promise<IpcResult<boolean>>
+      updateToken: (id: string, remark: string) => Promise<IpcResult<boolean>>
       refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>
       calibrate: () => Promise<IpcResult<void>>
       restartProxy: () => Promise<IpcResult<unknown>>
