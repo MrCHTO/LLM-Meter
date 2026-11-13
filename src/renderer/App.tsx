@@ -85,16 +85,7 @@ export default function App(): JSX.Element {
         </div>
         <div className="status">
           <span className={`dot ${running ? 'on' : 'off'}`} />
-          {running ? (
-            <div className={`status-stack${config.settings.allowLan ? ' dual' : ''}`}>
-              <span className="mono">{snapshot?.baseUrl ?? ''}</span>
-              {config.settings.allowLan ? (
-                <span className="mono">{`http://${config.settings.lanIp}:${config.settings.port}`}</span>
-              ) : null}
-            </div>
-          ) : (
-            <span>{snapshot?.proxyError ?? '代理未启动'}</span>
-          )}
+          {running ? null : <span>{snapshot?.proxyError ?? '代理未启动'}</span>}
         </div>
       </header>
 

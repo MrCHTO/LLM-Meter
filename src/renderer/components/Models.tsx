@@ -364,12 +364,6 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
             <tbody>
               {config.models.map((m) => {
                 const live = snapshot?.models.find((x) => x.modelId === m.id)
-                const probeTime = live?.lastProbeAt ?? null
-                const probeTitle = probeTime
-                  ? `上次探针：${new Date(probeTime).toLocaleTimeString()}`
-                  : m.autoProbe
-                    ? '尚未探测'
-                    : '自动探针未开启'
                 return (
                   <tr
                     key={m.id}
@@ -392,14 +386,6 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                   >
                     <td>
                       <div className="row-name">
-                        <span
-                          className={
-                            'probe-dot' +
-                            (probeTime === null ? '' : live?.lastProbeOk ? ' on' : ' off') +
-                            (m.autoProbe ? '' : ' idle')
-                          }
-                          title={probeTitle}
-                        />
                         <div className="cell-model">
                           <b>{m.alias}</b>
                           <small className="mono">{m.upstreamModel}</small>

@@ -190,6 +190,28 @@ button {
   border-color: var(--line);
 }
 
+.settings-cards {
+  max-width: 760px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-top: 1px solid #eef1f5;
+}
+
+.setting-row:first-of-type {
+  border-top: 0;
+}
+
+.setting-row > span:first-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1147,6 +1169,11 @@ table.tbl-request td,
   cursor: copy;
   border-bottom: 1px dashed var(--line);
   user-select: all;
+}
+
+.tbl-access th,
+.tbl-access td {
+  text-align: left;
 }
 
 .copy-text:hover {

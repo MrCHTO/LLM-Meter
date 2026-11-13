@@ -9,7 +9,7 @@ interface Props {
 
 export function Access({ config, notify, onChanged }: Props): JSX.Element {
   const [remark, setRemark] = useState('')
-  const [port, setPort] = useState(String(config.settings.port))
+  const [modal, setModal] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const copy = async (text: string): Promise<void> => {
@@ -19,12 +19,6 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
     } catch {
       notify(`复制失败：${text}`)
     }
-  }
-
-  const patch = async (value: { allowLan?: boolean; port?: number }): Promise<void> => {
-    const res = await window.api.updateSettings(value)
-    if (!res.ok) notify(res.error ?? '保存失败')
-    else await onChanged()
   }
 
   const create = async (): Promise<void> => {
@@ -40,6 +34,7 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
       return
     }
     setRemark('')
+    setModal(false)
     notify('已生成', 'ok')
     await onChanged()
   }
@@ -54,77 +49,42 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
     }
   }
 
+  const local = `http://127.0.0.1:${config.settings.port}`
+  const lan = `http://${config.settings.lanIp}:${config.settings.port}`
+
   return (
     <div className="section">
       <div className="card">
         <h2>客户端接入</h2>
-        <p className="hint">点地址即可复制，token 见下方卡片。</p>
         <dl className="kv kv-wide">
           <dt>本机地址</dt>
           <dd>
-            <span className="copy-text mono" onClick={() => void copy(snapshotUrl('127.0.0.1', config.settings.port))}>
-              {snapshotUrl('127.0.0.1', config.settings.port)}
+            <span className="copy-text mono" onClick={() => void copy(local)}>
+              {local}
             </span>
-          </dd>
-          <dt>监听端口</dt>
-          <dd>
-            <div className="row nowrap" style={{ gap: 8 }}>
-              <input
-                type="number"
-                className="w-sm"
-                value={port}
-                min={1024}
-                max={65535}
-                onChange={(e) => setPort(e.target.value)}
-                onBlur={() => {
-                  const value = Math.min(65535, Math.max(1024, Math.round(Number(port) || config.settings.port)))
-                  setPort(String(value))
-                  if (value !== config.settings.port) void patch({ port: value })
-                }}
-              />
-            </div>
           </dd>
           {config.settings.allowLan ? (
             <>
               <dt>局域网地址</dt>
               <dd>
-                <span className="copy-text mono" onClick={() => void copy(snapshotUrl(config.settings.lanIp, config.settings.port))}>
-                  {snapshotUrl(config.settings.lanIp, config.settings.port)}
+                <span className="copy-text mono" onClick={() => void copy(lan)}>
+                  {lan}
                 </span>
               </dd>
             </>
           ) : null}
         </dl>
-        <label className="row nowrap mt" style={{ gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={config.settings.allowLan}
-            onChange={(e) => void patch({ allowLan: e.target.checked })}
-          />
-          <span>允许局域网访问（绑 0.0.0.0）</span>
-        </label>
       </div>
 
       <div className="card">
-        <h2>接入 Token</h2>
-        <p className="hint">不同客户端用不同 token，备注必填，分析页可按备注分组。</p>
-        <div className="row" style={{ gap: 8 }}>
-          <input
-            type="text"
-            className="grow"
-            value={remark}
-            placeholder="备注，例如：笔记本 / 脚本 / 某项目"
-            onChange={(e) => setRemark(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void create()
-            }}
-          />
-          <button className="btn primary" disabled={busy} onClick={() => void create()}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <h2 style={{ margin: 0 }}>接入 Token</h2>
+          <button className="btn primary" onClick={() => setModal(true)}>
             生成 Token
           </button>
         </div>
 
-        <table className="tbl tbl-left mt col-fixed">
+        <table className="tbl tbl-left tbl-access mt col-fixed">
           <thead>
             <tr>
               <th>备注</th>
@@ -157,10 +117,35 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
           </tbody>
         </table>
       </div>
+
+      {modal ? (
+        <div className="mask" onClick={() => setModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>生成 Token</h3>
+            <label className="field">
+              <span>备注（必填）</span>
+              <input
+                type="text"
+                value={remark}
+                autoFocus
+                placeholder="例如：笔记本 / 脚本 / 某项目"
+                onChange={(e) => setRemark(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void create()
+                }}
+              />
+            </label>
+            <div className="actions">
+              <button className="btn" onClick={() => setModal(false)}>
+                取消
+              </button>
+              <button className="btn primary" disabled={busy} onClick={() => void create()}>
+                生成
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
-}
-
-function snapshotUrl(host: string, port: number): string {
-  return `http://${host}:${port}`
 }

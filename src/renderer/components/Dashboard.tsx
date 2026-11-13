@@ -183,9 +183,20 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                   >
                     <td className="c-model">
                       <span
-                        className="model-name"
-                        style={{ '--mc': colors[m.modelId] } as CSSProperties}
-                      >
+                        className={
+                          'probe-dot' +
+                          (m.lastProbeAt === null ? '' : m.lastProbeOk ? ' on' : ' off') +
+                          (m.autoProbe ? '' : ' idle')
+                        }
+                        title={
+                          m.lastProbeAt
+                            ? `上次探针：${new Date(m.lastProbeAt).toLocaleTimeString()}`
+                            : m.autoProbe
+                              ? '尚未探测'
+                              : '自动探针未开启'
+                        }
+                      />
+                      <span className="model-name" style={{ '--mc': colors[m.modelId] } as CSSProperties}>
                         {m.alias}
                       </span>
                     </td>

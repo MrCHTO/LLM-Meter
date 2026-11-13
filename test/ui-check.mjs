@@ -258,6 +258,10 @@ try {
       (await s.eval("[...document.querySelectorAll('.multi-line')].map((l) => l.getAttribute('stroke')).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
   )
   check(
+    '仪表盘模型名前有探活点',
+    (await s.eval("document.querySelector('td.c-model .probe-dot') ? 1 : 0")) === 1
+  )
+  check(
     '模型名底纹与曲线同色且为斜纹',
     (await s.eval("document.querySelector('.multi-line')?.getAttribute('stroke') ?? ''")).includes(
       await s.eval("document.querySelector('td.c-model .model-name')?.style.getPropertyValue('--mc') ?? 'x'")
@@ -383,13 +387,13 @@ try {
   )
   await sleep(900)
   check(
-    '开启后变为关闭且探活点可悬停',
+    '开启后变为关闭且配置已写入',
     (await s.eval("[...document.querySelectorAll('tbody button')].some((b) => b.innerText === '关闭')")) &&
-      (await s.eval("[...document.querySelectorAll('.probe-dot')].some((d) => d.title && d.title !== '自动探针未开启')"))
+      (await s.eval("(async () => (await window.api.config()).data.models[0].autoProbe)()", true))
   )
   check(
-    '探活点在最前面',
-    ((await s.eval("document.querySelector('tbody tr .row-name')?.firstElementChild?.className ?? ''")) || '').startsWith('probe-dot')
+    '模型表不再有探活点',
+    (await s.eval("document.querySelectorAll('.tbl-models .probe-dot').length")) === 0
   )
   check('模型表别名与模型分两行', (await s.eval("document.querySelectorAll('tbody tr td .cell-model b').length")) > 0 &&
     (await s.eval("document.querySelectorAll('tbody tr td .cell-model small').length")) > 0)
@@ -480,44 +484,58 @@ try {
   await s.eval("document.querySelector('.copy-text')?.click()")
   await sleep(800)
   check('点地址有复制反馈', /复制/.test(await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ')")))
-  check('接入页有监听端口输入', (await s.eval("document.querySelector('.kv input[type=number]') ? 1 : 0")) === 1)
   check('默认至少一个 token 且掩码显示', (await s.eval("document.querySelectorAll('.copy-text.mono').length")) >= 2)
-  // 空备注被拒
+  check('接入页不显示说明文字', !(await s.eval("document.body.innerText")).includes('点地址即可复制'))
+  // 生成弹窗：空备注被拒
   await s.eval("[...document.querySelectorAll('button')].find((b) => b.innerText === '生成 Token')?.click()")
+  await sleep(300)
+  check('生成按钮弹出备注框', (await s.eval("document.querySelectorAll('.modal input').length")) === 1)
+  await s.eval("document.querySelector('.modal .btn.primary')?.click()")
   await sleep(400)
   check('空备注不能生成', /备注必须填写/.test(await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ')")))
   // 带备注生成
   await s.eval(`(() => {
-    const input = [...document.querySelectorAll('input[type="text"]')].find((i) => i.placeholder.includes('备注'))
+    const input = document.querySelector('.modal input')
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
     setter.call(input, '测试备注')
     input.dispatchEvent(new Event('input', { bubbles: true }))
     return true
   })()`)
-  await s.eval("[...document.querySelectorAll('button')].find((b) => b.innerText === '生成 Token')?.click()")
+  await s.eval("document.querySelector('.modal .btn.primary')?.click()")
   await sleep(800)
+  check('生成后弹窗关闭', (await s.eval("document.querySelectorAll('.modal').length")) === 0)
   check(
     '备注 token 生成成功',
     /测试备注/.test(await s.eval("document.querySelector('.card:nth-child(2) tbody')?.innerText ?? ''")) &&
       (await s.eval("(async () => (await window.api.config()).data.settings.tokens.some((t) => t.remark === '测试备注'))()", true))
   )
   check('token 是 sk- 加十六进制', (await s.eval("(async () => (await window.api.config()).data.settings.tokens.every((t) => /^sk-[0-9a-f]{32}$/.test(t.token)))()", true)) === true)
-  // 局域网开关：默认关，开后有局域网地址和双层状态
-  check('局域网默认关闭', (await s.eval("document.body.innerText")).includes('允许局域网访问'))
-  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
-  for (let i = 0; i < 20; i++) {
-    if (await s.eval("!!document.querySelector('.status-stack.dual')")) break
+  check('token 列表全部左对齐', (await s.eval("[...document.querySelectorAll('.tbl-access th, .tbl-access td')].every((n) => getComputedStyle(n).textAlign === 'left')")) === true)
+  // 局域网地址随设置出现
+  await s.eval("(async () => await window.api.updateSettings({ allowLan: true }))()", true)
+  await s.eval('location.reload()')
+  for (let i = 0; i < 40; i++) {
+    try {
+      if (await s.eval("!!document.querySelector('.tab')")) break
+    } catch {
+      /* 重载中 */
+    }
     await sleep(300)
   }
-  const dualLines = await s.eval("[...document.querySelectorAll('.status-stack.dual .mono')].map((n) => n.innerText)")
-  check(
-    '开启局域网后状态双层且出现局域网地址',
-    dualLines.length === 2 && (await s.eval("document.body.innerText.includes('局域网地址')")),
-    dualLines.join(' / ')
-  )
-  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
+  await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")
   for (let i = 0; i < 20; i++) {
-    if (!(await s.eval("!!document.querySelector('.status-stack.dual')"))) break
+    if (await s.eval("document.body.innerText.includes('局域网地址')")) break
+    await sleep(300)
+  }
+  check('开启局域网后接入页出现局域网地址', (await s.eval("document.body.innerText")).includes('局域网地址'))
+  await s.eval("(async () => await window.api.updateSettings({ allowLan: false }))()", true)
+  await s.eval('location.reload()')
+  for (let i = 0; i < 40; i++) {
+    try {
+      if (await s.eval("!!document.querySelector('.tab')")) break
+    } catch {
+      /* 重载中 */
+    }
     await sleep(300)
   }
 
@@ -616,31 +634,27 @@ try {
 
   await s.eval("document.querySelector('.tab:nth-child(6)')?.click()")
   for (let i = 0; i < 20; i++) {
-    if (await s.eval("!!document.querySelector('.settings-nav')")) break
+    if (await s.eval("!!document.querySelector('.settings-cards')")) break
     await sleep(300)
   }
   await sleep(300)
-  check('设置页有三个分组', (await s.eval("document.querySelectorAll('.settings-nav button').length")) === 3)
-  check('设置页不再有接入组', (await s.eval("document.querySelector('.settings-nav')?.innerText || ''")).includes('接入') === false)
-  check('右上角状态只有本机一行', (await s.eval("document.querySelectorAll('.status-stack .mono').length")) === 1)
-
-  const openGroup = async (label) => {
-    await s.eval(`[...document.querySelectorAll('.settings-nav button')].find((b) => b.innerText === '${label}')?.click()`)
-    await sleep(400)
-  }
-
-  await openGroup('悬浮窗')
-  check('悬浮窗组有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
+  check('设置页按职责分成五张卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) === '接入,悬浮窗,启动,探针与校准,数据')
+  check('设置页不再有左导航', (await s.eval("document.querySelectorAll('.settings-nav').length")) === 0)
+  check('设置项按行排布', (await s.eval("document.querySelectorAll('.setting-row').length")) >= 8)
+  check('端口与局域网在接入卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card')][0]?.innerText ?? ''")).includes('监听端口') &&
+    (await s.eval("[...document.querySelectorAll('.settings-cards .card')][0]?.innerText ?? ''")).includes('允许局域网访问'))
+  check('右上角不再显示 IP 地址', (await s.eval("document.querySelectorAll('.status .mono').length")) === 0)
+  check('悬浮窗卡片有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
   check(
     '透明度是数字输入',
     (await s.eval(
-      "(() => { const f = [...document.querySelectorAll('.field')].find((n) => n.innerText.includes('不透明度')); const i = f?.querySelector('input[type=number]'); return i ? i.value : '' })()"
+      "(() => { const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('不透明度')); const i = f?.querySelector('input[type=number]'); return i ? i.value : '' })()"
     )) === '92'
   )
   check(
     '透明度越界被钳到 100',
     await s.eval(`(async () => {
-      const f = [...document.querySelectorAll('.field')].find((n) => n.innerText.includes('不透明度'))
+      const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('不透明度'))
       const i = f.querySelector('input[type=number]')
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
       setter.call(i, '150')
@@ -650,15 +664,13 @@ try {
       return i.value
     })()`, true) === '100'
   )
-
-  await openGroup('运行')
   check(
-    '开机自启开关存在',
-    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('开机自启'))")
+    '开机自启与只留托盘开关存在',
+    (await s.eval("document.body.innerText")).includes('开机自启') && (await s.eval("document.body.innerText")).includes('只留托盘')
   )
   check(
     '自动探针间隔是数字输入',
-    (await s.eval("[...document.querySelectorAll('.field')].filter((f) => f.innerText.includes('自动探针间隔')).length")) === 1
+    (await s.eval("[...document.querySelectorAll('.setting-row')].filter((f) => f.innerText.includes('自动探针间隔')).length")) === 1
   )
   check('设置页不再显示当前汇率', !(await s.eval("document.body.innerText")).includes('当前汇率'))
   check('设置页不再显示上次校准', !(await s.eval("document.body.innerText")).includes('上次校准'))
@@ -667,10 +679,8 @@ try {
     '保留自动校准开关',
     await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('自动校准'))")
   )
-
-  await openGroup('数据')
   check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
-  check('数据组有清理入口', (await s.eval("document.body.innerText")).includes('清理过期数据'))
+  check('数据卡片有清理入口', (await s.eval("document.body.innerText")).includes('清理过期数据'))
   await s.shot('settings.png')
 
   await s.eval("document.querySelector('.tab:nth-child(1)')?.click()")
