@@ -23,11 +23,11 @@ afterEach(() => {
 })
 
 describe('配置读写', () => {
-  it('首次启动生成 sk- 签名 token、密钥对与默认端口', async () => {
+  it('首次启动生成 sk-+32 位十六进制 token 与默认端口', async () => {
     const cfg = await load()
     const current = cfg.get()
-    expect(current.settings.localToken).toMatch(/^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
-    expect(current.settings.localKey?.kid).toBeTruthy()
+    expect(current.settings.localToken).toMatch(/^sk-[0-9a-f]{32}$/)
+    expect(current.settings.localKey).toBeNull()
     expect(current.settings.port).toBe(8787)
     expect(readdirSync(join(root, 'data'))).toContain('config.json')
   })
@@ -84,7 +84,7 @@ describe('配置读写', () => {
     )
     const cfg = await load()
     expect(cfg.get().settings.port).toBe(1024)
-    expect(cfg.get().settings.localToken).toMatch(/^sk-/)
+    expect(cfg.get().settings.localToken).toMatch(/^sk-[0-9a-f]{32}/)
   })
 
   it('旧 32 位 hex token 会连密钥对一起迁移成 sk-', async () => {
@@ -96,8 +96,8 @@ describe('配置读写', () => {
       'utf8'
     )
     const cfg = await load()
-    expect(cfg.get().settings.localToken).toMatch(/^sk-/)
-    expect(cfg.get().settings.localKey).not.toBeNull()
+    expect(cfg.get().settings.localToken).toMatch(/^sk-[0-9a-f]{32}/)
+    expect(cfg.get().settings.localKey).toBeNull()
   })
 
   it('已有的 sk- token 与密钥对原样保留', async () => {

@@ -423,8 +423,8 @@ try {
     await sleep(300)
   }
   check(
-    '本地 token 是 sk- 签名票',
-    /^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
+    '本地 token 是 sk- 加十六进制',
+    /^sk-[0-9a-f]{32}$/.test(
       await s.eval("(async()=> (await window.api.config()).data?.settings.localToken ?? '')()", true)
     )
   )

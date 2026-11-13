@@ -3,12 +3,11 @@ import {
   createPublicKey,
   generateKeyPairSync,
   randomBytes,
-  sign,
   timingSafeEqual,
   verify
 } from 'node:crypto'
 
-/** 本地 API Key：Ed25519 签名的 sk- 票据，配置里只存私钥（PKCS8 base64）。 */
+/** 本地 API Key：`sk-` + 32 位十六进制随机串；旧版 `sk-<payload>.<sig>` 仍可验签 */
 export interface LocalKey {
   kid: string
   /** PKCS8 DER，base64 */
@@ -21,7 +20,7 @@ function privateKeyOf(key: LocalKey) {
   return createPrivateKey({ key: Buffer.from(key.privateKey, 'base64'), format: 'der', type: 'pkcs8' })
 }
 
-/** 生成密钥对 */
+/** 生成密钥对（仅旧签名票据校验时用到） */
 export function newKey(): LocalKey {
   const { privateKey } = generateKeyPairSync('ed25519')
   return {
@@ -30,13 +29,9 @@ export function newKey(): LocalKey {
   }
 }
 
-/** 签发新 token：sk-<payload>.<sig>，payload = base64url(JSON{v,kid,iat}) */
-export function issue(): { key: LocalKey; token: string } {
-  const key = newKey()
-  const payload = Buffer.from(JSON.stringify({ v: 1, kid: key.kid, iat: Date.now() }))
-  const encoded = payload.toString('base64url')
-  const sig = sign(null, payload, privateKeyOf(key)).toString('base64url')
-  return { key, token: `${PREFIX}${encoded}.${sig}` }
+/** 签发新 token：sk- + 32 位十六进制 */
+export function issue(): { key: LocalKey | null; token: string } {
+  return { key: null, token: `${PREFIX}${randomBytes(16).toString('hex')}` }
 }
 
 function constantEquals(expected: string, got: string): boolean {
@@ -48,13 +43,14 @@ function constantEquals(expected: string, got: string): boolean {
 }
 
 /**
- * 验签。配置里没有密钥对时退回明文常量比较（测试种子、旧配置都靠这条）。
+ * 校验：带 `.` 的是旧版签名票据，验签；否则按明文常量比较。
  */
 export function verifyToken(key: LocalKey | null, expectedPlain: string, got: string): boolean {
   if (!got) return false
-  if (!key) return constantEquals(expectedPlain, got)
   if (!got.startsWith(PREFIX)) return false
   const body = got.slice(PREFIX.length)
+  if (!body.includes('.')) return constantEquals(expectedPlain, got)
+  if (!key) return constantEquals(expectedPlain, got)
   const dot = body.lastIndexOf('.')
   if (dot <= 0 || dot === body.length - 1) return false
   const encoded = body.slice(0, dot)

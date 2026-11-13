@@ -122,7 +122,8 @@ function normalize(raw: unknown): ConfigFile {
   // 已有的 sk- token + 密钥对原样保留；旧 16 字节 hex 或缺密钥的，迁移成签名 token
   const storedKey = token.parseKey(os.localKey)
   const storedToken = str(os.localToken)
-  const keep = storedKey !== null && storedToken.startsWith('sk-')
+  const signed = storedToken.includes('.')
+  const keep = storedToken.startsWith('sk-') && (!signed || storedKey !== null)
   const issued = keep ? null : token.issue()
   const settings: Settings = {
     port: clamp(Math.round(num(os.port, DEFAULT_SETTINGS.port)), 1024, 65535),
@@ -130,7 +131,7 @@ function normalize(raw: unknown): ConfigFile {
     usdCny: clamp(num(os.usdCny, DEFAULT_SETTINGS.usdCny), 1, 20),
     usdCnyDate: /^\d{4}-\d{2}-\d{2}$/.test(str(os.usdCnyDate)) ? str(os.usdCnyDate) : '',
     localToken: keep ? storedToken : issued!.token,
-    localKey: keep ? storedKey : issued!.key,
+    localKey: keep ? (signed ? storedKey : null) : null,
     retentionDays: clamp(Math.round(num(os.retentionDays, DEFAULT_SETTINGS.retentionDays)), 1, 3650),
     rollupRetentionDays: clamp(
       Math.round(num(os.rollupRetentionDays, DEFAULT_SETTINGS.rollupRetentionDays)),
