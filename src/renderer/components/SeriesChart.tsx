@@ -100,8 +100,7 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
         ))}
 
         {buckets.map((b, i) => {
-          const allZero = visible.every((s) => (s.points[i] ?? 0) === 0)
-          if (allZero) return null
+          // 空时段也照常出时间刻度，时间轴不能断
           return i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
             <text key={b} x={center(i)} y={H - 6} textAnchor="middle" className="axis">
               {timeFormat(b)}

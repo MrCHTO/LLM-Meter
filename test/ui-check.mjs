@@ -281,7 +281,7 @@ try {
   await sleep(300)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '显示曲线图')?.click()")
   await sleep(700)
-  check('再显示后曲线恢复', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore)
+  check('再显示后曲线恢复', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore, `${curvesBefore} | ${await s.eval("document.querySelector('.content')?.innerText.slice(0,120)")}`)
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
@@ -416,8 +416,8 @@ try {
   check('模型右键菜单只有开启/编辑/删除', /^(开启|关闭),编辑,删除$/.test(menuItems), `${rowsBeforeMenu} 行, ctx=${await s.eval("document.querySelectorAll('.ctxmenu').length")}, ${menuItems}`)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '关闭' || b.innerText === '开启')?.click()")
   await sleep(900)
-  check('关闭后整行变灰', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === true)
-  await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
+  check('关闭后整行变灰', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === true, await s.eval("document.querySelector('.content')?.innerText.slice(0,100)"))
+  await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); if (!tr) return false; tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
   await sleep(200)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '开启')?.click()")
   await sleep(900)
@@ -601,6 +601,7 @@ try {
   })()`)
   await sleep(1200)
   check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
+  check('空时段也保留时间刻度', (await s.eval("document.querySelectorAll('.series-svg text.axis').length")) >= 2)
   check(
     '0 值不画柱',
     await s.eval("[...document.querySelectorAll('rect.series-bar')].every((r) => Number(r.getAttribute('height')) > 1)")
@@ -661,6 +662,10 @@ try {
   await sleep(300)
   check('设置页按职责分成四张卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) === '悬浮窗,启动,探针与校准,数据')
   check('设置页不再有左导航', (await s.eval("document.querySelectorAll('.settings-nav').length")) === 0)
+  check(
+    '设置卡片随窗口撑满',
+    await s.eval("(() => { const c = document.querySelector('.settings-cards .card'); const content = document.querySelector('.content'); return c && Math.abs(c.getBoundingClientRect().width - (content.clientWidth - 36)) < 2 })()")
+  )
   check('设置项按行排布', (await s.eval("document.querySelectorAll('.setting-row').length")) >= 7)
   check('端口与局域网已不在设置页', !(await s.eval("document.body.innerText")).includes('监听端口') && !(await s.eval("document.body.innerText")).includes('允许局域网访问'))
   check('右上角不再显示 IP 地址', (await s.eval("document.querySelectorAll('.status .mono').length")) === 0)
