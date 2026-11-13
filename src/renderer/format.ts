@@ -12,7 +12,7 @@ function symbolOf(currency: string): string {
 }
 
 export function fmtMoney(value: number, currency = 'CNY'): string {
-  return `${symbolOf(currency)}${value.toFixed(2)}`
+  return `${symbolOf(currency)}${value.toFixed(1)}`
 }
 
 export function fmtMs(ms: number | null): string {

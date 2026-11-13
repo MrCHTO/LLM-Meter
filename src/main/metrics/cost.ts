@@ -47,7 +47,7 @@ export function fmtTokens(n: number): string {
 
 export function fmtMoney(value: number, currency = 'CNY'): string {
   const symbol = currency === 'CNY' ? '¥' : currency === 'EUR' ? '€' : '$'
-  return `${symbol}${value.toFixed(2)}`
+  return `${symbol}${value.toFixed(1)}`
 }
 
 export function fmtMs(ms: number | null): string {

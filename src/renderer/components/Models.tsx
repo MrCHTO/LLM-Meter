@@ -112,17 +112,17 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
     await onChanged()
   }
 
-  // 改过价格就落手动；没动过保留原来源（表单按两位小数回显，比较时同样取整）
+  // 改过价格就落手动；没动过保留原来源（表单按一位小数回显，比较时同样取整）
   const priceSourceFor = (draft: ModelDraft): 'auto' | 'manual' => {
     if (!draft.id) return 'manual'
     const current = config.models.find((x) => x.id === draft.id)
     if (!current) return 'manual'
-    const r2 = (n: number): number => Math.round(n * 100) / 100
+    const r1 = (n: number): number => Math.round(n * 10) / 10
     const changed =
-      r2(current.priceIn) !== r2(Number(draft.priceIn) || 0) ||
-      r2(current.priceOut) !== r2(Number(draft.priceOut) || 0) ||
-      r2(current.priceCacheRead) !== r2(Number(draft.priceCacheRead) || 0) ||
-      r2(current.priceCacheWrite) !== r2(Number(draft.priceCacheWrite) || 0)
+      r1(current.priceIn) !== r1(Number(draft.priceIn) || 0) ||
+      r1(current.priceOut) !== r1(Number(draft.priceOut) || 0) ||
+      r1(current.priceCacheRead) !== r1(Number(draft.priceCacheRead) || 0) ||
+      r1(current.priceCacheWrite) !== r1(Number(draft.priceCacheWrite) || 0)
     return changed ? 'manual' : current.priceSource
   }
 
@@ -359,10 +359,10 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                           providerId: m.providerId,
                           upstreamModel: m.upstreamModel,
                           alias: m.alias,
-                          priceIn: String(Math.round(m.priceIn * 100) / 100),
-                          priceOut: String(Math.round(m.priceOut * 100) / 100),
-                          priceCacheRead: String(Math.round(m.priceCacheRead * 100) / 100),
-                          priceCacheWrite: String(Math.round(m.priceCacheWrite * 100) / 100),
+                          priceIn: (Math.round(m.priceIn * 10) / 10).toFixed(1),
+                          priceOut: (Math.round(m.priceOut * 10) / 10).toFixed(1),
+                          priceCacheRead: (Math.round(m.priceCacheRead * 10) / 10).toFixed(1),
+                          priceCacheWrite: (Math.round(m.priceCacheWrite * 10) / 10).toFixed(1),
                           currency: m.currency,
                           watch: m.watch
                         })
