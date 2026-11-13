@@ -39,7 +39,15 @@ describe('openai 适配器', () => {
   it('统计增量字符并标记首内容', () => {
     const info = a.onFrame('data: {"choices":[{"delta":{"content":"你好"}}]}')
     expect(info.chars).toBe(2)
+    expect(info.cjk).toBe(2)
+    expect(info.other).toBe(0)
     expect(info.firstContent).toBe(true)
+  })
+
+  it('中英混合按语种分别计数', () => {
+    const info = a.onFrame('data: {"choices":[{"delta":{"content":"你好, ok"}}]}')
+    expect(info.cjk).toBe(2)
+    expect(info.other).toBe(4)
   })
 
   it('数组形态的 content 也能取到文本', () => {

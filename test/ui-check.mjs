@@ -242,9 +242,23 @@ try {
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
   check(
-    '曲线标题为 tok/s 与请求量',
-    (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === 'tok/s,请求量'
+    '曲线标题为增量速率与请求量',
+    (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === '增量速率 tok/s,请求量'
   )
+  check(
+    '增量曲线有图例且颜色不同',
+    (await s.eval("document.querySelectorAll('.multi-legend button').length")) >= 2 &&
+      (await s.eval("[...document.querySelectorAll('.multi-legend i')].map((i) => getComputedStyle(i).backgroundColor).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
+  )
+  check(
+    '增量曲线是折线加面积',
+    (await s.eval("document.querySelectorAll('.multi-svg .multi-line').length")) > 0 &&
+      (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) > 0
+  )
+  check('增量曲线下方没有峰值', (await s.eval("document.querySelectorAll('.chart-card:first-child .chart-foot').length")) === 0)
+  await s.eval("document.querySelector('.multi-legend button')?.click()")
+  await sleep(150)
+  check('图例可点击隐藏', (await s.eval("document.querySelector('.multi-legend button')?.classList.contains('off')")) === true)
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
@@ -259,7 +273,8 @@ try {
     'TTFT 拆为三个分位列',
     headText.split('|').filter((x) => x.startsWith('TTFT')).join(',') === 'TTFT P50,TTFT P95,TTFT P99'
   )
-  check('速率列叫 tok/s', headText.includes('|tok/s|'))
+  check('速率列叫 TPS', headText.includes('|TPS|'))
+  check('TPS 行内没有小曲线', (await s.eval("document.querySelectorAll('td.c-rate svg').length")) === 0)
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
   check('仪表盘去掉上游协议列', !headText.includes('上游协议'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
@@ -330,7 +345,7 @@ try {
   )
   check(
     '探活点在最前面',
-    (await s.eval("document.querySelector('tbody tr .row-name')?.firstElementChild?.className ?? ''")) === 'probe-dot'
+    ((await s.eval("document.querySelector('tbody tr .row-name')?.firstElementChild?.className ?? ''")) || '').startsWith('probe-dot')
   )
   check('模型表别名与模型分两行', (await s.eval("document.querySelectorAll('tbody tr td .cell-model b').length")) > 0 &&
     (await s.eval("document.querySelectorAll('tbody tr td .cell-model small').length")) > 0)
@@ -345,10 +360,11 @@ try {
   check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 10)
   check('供应商表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.card:first-child thead .col-resize').length")) === 6)
   // 右键菜单：关闭该行后整行变灰，再开启恢复
+  const rowsBeforeMenu = await s.eval("document.querySelectorAll('.tbl-models tbody tr').length")
   await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
-  await sleep(200)
+  await sleep(300)
   const menuItems = await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")
-  check('右键菜单有开启状态项与编辑删除', /^(开启|关闭),编辑,删除$/.test(menuItems), menuItems)
+  check('右键菜单有开启状态项与编辑删除', /^(开启|关闭),编辑,删除$/.test(menuItems), `${rowsBeforeMenu} 行, ctx=${await s.eval("document.querySelectorAll('.ctxmenu').length")}, ${menuItems}`)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '关闭' || b.innerText === '开启')?.click()")
   await sleep(900)
   check('关闭后整行变灰', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === true)
@@ -442,6 +458,10 @@ try {
     "(() => { const sel = [...document.querySelectorAll('.card select')][0]; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(sel, '24h'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()"
   )
   await sleep(1600)
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("!!document.querySelector('.series-svg')")) break
+    await sleep(300)
+  }
   const svgW = await s.eval("document.querySelector('.series-svg')?.getBoundingClientRect().width ?? 0")
   const hoverAt = async (px) => {
     await s.eval(
@@ -604,8 +624,8 @@ try {
   )
   check('测速不再报缓存结论', !/缓存/.test(toast), toast)
   check(
-    '表格 tok/s 列显示上一条速率',
-    relayUp ? /^\d+$/.test(await s.eval("document.querySelector('td.c-rate .mono')?.innerText ?? ''")) : true,
+    '表格 TPS 列显示上一条速率',
+    relayUp ? /^\d+$/.test(await s.eval("document.querySelector('td.c-rate')?.innerText ?? ''")) : true,
     relayUp ? '' : '跳过：测试中继不可达'
   )
   await s.shot('probe.png')
@@ -733,6 +753,20 @@ try {
 
   // 有请求应出彩虹边框，结束恢复（依赖测试中继，不通就跳过）
   await o.eval("window.api.runProbe('m1')")
+  if (relayUp) {
+    await sleep(250)
+    const early = await o.eval("document.querySelector('.capsule-metric:not(.last)')?.innerText ?? ''")
+    check('首字前不显示 0 tok/s', early === '' || early !== '0 tok/s', early)
+  }
+  let realtimeText = ''
+  if (relayUp) {
+    for (let i = 0; i < 40; i++) {
+      await sleep(250)
+      realtimeText = await o.eval("document.querySelector('.capsule-metric:not(.last)')?.innerText ?? ''")
+      if (realtimeText) break
+    }
+    check('首字后显示非零估算速率', /^<1|\d+/.test(realtimeText) && realtimeText !== '0 tok/s', realtimeText)
+  }
   let rainbow = false
   if (relayUp) {
     for (let i = 0; i < 30; i++) {

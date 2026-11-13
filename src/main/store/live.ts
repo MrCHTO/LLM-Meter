@@ -16,6 +16,11 @@ const BUCKETS = 60
 const RECENT_MAX = 200
 /** tok/s 按 1 秒窗口：最近 1 秒桶里的输出 token 数 */
 const TPS_WINDOW = 1
+/** 实时速率窗口：只看最近 2 秒的增量估算 */
+const DELTA_WINDOW_MS = 2000
+/** 中文/英文每 token 的字符数默认值，会按完成请求的真实 usage 校正 */
+const COEF_CJK = 1.7
+const COEF_OTHER = 3.8
 /** TTFT 分位数的样本上限，够估 P99 又不至于无限涨 */
 const TTFT_SAMPLES_MAX = 500
 
@@ -36,6 +41,20 @@ interface ModelState {
   probeFails: number
   lastProbeAt: number | null
   lastProbeOk: boolean | null
+  /** 流式增量样本，用于实时估算速率 */
+  deltaSamples: { ts: number; tokens: number }[]
+  /** 每秒估算 token，供多模型实时曲线 */
+  deltaBuckets: number[]
+  deltaSecond: number
+  /** 当前生成开始时间；首字前为 null */
+  genStart: number | null
+  /** 本次生成累计的中英字符与默认估算量，结束后用于校正系数 */
+  genCjk: number
+  genOther: number
+  genEst: number
+  /** 已观察的真实输出 token 与真实字符，系数随完成请求收敛 */
+  calibObs: number
+  calibEst: number
 }
 
 const state = new Map<string, ModelState>()
@@ -58,6 +77,49 @@ export function end(modelId: string): void {
     return
   }
   inflight.delete(modelId)
+  const s = state.get(modelId)
+  if (s && left <= 0) s.genStart = null
+}
+
+/** 当前模型的 token 估算系数（字符/token），随完成请求向真实比例收敛 */
+function coefOf(s: ModelState): { cjk: number; other: number } {
+  if (s.calibEst <= 0) return { cjk: COEF_CJK, other: COEF_OTHER }
+  // 先验 20 token，避免第一条请求把系数带飞
+  const ratio = Math.min(3, Math.max(0.5, (s.calibObs + 20) / (s.calibEst + 20)))
+  return { cjk: COEF_CJK / ratio, other: COEF_OTHER / ratio }
+}
+
+/** 流式增量到达：记样本与秒桶，供胶囊和曲线显示估算速率 */
+export function noteDelta(modelId: string, cjk: number, other: number): void {
+  if (cjk <= 0 && other <= 0) return
+  const s = ensure(modelId)
+  const now = Date.now()
+  if (s.genStart === null) s.genStart = now
+  const coef = coefOf(s)
+  const tokens = cjk / coef.cjk + other / coef.other
+  s.deltaSamples.push({ ts: now, tokens })
+  s.genCjk += cjk
+  s.genOther += other
+  s.genEst += cjk / COEF_CJK + other / COEF_OTHER
+
+  const second = Math.floor(now / 1000)
+  if (second !== s.deltaSecond) {
+    const shift = Math.min(BUCKETS, Math.max(0, second - s.deltaSecond))
+    s.deltaBuckets = [...s.deltaBuckets.slice(shift), ...new Array<number>(shift).fill(0)]
+    s.deltaSecond = second
+  }
+  const idx = BUCKETS - 1
+  s.deltaBuckets[idx] = (s.deltaBuckets[idx] ?? 0) + tokens
+}
+
+function realtimeOf(s: ModelState, now: number): number | null {
+  if (s.genStart === null) return null
+  while (s.deltaSamples.length && (s.deltaSamples[0] as { ts: number }).ts < now - DELTA_WINDOW_MS) {
+    s.deltaSamples.shift()
+  }
+  const sum = s.deltaSamples.reduce((a, b) => a + b.tokens, 0)
+  const span = Math.min(DELTA_WINDOW_MS, Math.max(500, now - s.genStart)) / 1000
+  return sum / span
 }
 
 function blankToday(): TodayTotals {
@@ -81,7 +143,16 @@ function ensure(modelId: string): ModelState {
     probing: false,
     probeFails: 0,
     lastProbeAt: null,
-    lastProbeOk: null
+    lastProbeOk: null,
+    deltaSamples: [],
+    deltaBuckets: new Array<number>(BUCKETS).fill(0),
+    deltaSecond: Math.floor(Date.now() / 1000),
+    genStart: null,
+    genCjk: 0,
+    genOther: 0,
+    genEst: 0,
+    calibObs: 0,
+    calibEst: 0
   }
   state.set(modelId, created)
   return created
@@ -167,6 +238,14 @@ export function record(ev: RequestEvent): void {
       s.lastTpsAt = ev.ts
     }
     s.buckets[idx] = (s.buckets[idx] ?? 0) + ev.outputTokens
+    // 用真实 usage 校正本模型的估算系数；只有有真实输出与字符时才采信
+    if (ev.outputTokens > 0 && s.genEst > 0) {
+      s.calibObs += ev.outputTokens
+      s.calibEst += s.genEst
+    }
+    s.genCjk = 0
+    s.genOther = 0
+    s.genEst = 0
   } else {
     s.today.requests += 1
     s.today.errors += 1
@@ -260,8 +339,15 @@ export function snapshot(
   for (const m of cfg.listModels()) {
     const s = ensure(m.id)
     rollBuckets(s, now)
+    const second = Math.floor(now / 1000)
+    if (second !== s.deltaSecond) {
+      const shift = Math.min(BUCKETS, Math.max(0, second - s.deltaSecond))
+      s.deltaBuckets = [...s.deltaBuckets.slice(shift), ...new Array<number>(shift).fill(0)]
+      s.deltaSecond = second
+    }
     const provider = providers.get(m.providerId)
     const tps = tpsOf(s)
+    const realtimeTps = realtimeOf(s, now)
     const hitRate = s.today.input > 0 ? s.today.cacheRead / s.today.input : null
     models.push({
       modelId: m.id,
@@ -273,7 +359,9 @@ export function snapshot(
       currency: m.currency,
       watch: m.watch,
       buckets: [...s.buckets],
+      deltaBuckets: [...s.deltaBuckets],
       tps,
+      realtimeTps,
       hitRate,
       today: { ...s.today },
       lastError: s.lastError,

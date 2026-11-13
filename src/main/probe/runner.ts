@@ -188,6 +188,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
       for (const frame of tap.feed(Buffer.from(value))) {
         const info = adapter.onFrame(frame)
         if (info.firstContent && run.ttftMs === null) run.ttftMs = Date.now() - started
+        live.noteDelta(model.id, info.cjk, info.other)
         if (info.usage) Object.assign(usage, info.usage)
         if (info.error) run.error = info.error
       }

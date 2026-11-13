@@ -49,8 +49,9 @@ function Capsule(): JSX.Element {
   const theme = snapshot?.overlay.theme ?? 'dark'
   const locked = snapshot?.overlay.locked === true
   const busy = model?.active === true || model?.probing === true
-  // 请求进行中显示实时速率；结束后 5 分钟内显示上一条（灰）；再久就不显示
-  const realtime = model !== undefined && (model.inflight > 0 || model.probing)
+  // 请求进行中且有增量后显示估算速率；首字前不占位。结束后 5 分钟内灰显真实均值
+  const realtime =
+    model !== undefined && (model.inflight > 0 || model.probing) && model.realtimeTps !== null
   const lastWithin =
     model?.lastTps !== null &&
     model?.lastTps !== undefined &&
@@ -82,9 +83,13 @@ function Capsule(): JSX.Element {
             <b>{model.alias}</b>
           </span>
           {realtime ? (
-            <span className="capsule-metric mono">{Math.round(model.tps)} tok/s</span>
+            <span className="capsule-metric mono">
+              {(model.realtimeTps ?? 0) < 0.5 ? '<1' : Math.round(model.realtimeTps ?? 0)} tok/s
+            </span>
           ) : lastWithin ? (
-            <span className="capsule-metric mono last">{Math.round(model.lastTps ?? 0)} tok/s</span>
+            <span className="capsule-metric mono last">
+              {(model.lastTps ?? 0) < 0.5 ? '<1' : Math.round(model.lastTps ?? 0)} tok/s
+            </span>
           ) : null}
           <span className="capsule-cost mono">{fmtMoney(model.today.cost, model.currency)}</span>
         </>

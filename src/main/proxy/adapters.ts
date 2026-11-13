@@ -6,6 +6,10 @@ import { asRecord, dataOf, num, parseJson } from './sse'
 export interface FrameInfo {
   /** 本帧新增的可计量字符数（无 usage 时用来估 token） */
   chars: number
+  /** 本帧增量里的中文码点数（含全角标点），供实时速率按语种估算 */
+  cjk: number
+  /** 本帧增量里的其余码点数 */
+  other: number
   /** 本帧是否出现首个有效内容（决定 TTFT） */
   firstContent: boolean
   /** 本帧携带的 usage 增量 */
@@ -34,7 +38,18 @@ export interface Adapter {
   errorOf(body: string): string | null
 }
 
-const EMPTY_FRAME: FrameInfo = { chars: 0, firstContent: false, usage: null, error: null }
+const EMPTY_FRAME: FrameInfo = { chars: 0, cjk: 0, other: 0, firstContent: false, usage: null, error: null }
+
+const CJK_CHAR = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/
+
+/** 按语种拆增量，用于实时速率估算；总数仍写 chars 供无 usage 兜底 */
+function countText(info: FrameInfo, text: string): void {
+  info.chars += text.length
+  for (const ch of text) {
+    if (CJK_CHAR.test(ch)) info.cjk += 1
+    else info.other += 1
+  }
+}
 
 function errorMessage(parsed: Record<string, unknown> | null): string | null {
   if (!parsed) return null
@@ -115,7 +130,7 @@ const openai: Adapter = {
         for (const choice of choices) {
           const text = textOf(asRecord(asRecord(choice)?.delta))
           if (text) {
-            info.chars += text.length
+            countText(info, text)
             info.firstContent = true
           }
         }
@@ -191,7 +206,7 @@ const anthropic: Adapter = {
       const delta = asRecord(parsed.delta)
       const text = textOf(delta)
       if (text) {
-        info.chars += text.length
+        countText(info, text)
         info.firstContent = true
       }
     }

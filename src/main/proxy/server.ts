@@ -389,6 +389,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         const info = adapter.onFrame(frame)
         chars += info.chars
         if (info.firstContent && ttftMs === null) ttftMs = Date.now() - started
+        live.noteDelta(model.id, info.cjk, info.other)
         if (info.usage) {
           usage = { ...usage, ...info.usage }
           if (process.env.LLM_METER_DEBUG) console.log('[debug] usage', JSON.stringify(info.usage))

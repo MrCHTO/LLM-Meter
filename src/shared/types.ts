@@ -195,7 +195,11 @@ export interface ModelLive {
   currency: string
   watch: boolean
   buckets: number[]
+  /** 每秒增量估算 token，供多模型实时曲线；估算值，不参与统计与计费 */
+  deltaBuckets: number[]
   tps: number
+  /** 首字后按增量估算的实时速率；首字前为 null */
+  realtimeTps: number | null
   /** 今日缓存命中率，无输入 token 时为 null */
   hitRate: number | null
   today: TodayTotals

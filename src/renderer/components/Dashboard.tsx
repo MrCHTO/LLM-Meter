@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ConfigView, LiveSnapshot, ModelLive } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
 import { useColumnWidths } from '../columns'
+import { MultiRate } from './MultiRate'
 import { Sparkline } from './Sparkline'
 
 interface Props {
@@ -63,6 +64,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   }, [menu])
 
   const [flash, setFlash] = useState<Record<string, boolean>>({})
+  const [hiddenRates, setHiddenRates] = useState<Record<string, boolean>>({})
 
   const runProbe = useCallback(
     async (modelId: string): Promise<void> => {
@@ -122,7 +124,18 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   return (
     <div className="section">
       <div className="charts">
-        <ChartPanel title="tok/s" buckets={snapshot?.totals.buckets ?? []} rate="tok/s" />
+        <div className="chart-card">
+          <div className="chart-head">
+            <span className="chart-title">增量速率 tok/s</span>
+          </div>
+          <div className="chart-body">
+            <MultiRate
+              models={models}
+              hidden={hiddenRates}
+              onToggle={(id) => setHiddenRates((h) => ({ ...h, [id]: !h[id] }))}
+            />
+          </div>
+        </div>
         <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} rate="次/s" />
       </div>
 
@@ -133,7 +146,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             <tr>
               <th className="c-model">模型{cols.resizer(0)}</th>
               <th className="c-url">供应商{cols.resizer(1)}</th>
-              <th className="c-rate">tok/s{cols.resizer(2)}</th>
+              <th className="c-rate">TPS{cols.resizer(2)}</th>
               <th className="c-ttft">TTFT P50{cols.resizer(3)}</th>
               <th className="c-ttft">TTFT P95{cols.resizer(4)}</th>
               <th className="c-ttft">TTFT P99{cols.resizer(5)}</th>
@@ -178,12 +191,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     <td className="c-url" title={`${m.providerName} ${m.baseUrl}`}>
                       {m.providerName}
                     </td>
-                    <td className="c-rate">
-                      <div className="rate">
-                        <span className="mono">{m.lastTps === null ? '—' : Math.round(m.lastTps)}</span>
-                        <Sparkline buckets={m.buckets} tail={18} />
-                      </div>
-                    </td>
+                    <td className="c-rate mono">{m.lastTps === null ? '—' : Math.round(m.lastTps)}</td>
                     <td className="c-ttft mono">{fmtMs(m.ttftP50)}</td>
                     <td className="c-ttft mono">{fmtMs(m.ttftP95)}</td>
                     <td className="c-ttft mono">{fmtMs(m.ttftP99)}</td>

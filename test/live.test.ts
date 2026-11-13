@@ -155,6 +155,68 @@ describe('上一条速率', () => {
   })
 })
 
+describe('实时增量估算', () => {
+  it('首字前无值，增量后按中英系数出值，结束后回到真实均值', async () => {
+    vi.useFakeTimers()
+    const t0 = 1_700_000_000_000
+    vi.setSystemTime(t0)
+    try {
+      const live = await load()
+      live.begin('m1')
+      expect(live.snapshot(false, null, '', t0).models[0]?.realtimeTps).toBeNull()
+
+      live.noteDelta('m1', 2, 0) // 中文 2 字符 / 1.7 ≈ 1.18 token，0.5s 窗口
+      const mid = live.snapshot(false, null, '', t0 + 500).models[0]
+      expect(mid?.realtimeTps).toBeCloseTo(2.35, 1)
+      expect((mid?.deltaBuckets ?? []).reduce((a, b) => a + b, 0)).toBeCloseTo(1.18, 1)
+
+      live.record({ ...ev(t0, 10), ttftMs: 100, durationMs: 1100 })
+      live.end('m1')
+      const done = live.snapshot(false, null, '', t0 + 1000).models[0]
+      expect(done?.realtimeTps).toBeNull()
+      expect(done?.lastTps).toBeCloseTo(10)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('超过 2 秒没有新增量时速率归零', async () => {
+    vi.useFakeTimers()
+    const t0 = 1_700_000_000_000
+    vi.setSystemTime(t0)
+    try {
+      const live = await load()
+      live.begin('m1')
+      live.noteDelta('m1', 0, 8)
+      expect(live.snapshot(false, null, '', t0 + 100).models[0]?.realtimeTps).toBeGreaterThan(0)
+      expect(live.snapshot(false, null, '', t0 + 3000).models[0]?.realtimeTps).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('真实 usage 会校正系数，同样字符估出更多 token', async () => {
+    vi.useFakeTimers()
+    const t0 = 1_700_000_000_000
+    vi.setSystemTime(t0)
+    try {
+      const live = await load()
+      live.begin('m1')
+      live.noteDelta('m1', 0, 4)
+      const before = live.snapshot(false, null, '', t0 + 500).models[0]?.deltaBuckets.reduce((a, b) => a + b, 0) ?? 0
+      // 上游实际给了 20 token，远高于默认系数估算的 1.05
+      live.record({ ...ev(t0, 20), ttftMs: 100, durationMs: 600 })
+      live.end('m1')
+      live.begin('m1')
+      live.noteDelta('m1', 0, 4)
+      const after = live.snapshot(false, null, '', t0 + 1000).models[0]?.deltaBuckets.reduce((a, b) => a + b, 0) ?? 0
+      expect(after).toBeGreaterThan(before)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('TTFT 分位样本', () => {
   it('探针样本不进分位数', async () => {
     const live = await load()
