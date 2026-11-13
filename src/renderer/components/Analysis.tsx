@@ -218,7 +218,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
 
       <div className="card">
         <h2>分组明细</h2>
-        <table className="tbl">
+        <table className="tbl tbl-detail">
           <thead>
             <tr>
               <th className="c-model">{groupBy === 'model' ? '模型' : '供应商'}</th>

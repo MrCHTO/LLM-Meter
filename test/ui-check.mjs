@@ -330,6 +330,13 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
   await sleep(1500)
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) === 3)
+  check(
+    '明细只有模型列左对齐',
+    (await s.eval("[...document.querySelectorAll('.tbl-detail thead th')].map((th) => getComputedStyle(th).textAlign).join(',')"))
+      .split(',')
+      .slice(1)
+      .every((x) => x === 'center')
+  )
   check('分析页没有来源下拉', !(await s.eval('document.body.innerText')).includes('来源'))
   check(
     '指标只剩五项',
@@ -527,7 +534,7 @@ try {
   if (/超时|不可达/.test(note)) {
     check('查价失败文案统一', note === '连接openrouter超时，请手动填写', note)
   } else {
-    check('查价命中并回填', /^已按照 .+ 查询并自动填写，人名币汇率为 [\d.]+/.test(note), note)
+    check('查价命中并回填', /^已按照 .+ 查询并自动填写，人民币汇率为 [\d.]+/.test(note), note)
     const filled = await s.eval(`document.querySelector('.modal input[step="0.01"]')?.value ?? ''`)
     check('单价已填', Number(filled) > 0, filled)
   }

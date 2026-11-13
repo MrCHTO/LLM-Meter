@@ -418,6 +418,17 @@ tbody tr:hover {
   border-color: #f0c2c2;
 }
 
+/* 分析分组明细：除模型外全部居中（含表头） */
+.tbl-detail th,
+.tbl-detail td {
+  text-align: center;
+}
+
+.tbl-detail th:first-child,
+.tbl-detail td:first-child {
+  text-align: left;
+}
+
 .detail {
   background: #fafbfd;
   padding: 8px 12px;
