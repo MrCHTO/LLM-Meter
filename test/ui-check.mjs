@@ -404,6 +404,24 @@ try {
   check('设置页给出本地入口', (await s.eval("document.body.innerText")).includes('127.0.0.1'))
   check('设置页同时给出局域网入口', (await s.eval("document.body.innerText")).includes('局域网'))
   check('局域网默认关闭且置灰', (await s.eval("document.querySelectorAll('dd.dimmed').length")) === 1)
+  check('右上角状态只有本机一行', (await s.eval("document.querySelectorAll('.status-stack .mono').length")) === 1)
+  // 开启局域网后右上角变双层：上本机、下局域网
+  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("!!document.querySelector('.status-stack.dual')")) break
+    await sleep(300)
+  }
+  const dualLines = await s.eval("[...document.querySelectorAll('.status-stack.dual .mono')].map((n) => n.innerText)")
+  check(
+    '开启局域网后上下双层显示',
+    dualLines.length === 2 && dualLines[0].includes('127.0.0.1') && dualLines[1].includes(':8787'),
+    dualLines.join(' / ')
+  )
+  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
+  for (let i = 0; i < 20; i++) {
+    if (!(await s.eval("!!document.querySelector('.status-stack.dual')"))) break
+    await sleep(300)
+  }
   check(
     '本地 token 是 sk- 签名票',
     /^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
@@ -503,7 +521,10 @@ try {
   await s.shot('probe.png')
 
   await s.eval("document.querySelector('tbody tr.clickable').click()")
-  await sleep(900)
+  for (let i = 0; i < 20; i++) {
+    if ((await s.eval("document.querySelectorAll('.detail table tbody tr').length")) > 0) break
+    await sleep(300)
+  }
   check('点行展开明细', (await s.eval("document.querySelectorAll('.detail table tbody tr').length")) > 0)
   await s.shot('detail.png')
 

@@ -114,6 +114,17 @@ button {
   color: var(--muted);
 }
 
+.status-stack {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+  font-size: 12px;
+}
+
+.status-stack .mono {
+  font-size: 11px;
+}
+
 .dot {
   width: 7px;
   height: 7px;

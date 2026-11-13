@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react'
-import type { ConfigView, LiveSnapshot } from '../../shared/types'
+import type { ConfigView } from '../../shared/types'
 import { FORMAT_MOUNT } from '../../shared/types'
 
 interface Props {
   config: ConfigView
-  snapshot: LiveSnapshot | null
   notify: (text: string, kind?: 'ok' | 'bad') => void
   onChanged: () => Promise<void>
 }
@@ -18,7 +17,7 @@ const GROUPS: { id: Group; label: string }[] = [
   { id: 'data', label: '数据' }
 ]
 
-export function SettingsView({ config, snapshot, notify, onChanged }: Props): JSX.Element {
+export function SettingsView({ config, notify, onChanged }: Props): JSX.Element {
   const [group, setGroup] = useState<Group>('access')
   const [showToken, setShowToken] = useState(false)
   const [port, setPort] = useState(String(config.settings.port))
@@ -162,12 +161,9 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
                   />
                   <span>允许局域网访问</span>
                 </label>
-                <span className="muted">{lanOn ? '同网段拿到 token 即可使用你的额度' : '默认只监听 127.0.0.1'}</span>
               </div>
 
-              <div className="divider" />
-
-              <label className="field">
+              <label className="field mt">
                 <span>监听端口</span>
                 <div className="row nowrap">
                   <input className="mono w-sm" type="number" value={port} onChange={(e) => setPort(e.target.value)} />
@@ -187,27 +183,6 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
                   </button>
                 </div>
               </label>
-
-              <div className="divider" />
-
-              <div className="row">
-                <span className={`dot ${snapshot?.proxyRunning ? 'on' : 'off'}`} />
-                <span className="muted">
-                  {snapshot?.proxyRunning ? '代理运行中' : (snapshot?.proxyError ?? '代理已停止')}
-                </span>
-                <button
-                  className="btn sm"
-                  style={{ marginLeft: 'auto' }}
-                  onClick={async () => {
-                    const res = await window.api.restartProxy()
-                    if (res.ok) notify('代理已重启', 'ok')
-                    else notify(res.error ?? '重启失败')
-                    await onChanged()
-                  }}
-                >
-                  重启代理
-                </button>
-              </div>
             </div>
           ) : null}
 

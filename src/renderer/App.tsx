@@ -82,7 +82,16 @@ export default function App(): JSX.Element {
         </div>
         <div className="status">
           <span className={`dot ${running ? 'on' : 'off'}`} />
-          <span>{running ? `监听 ${snapshot?.baseUrl ?? ''}` : (snapshot?.proxyError ?? '代理未启动')}</span>
+          {running ? (
+            <div className={`status-stack${config.settings.allowLan ? ' dual' : ''}`}>
+              <span className="mono">{snapshot?.baseUrl ?? ''}</span>
+              {config.settings.allowLan ? (
+                <span className="mono">{`http://${config.settings.lanIp}:${config.settings.port}`}</span>
+              ) : null}
+            </div>
+          ) : (
+            <span>{snapshot?.proxyError ?? '代理未启动'}</span>
+          )}
           <span className="pill">{enabledModels} 个模型启用</span>
         </div>
       </header>
@@ -94,7 +103,7 @@ export default function App(): JSX.Element {
         {tab === 'analysis' && <Analysis config={config} notify={notify} />}
         {tab === 'models' && <Models config={config} snapshot={snapshot} notify={notify} onChanged={reload} />}
         {tab === 'settings' && (
-          <SettingsView config={config} snapshot={snapshot} notify={notify} onChanged={reload} />
+          <SettingsView config={config} notify={notify} onChanged={reload} />
         )}
       </main>
 
