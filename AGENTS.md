@@ -8,7 +8,7 @@ LLM Meter 是 Windows 桌面端的大模型流量计量器：本机起 OpenAI / 
 
 - `src/main/`：主进程。`proxy/`（转发与鉴权）、`probe/`（手动测速与自动探活）、`store/`（配置、live 指标、`db/` 库与迁移）、`windows/`（主窗、胶囊、托盘）、`security/`（DPAPI、Ed25519 token）、`ipc.ts` 通道注册。
 - `src/preload/`：contextBridge 暴露的 `window.api`。
-- `src/renderer/`：React 页面（仪表盘、分析、模型与供应商、设置）与独立胶囊页 `overlay.tsx`。
+- `src/renderer/`：React 页面（仪表盘、分析、模型与供应商、日志、设置）与独立胶囊页 `overlay.tsx`。
 - `src/shared/types.ts`：跨进程类型与 IPC 通道常量。
 - `test/`：vitest 单测、`e2e.mjs`、`ui-check.mjs`、`import-check.mjs`、`installed-check.mjs` 等验证脚本。
 - `resources/`、`scripts/make-icons.mjs`：图标源与生成脚本。

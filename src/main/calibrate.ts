@@ -3,9 +3,7 @@ import * as cfg from './store/config'
 import * as pricing from './pricing'
 import * as rate from './rate'
 import { send } from './windows/registry'
-import { appendFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { dataDir } from './store/paths'
+import * as applog from './applog'
 
 /**
  * 启动与每天 00:00 的自动校准：拉当天汇率，再把所有「自动价」模型按
@@ -17,6 +15,7 @@ export async function run(): Promise<void> {
   if (running || !cfg.get().settings.autoCalibrate) return
   running = true
   try {
+    applog.info('calibrate', '开始校准汇率与自动价')
     const r = await rate.refresh()
     const targets = cfg.listModels().filter((m) => m.enabled && m.priceSource === 'auto')
 
@@ -24,14 +23,10 @@ export async function run(): Promise<void> {
     let missed = 0
     for (const m of targets) {
       const hit = await pricing.lookup(m.upstreamModel)
-      try {
-        appendFileSync(
-          join(dataDir(), 'calibrate.log'),
-          `${new Date().toISOString()} ${m.alias} found=${hit.found} source=${hit.source ?? '-'} exact=${hit.exact ?? '-'} in=${hit.priceIn ?? '-'} matched=${hit.matchedId ?? '-'}\n`
-        )
-      } catch {
-        /* 日志失败不影响 */
-      }
+      applog.info(
+        'calibrate',
+        `${m.alias} found=${hit.found} source=${hit.source ?? '-'} exact=${hit.exact ?? '-'} in=${hit.priceIn ?? '-'} matched=${hit.matchedId ?? '-'}`
+      )
       // 官方目录的命中靠名称归一化，通常是近似；官方源可信，近似也应用
       const trust = hit.found && (hit.exact || hit.source === 'official')
       if (trust && (hit.priceIn || hit.priceOut)) {
@@ -63,8 +58,12 @@ export async function run(): Promise<void> {
       c.settings.lastCalibrate = { at, rate: r.rate, updated: updates.length, missed }
     })
     send(CH.calibrated, { rate: r.rate, updated: updates.length, missed })
-  } catch {
-    /* 断网就下次再说 */
+    applog.info(
+      'calibrate',
+      `校准完成：汇率 ${r.rate.toFixed(4)}，更新 ${updates.length} 个，未匹配 ${missed} 个`
+    )
+  } catch (err) {
+    applog.error('calibrate', `校准失败：${err instanceof Error ? err.message : String(err)}`)
   } finally {
     running = false
   }

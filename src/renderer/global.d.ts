@@ -1,13 +1,17 @@
 import type {
   ApiFormat,
+  AppLog,
   ConfigView,
   DayPoint,
   IpcResult,
   LiveSnapshot,
+  LogPage,
+  LogQuery,
   ModelCfg,
   ProbeResult,
   ProviderTestResult,
   RequestEvent,
+  RequestLog,
   StatsExportResult,
   StatsGroup,
   StatsQuery,
@@ -39,6 +43,7 @@ declare global {
       createModel: (input: Omit<ModelCfg, 'id' | 'createdAt' | 'sort'>) => Promise<IpcResult<string>>
       updateModel: (id: string, patch: Partial<ModelCfg>) => Promise<IpcResult<boolean>>
       deleteModel: (id: string) => Promise<IpcResult<boolean>>
+      reorderModels: (ids: string[]) => Promise<IpcResult<boolean>>
       lookupPrice: (modelId: string) => Promise<
         IpcResult<{
           found: boolean
@@ -85,6 +90,8 @@ declare global {
       statsExport: (q: StatsQuery) => Promise<IpcResult<StatsExportResult>>
       devSeed: (count: number) => Promise<IpcResult<number>>
       recent: (modelId: string, limit?: number) => Promise<IpcResult<RequestEvent[]>>
+      logRequests: (query: LogQuery) => Promise<IpcResult<LogPage<RequestLog>>>
+      logApps: (query: LogQuery) => Promise<IpcResult<LogPage<AppLog>>>
       openDataDir: () => Promise<IpcResult<boolean>>
       backup: () => Promise<IpcResult<string>>
       exportDaily: () => Promise<IpcResult<number>>

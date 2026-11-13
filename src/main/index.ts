@@ -9,6 +9,7 @@ import * as proxy from './proxy/server'
 import * as calibrate from './calibrate'
 import * as autoProbe from './probe/auto'
 import * as ipc from './ipc'
+import * as applog from './applog'
 import * as mainWindow from './windows/main-window'
 import * as overlay from './windows/overlay'
 import * as tray from './windows/tray'
@@ -45,6 +46,9 @@ if (!gotLock) {
     proxy.bindDeps({ record: () => undefined })
     const state = await proxy.start(settings.port)
     proxyError = state.error
+    if (state.running) applog.info('proxy', `代理已启动，端口 ${settings.port}`)
+    else applog.error('proxy', `代理启动失败：${state.error ?? '未知原因'}`)
+    applog.info('startup', `LLM Meter 启动，版本 ${app.getVersion()}`)
 
     ipc.register()
 
@@ -75,12 +79,15 @@ if (!gotLock) {
       send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
       if (s.port !== lastNet.port || s.allowLan !== lastNet.allowLan) {
         lastNet = { port: s.port, allowLan: s.allowLan }
+        applog.info('settings', `接入设置变更：端口 ${s.port}，局域网${s.allowLan ? '开' : '关'}`)
         void proxy.start(s.port).then((st) => {
           proxyError = st.error
+          if (!st.running) applog.error('proxy', `重启失败：${st.error ?? '未知原因'}`)
         })
       }
       if (s.startAtLogin !== lastLogin) {
         lastLogin = s.startAtLogin
+        applog.info('settings', `开机自启${s.startAtLogin ? '开' : '关'}`)
         applyLogin(lastLogin)
       }
     })
@@ -127,7 +134,9 @@ if (!gotLock) {
 
 process.on('uncaughtException', (err) => {
   console.error('[main] uncaught', err)
+  applog.error('startup', `未捕获异常：${err.message}`)
 })
 process.on('unhandledRejection', (err) => {
   console.error('[main] unhandled', err)
+  applog.error('startup', `未处理拒绝：${err instanceof Error ? err.message : String(err)}`)
 })

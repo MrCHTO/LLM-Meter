@@ -2,16 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConfigView, LiveSnapshot } from '../shared/types'
 import { Analysis } from './components/Analysis'
 import { Dashboard } from './components/Dashboard'
+import { Logs } from './components/Logs'
 import { Models } from './components/Models'
 import { SettingsView } from './components/Settings'
 import { Toasts, type ToastItem } from './components/Toasts'
 
-type Tab = 'dash' | 'analysis' | 'models' | 'settings'
+type Tab = 'dash' | 'analysis' | 'models' | 'logs' | 'settings'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dash', label: '仪表盘' },
   { id: 'analysis', label: '分析' },
   { id: 'models', label: '模型与供应商' },
+  { id: 'logs', label: '日志' },
   { id: 'settings', label: '设置' }
 ]
 
@@ -20,6 +22,7 @@ export default function App(): JSX.Element {
   const [config, setConfig] = useState<ConfigView | null>(null)
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [logModel, setLogModel] = useState<string | null>(null)
   const seq = useRef(0)
 
   const notify = useCallback((text: string, kind: ToastItem['kind'] = 'bad') => {
@@ -74,7 +77,10 @@ export default function App(): JSX.Element {
               role="tab"
               className="tab"
               aria-selected={tab === item.id}
-              onClick={() => setTab(item.id)}
+              onClick={() => {
+                if (item.id === 'logs') setLogModel(null)
+                setTab(item.id)
+              }}
             >
               {item.label}
             </button>
@@ -98,10 +104,20 @@ export default function App(): JSX.Element {
 
       <main className="content">
         {tab === 'dash' && (
-          <Dashboard snapshot={snapshot} config={config} notify={notify} onChanged={reload} />
+          <Dashboard
+            snapshot={snapshot}
+            config={config}
+            notify={notify}
+            onChanged={reload}
+            onOpenLogs={(modelId) => {
+              setLogModel(modelId)
+              setTab('logs')
+            }}
+          />
         )}
         {tab === 'analysis' && <Analysis config={config} notify={notify} />}
         {tab === 'models' && <Models config={config} snapshot={snapshot} notify={notify} onChanged={reload} />}
+        {tab === 'logs' && <Logs config={config} notify={notify} initialModelId={logModel} />}
         {tab === 'settings' && (
           <SettingsView config={config} notify={notify} onChanged={reload} />
         )}

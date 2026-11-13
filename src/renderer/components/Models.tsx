@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ApiFormat, ConfigView, LiveSnapshot, ModelCfg, ProviderView } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney } from '../format'
@@ -53,6 +53,66 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   const [busy, setBusy] = useState(false)
   const [priceNote, setPriceNote] = useState('')
   const [lookedUpFor, setLookedUpFor] = useState('')
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!menu) return
+    const close = (): void => setMenu(null)
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenu(null)
+    }
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [menu])
+
+  const openEdit = (m: ModelCfg): void => {
+    setPriceNote('')
+    setLookedUpFor('')
+    setModel({
+      id: m.id,
+      providerId: m.providerId,
+      upstreamModel: m.upstreamModel,
+      alias: m.alias,
+      priceIn: (Math.round(m.priceIn * 10) / 10).toFixed(1),
+      priceOut: (Math.round(m.priceOut * 10) / 10).toFixed(1),
+      priceCacheRead: (Math.round(m.priceCacheRead * 10) / 10).toFixed(1),
+      priceCacheWrite: (Math.round(m.priceCacheWrite * 10) / 10).toFixed(1),
+      currency: m.currency,
+      watch: m.watch
+    })
+  }
+
+  const remove = async (m: ModelCfg): Promise<void> => {
+    if (!confirm(`删除模型 ${m.alias}？`)) return
+    const res = await window.api.deleteModel(m.id)
+    if (!res.ok) notify(res.error ?? '删除失败')
+    else {
+      notify('已删除', 'ok')
+      await onChanged()
+    }
+  }
+
+  const dropOn = async (targetId: string, sourceId: string | null): Promise<void> => {
+    if (!sourceId || sourceId === targetId) return
+    const all = config.models.map((m) => m.id)
+    const from = all.indexOf(sourceId)
+    const to = all.indexOf(targetId)
+    if (from < 0 || to < 0) return
+    const ids = all.filter((id) => id !== sourceId)
+    // 往下拖放到目标行之后，往上拖放到目标行之前
+    ids.splice(ids.indexOf(targetId) + (from < to ? 1 : 0), 0, sourceId)
+    setDragId(null)
+    const res = await window.api.reorderModels(ids)
+    if (!res.ok) notify(res.error ?? '排序失败')
+    else await onChanged()
+  }
 
   /** 按模型 id 去 OpenRouter 拿公开价，查不到就留着手填 */
   const lookupPrice = async (modelId: string): Promise<void> => {
@@ -83,6 +143,10 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
 
   const saveProvider = async (): Promise<void> => {
     if (!provider) return
+    if (!provider.name.trim()) {
+      notify('供应商名称不能为空')
+      return
+    }
     if (!provider.baseUrl.trim()) {
       notify('Base URL 不能为空')
       return
@@ -128,11 +192,20 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
 
   const saveModel = async (): Promise<void> => {
     if (!model) return
+    if (!model.providerId) {
+      notify('请选择供应商')
+      return
+    }
+    if (!model.alias.trim()) {
+      notify('别名不能为空')
+      return
+    }
+    const current = model.id ? config.models.find((x) => x.id === model.id) : undefined
     const payload: Omit<ModelCfg, 'id' | 'createdAt' | 'sort'> = {
       providerId: model.providerId,
       upstreamModel: model.upstreamModel,
       alias: model.alias,
-      enabled: true,
+      enabled: current?.enabled ?? true,
       watch: model.watch,
       priceIn: Number(model.priceIn) || 0,
       priceOut: Number(model.priceOut) || 0,
@@ -140,7 +213,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       priceCacheWrite: Number(model.priceCacheWrite) || 0,
       currency: model.currency,
       priceSource: priceSourceFor(model),
-      autoProbe: model.id ? (config.models.find((x) => x.id === model.id)?.autoProbe ?? false) : false
+      autoProbe: current?.autoProbe ?? false
     }
     setBusy(true)
     const res = model.id
@@ -270,14 +343,13 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
           <table className="tbl-left tbl-models">
             <thead>
               <tr>
-                <th>别名</th>
-                <th>上游模型</th>
-                <th title="每百万 token 单价">输入</th>
-                <th title="每百万 token 单价">输出</th>
+                <th>别名/模型</th>
+                <th>供应商</th>
+                <th title="每百万 token 单价">输入价格</th>
+                <th title="每百万 token 单价">输出价格</th>
                 <th title="每百万 token 单价">缓存读取</th>
                 <th title="每百万 token 单价">缓存写入</th>
                 <th className="c-center">悬浮窗</th>
-                <th className="c-center">状态</th>
                 <th className="c-center">自动探针</th>
                 <th />
               </tr>
@@ -292,100 +364,86 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                     ? '尚未探测'
                     : '自动探针未开启'
                 return (
-                  <tr key={m.id} className={m.autoProbe && (live?.probeFails ?? 0) >= 3 ? 'bad-flash' : undefined}>
+                  <tr
+                    key={m.id}
+                    draggable
+                    className={[
+                      m.enabled ? '' : 'row-off',
+                      m.autoProbe && (live?.probeFails ?? 0) >= 3 && 'bad-flash',
+                      dragId === m.id && 'dragging'
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onDragStart={(e) => {
+                      e.dataTransfer?.setData('text/plain', m.id)
+                      setDragId(m.id)
+                    }}
+                    onDragEnd={() => setDragId(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const sourceId = e.dataTransfer?.getData('text/plain') || dragId
+                      void dropOn(m.id, sourceId)
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setMenu({ id: m.id, x: e.clientX, y: e.clientY })
+                    }}
+                  >
                     <td>
-                      <span
-                        className={
-                          'probe-dot' +
-                          (probeTime === null ? '' : live?.lastProbeOk ? ' on' : ' off') +
-                          (m.autoProbe ? '' : ' idle')
-                        }
-                        title={probeTitle}
-                      />
-                      {m.alias}
+                      <div className="row-name">
+                        <span
+                          className={
+                            'probe-dot' +
+                            (probeTime === null ? '' : live?.lastProbeOk ? ' on' : ' off') +
+                            (m.autoProbe ? '' : ' idle')
+                          }
+                          title={probeTitle}
+                        />
+                        <div className="cell-model">
+                          <b>{m.alias}</b>
+                          <small className="mono">{m.upstreamModel}</small>
+                        </div>
+                      </div>
                     </td>
-                  <td className="mono" style={{ textAlign: 'left' }}>
-                    {m.upstreamModel}
-                  </td>
-                  <td className="mono">{fmtMoney(m.priceIn, m.currency)}</td>
-                  <td className="mono">{fmtMoney(m.priceOut, m.currency)}</td>
-                  <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
-                  <td className="mono">{fmtMoney(m.priceCacheWrite, m.currency)}</td>
-                  <td className="c-center">
-                    <button
-                      className={config.settings.overlay.modelId === m.id ? 'pick on' : 'pick'}
-                      onClick={async () => {
-                        const picked = config.settings.overlay.modelId === m.id
-                        const res = await window.api.updateSettings({ overlayModelId: picked ? null : m.id })
-                        if (!res.ok) notify(res.error ?? '切换失败')
-                        else await onChanged()
-                      }}
-                    >
-                      {config.settings.overlay.modelId === m.id ? '● 已选' : '○ 选中'}
-                    </button>
-                  </td>
-                  <td className="c-center">
-                    <button
-                      className={m.enabled ? 'state on' : 'state'}
-                      onClick={async () => {
-                        const res = await window.api.updateModel(m.id, { enabled: !m.enabled })
-                        if (!res.ok) notify(res.error ?? '切换失败')
-                        else await onChanged()
-                      }}
-                    >
-                      {m.enabled ? '启用' : '停用'}
-                    </button>
-                  </td>
-                  <td className="c-center">
-                    <button
-                      className={m.autoProbe ? 'state on' : 'state'}
-                      onClick={async () => {
-                        const res = await window.api.updateModel(m.id, { autoProbe: !m.autoProbe })
-                        if (!res.ok) notify(res.error ?? '切换失败')
-                        else await onChanged()
-                      }}
-                    >
-                      {m.autoProbe ? '关闭' : '开启'}
-                    </button>
-                  </td>
-                  <td>
-                    <button
-                      className="btn sm"
-                      onClick={() => {
-                        setPriceNote('')
-              setLookedUpFor('')
-                        setModel({
-                          id: m.id,
-                          providerId: m.providerId,
-                          upstreamModel: m.upstreamModel,
-                          alias: m.alias,
-                          priceIn: (Math.round(m.priceIn * 10) / 10).toFixed(1),
-                          priceOut: (Math.round(m.priceOut * 10) / 10).toFixed(1),
-                          priceCacheRead: (Math.round(m.priceCacheRead * 10) / 10).toFixed(1),
-                          priceCacheWrite: (Math.round(m.priceCacheWrite * 10) / 10).toFixed(1),
-                          currency: m.currency,
-                          watch: m.watch
-                        })
-                      }}
-                    >
-                      编辑
-                    </button>{' '}
-                    <button
-                      className="btn sm"
-                      onClick={async () => {
-                        if (!confirm(`删除模型 ${m.alias}？`)) return
-                        const res = await window.api.deleteModel(m.id)
-                        if (!res.ok) notify(res.error ?? '删除失败')
-                        else {
-                          notify('已删除', 'ok')
-                          await onChanged()
-                        }
-                      }}
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
+                    <td>{providers.find((p) => p.id === m.providerId)?.name ?? '—'}</td>
+                    <td className="mono">{fmtMoney(m.priceIn, m.currency)}</td>
+                    <td className="mono">{fmtMoney(m.priceOut, m.currency)}</td>
+                    <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
+                    <td className="mono">{fmtMoney(m.priceCacheWrite, m.currency)}</td>
+                    <td className="c-center">
+                      <button
+                        className={config.settings.overlay.modelId === m.id ? 'pick on' : 'pick'}
+                        onClick={async () => {
+                          const picked = config.settings.overlay.modelId === m.id
+                          const res = await window.api.updateSettings({ overlayModelId: picked ? null : m.id })
+                          if (!res.ok) notify(res.error ?? '切换失败')
+                          else await onChanged()
+                        }}
+                      >
+                        {config.settings.overlay.modelId === m.id ? '● 已选' : '○ 选中'}
+                      </button>
+                    </td>
+                    <td className="c-center">
+                      <button
+                        className={m.autoProbe ? 'state on' : 'state'}
+                        onClick={async () => {
+                          const res = await window.api.updateModel(m.id, { autoProbe: !m.autoProbe })
+                          if (!res.ok) notify(res.error ?? '切换失败')
+                          else await onChanged()
+                        }}
+                      >
+                        {m.autoProbe ? '关闭' : '开启'}
+                      </button>
+                    </td>
+                    <td>
+                      <button className="btn sm" onClick={() => openEdit(m)}>
+                        编辑
+                      </button>{' '}
+                      <button className="btn sm" onClick={() => void remove(m)}>
+                        删除
+                      </button>
+                    </td>
+                  </tr>
                 )
               })}
             </tbody>
@@ -393,13 +451,57 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
         )}
       </div>
 
+      {menu
+        ? (() => {
+            const m = config.models.find((x) => x.id === menu.id)
+            if (!m) return null
+            return (
+              <div
+                className="ctxmenu"
+                style={{
+                  left: Math.min(menu.x, window.innerWidth - 130),
+                  top: Math.min(menu.y, window.innerHeight - 120)
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={async () => {
+                    setMenu(null)
+                    const res = await window.api.updateModel(m.id, { enabled: !m.enabled })
+                    if (!res.ok) notify(res.error ?? '切换失败')
+                    else await onChanged()
+                  }}
+                >
+                  {m.enabled ? '关闭' : '开启'}
+                </button>
+                <button
+                  onClick={() => {
+                    setMenu(null)
+                    openEdit(m)
+                  }}
+                >
+                  编辑
+                </button>
+                <button
+                  onClick={() => {
+                    setMenu(null)
+                    void remove(m)
+                  }}
+                >
+                  删除
+                </button>
+              </div>
+            )
+          })()
+        : null}
+
       {provider ? (
         <div className="mask" onClick={() => setProvider(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{provider.id ? '编辑供应商' : '添加供应商'}</h3>
             <div className="section" style={{ gap: 10 }}>
               <label className="field">
-                <span>名称</span>
+                <span>名称（必填）</span>
                 <input
                   type="text"
                   value={provider.name}
@@ -478,7 +580,8 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                     placeholder="deepseek/deepseek-v4.1-flash"
                     onChange={(e) => {
                       const value = e.target.value
-                      setModel({ ...model, upstreamModel: value })
+                      const follow = !model.id && (model.alias === '' || model.alias === model.upstreamModel)
+                      setModel({ ...model, upstreamModel: value, alias: follow ? value : model.alias })
                       if (priceNote && value.trim() !== lookedUpFor) {
                         setPriceNote('模型名已改，点「查价」按新名字重查')
                       }
@@ -495,7 +598,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
               </label>
               {priceNote ? <p className="hint">{priceNote}</p> : null}
               <label className="field">
-                <span>别名</span>
+                <span>别名（必填，客户端调用时用这个名字）</span>
                 <input
                   type="text"
                   className="mono"

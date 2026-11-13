@@ -138,8 +138,43 @@ export interface RequestEvent {
   note?: string
 }
 
-export interface TodayTotals {
-  requests: number
+/** 日志页的请求行：请求明细 + 当时的供应商名与上游模型 */
+export interface RequestLog extends RequestEvent {
+  providerName: string
+  upstreamModel: string
+}
+
+export type AppLogLevel = 'info' | 'warn' | 'error'
+
+/** 运行日志一行 */
+export interface AppLog {
+  id: string
+  ts: number
+  level: AppLogLevel
+  scope: string
+  message: string
+}
+
+export interface LogQuery {
+  from: number
+  to: number
+  /** 请求日志专用 */
+  modelId?: string
+  source?: RequestSource
+  ok?: boolean
+  /** 两种日志共用 */
+  keyword?: string
+  level?: AppLogLevel
+  page: number
+  pageSize: number
+}
+
+export interface LogPage<T> {
+  rows: T[]
+  total: number
+}
+
+export interface TodayTotals {  requests: number
   errors: number
   input: number
   output: number
@@ -345,6 +380,7 @@ export const CH = {
   modelCreate: 'model:create',
   modelUpdate: 'model:update',
   modelDelete: 'model:delete',
+  modelReorder: 'model:reorder',
   priceLookup: 'model:price',
   rateRefresh: 'rate:refresh',
   probeRun: 'probe:run',
@@ -354,6 +390,8 @@ export const CH = {
   proxyRestart: 'proxy:restart',
   history: 'history:read',
   recent: 'history:recent',
+  logRequests: 'log:requests',
+  logApps: 'log:apps',
   openDataDir: 'app:openDataDir',
   backup: 'app:backup',
   exportDaily: 'app:exportDaily',

@@ -300,32 +300,8 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
                   checked={config.settings.autoCalibrate}
                   onChange={(e) => void patch({ autoCalibrate: e.target.checked })}
                 />
-                <span>启动与每天 00:00 自动校准汇率和自动价（手动价不动）</span>
+                <span>启动与每天 00:00 自动校准汇率和自动价（手动价不动，过程见日志页）</span>
               </label>
-              <dl className="kv kv-wide mt">
-                <dt>当前汇率</dt>
-                <dd>
-                  ¥{config.settings.usdCny}/{config.settings.usdCnyDate ? `$ · ${config.settings.usdCnyDate}` : '$ · 未取到'}
-                </dd>
-                <dt>上次校准</dt>
-                <dd>
-                  {config.settings.lastCalibrate
-                    ? `${new Date(config.settings.lastCalibrate.at).toLocaleString()} · 汇率 ${config.settings.lastCalibrate.rate} · 更新 ${config.settings.lastCalibrate.updated} 个 / 未匹配 ${config.settings.lastCalibrate.missed} 个`
-                    : '还没有跑过'}
-                </dd>
-              </dl>
-              <div className="row mt">
-                <button
-                  className="btn"
-                  onClick={async () => {
-                    const res = await window.api.calibrate()
-                    if (!res.ok) notify(res.error ?? '校准失败')
-                    await onChanged()
-                  }}
-                >
-                  立即校准
-                </button>
-              </div>
             </div>
           ) : null}
 

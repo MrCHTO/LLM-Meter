@@ -7,6 +7,7 @@ import type {
   ApiFormat,
   ConfigView,
   IpcResult,
+  LogQuery,
   ModelCfg,
   ProbeResult,
   ProviderTestResult,
@@ -41,6 +42,26 @@ function ok<T>(data?: T): IpcResult<T> {
 
 function bad(error: string): IpcResult<never> {
   return { ok: false, error }
+}
+
+/** 日志页查询参数归一：时间窗必填，分页限幅，关键字截断 */
+function logQuery(input: LogQuery | undefined): LogQuery {
+  const q = input ?? ({} as LogQuery)
+  const pageSize = Math.min(Math.max(Math.round(q.pageSize) || 100, 1), 200)
+  const page = Math.max(Math.round(q.page) || 1, 1)
+  const to = Number(q.to) || Date.now()
+  const from = Number(q.from) || to - 24 * 3_600_000
+  return {
+    from: Math.min(from, to),
+    to,
+    modelId: q.modelId || undefined,
+    source: q.source === 'probe' || q.source === 'proxy' ? q.source : undefined,
+    ok: typeof q.ok === 'boolean' ? q.ok : undefined,
+    keyword: (q.keyword ?? '').slice(0, 100),
+    level: q.level === 'warn' || q.level === 'error' ? q.level : q.level === 'info' ? 'info' : undefined,
+    page,
+    pageSize
+  }
 }
 
 function wrap<A extends unknown[], T>(fn: (...args: A) => T | Promise<T>) {
@@ -105,7 +126,8 @@ function readable(text: string, status: number): string {
   return text.slice(0, 200) || `HTTP ${status}`
 }
 
-function validateAlias(alias: string, exceptId?: string): string {  const value = alias.trim()
+function validateAlias(alias: string, exceptId?: string): string {
+  const value = alias.trim()
   if (!value) throw new Error('别名不能为空')
   if (/\s/.test(value)) throw new Error('别名不能含空格')
   const dup = cfg.modelByAlias(value)
@@ -120,11 +142,13 @@ export function register(): void {
     CH.providerCreate,
     wrap((input: { name: string; baseUrl: string; format: ApiFormat; apiKey: string; enabled: boolean }) => {
       const baseUrl = needBaseUrl(input.baseUrl)
+      const name = input.name.trim()
+      if (!name) throw new Error('供应商名称必须填写')
       const id = randomUUID()
       cfg.mutate((c) => {
         c.providers.push({
           id,
-          name: input.name.trim() || baseUrl,
+          name,
           baseUrl,
           format: input.format === 'anthropic' ? 'anthropic' : 'openai',
           keyCipher: seal(input.apiKey.trim()),
@@ -260,6 +284,17 @@ export function register(): void {
   )
 
   ipcMain.handle(
+    CH.modelReorder,
+    wrap((ids: string[]) => {
+      cfg.mutate((c) => {
+        const order = new Map(ids.map((id, i) => [id, i]))
+        for (const m of c.models) m.sort = order.get(m.id) ?? m.sort + ids.length
+      })
+      return true
+    })
+  )
+
+  ipcMain.handle(
     CH.modelDelete,
     wrap((id: string) => {
       cfg.mutate((c) => {
@@ -286,7 +321,7 @@ export function register(): void {
         priceCacheWrite: conv(out.priceCacheWrite),
         note: `已按照 ${out.matchedId} 查询并自动填写${
           out.source === 'official' ? '（官方价）' : '（OpenRouter 最低服务商价）'
-        }，人民币汇率为 ${today.rate}${out.exact ? '' : '（近似匹配，请核对）'}`
+        }，人民币汇率为 ${today.rate.toFixed(2)}${out.exact ? '' : '（近似匹配，请核对）'}`
       }
     })
   )
@@ -401,6 +436,9 @@ export function register(): void {
     CH.recent,
     wrap((modelId: string, limit?: number) => live.recentFor(modelId, limit ?? 20))
   )
+
+  ipcMain.handle(CH.logRequests, wrap((input: LogQuery) => repo.queryRequests(db.get(), logQuery(input))))
+  ipcMain.handle(CH.logApps, wrap((input: LogQuery) => repo.queryAppLogs(db.get(), logQuery(input))))
 
   const pruneNow = (): number => {
     const s = cfg.get().settings

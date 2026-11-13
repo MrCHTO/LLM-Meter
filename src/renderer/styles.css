@@ -841,6 +841,30 @@ tr.open > td {
   opacity: 0.35;
 }
 
+.row-name {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.row-name .probe-dot {
+  margin-top: 5px;
+  flex: none;
+}
+
+/* 停用的模型整行变灰 */
+tr.row-off > td {
+  opacity: 0.42;
+}
+
+tr.dragging > td {
+  background: var(--panel-2);
+}
+
+tr[draggable='true'] {
+  cursor: grab;
+}
+
 .ellipsis {
   display: block;
   overflow: hidden;
@@ -956,6 +980,33 @@ tr.open > td {
   height: 1px;
   background: var(--line);
   margin: 12px 0;
+}
+
+.log-filters {
+  margin-top: 12px;
+  align-items: flex-end;
+}
+
+.tbl-log td,
+.tbl-log th {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.tbl-log .log-note {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.log-pager {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.log-pager .muted {
+  margin-right: auto;
 }
 
 .row.nowrap {

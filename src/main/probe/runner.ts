@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { ModelCfg, ProbeResult, Provider, RequestEvent } from '../../shared/types'
 import * as cfg from '../store/config'
 import * as live from '../store/live'
+import * as applog from '../applog'
 import * as db from '../store/db'
 import * as repo from '../store/db/repo'
 import { dayKey } from '../store/paths'
@@ -83,6 +84,9 @@ function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, st
     })
   } catch (err) {
     console.error('[db] 写入失败', err)
+  }
+  if (!run.ok) {
+    applog.warn('probe', `${model.alias} 探针失败：${run.status || '无响应'}${run.error ? ` ${run.error}` : ''}`)
   }
 }
 

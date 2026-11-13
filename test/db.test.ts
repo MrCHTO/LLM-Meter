@@ -187,6 +187,44 @@ describe('查询', () => {
   })
 })
 
+describe('日志查询', () => {
+  it('按模型、来源、结果、关键字与时间过滤并分页', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    const now = Date.now()
+    repo.recordRequest(conn, ev({ ts: now }), extra)
+    repo.recordRequest(conn, ev({ ts: now + 1, source: 'probe', ok: false, status: 500, errorKind: 'upstream_5xx' }), extra)
+    repo.recordRequest(conn, ev({ ts: now + 2, modelId: 'm2', alias: 'other' }), extra)
+
+    const base = { from: now - 1000, to: now + 1000, page: 1, pageSize: 10 }
+    expect(repo.queryRequests(conn, base).total).toBe(3)
+    expect(repo.queryRequests(conn, { ...base, modelId: 'm2' }).rows.map((r) => r.alias)).toEqual(['other'])
+    expect(repo.queryRequests(conn, { ...base, source: 'probe' }).total).toBe(1)
+    expect(repo.queryRequests(conn, { ...base, ok: false }).total).toBe(1)
+    expect(repo.queryRequests(conn, { ...base, keyword: 'up-1' }).total).toBe(3)
+    expect(repo.queryRequests(conn, { ...base, keyword: 'nothing' }).total).toBe(0)
+    expect(repo.queryRequests(conn, { ...base, to: now - 500 }).total).toBe(0)
+    const paged = repo.queryRequests(conn, { ...base, page: 2, pageSize: 2 })
+    expect(paged.total).toBe(3)
+    expect(paged.rows).toHaveLength(1)
+    expect(repo.queryRequests(conn, base).rows[0]?.providerName).toBe('供应商')
+  })
+
+  it('运行日志按级别与关键字过滤', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    const now = Date.now()
+    repo.insertAppLog(conn, 'a', now, 'info', 'startup', '应用启动')
+    repo.insertAppLog(conn, 'b', now + 1, 'warn', 'probe', '模型超时')
+    repo.insertAppLog(conn, 'c', now + 2, 'error', 'proxy', '端口占用')
+
+    const base = { from: now - 1000, to: now + 1000, page: 1, pageSize: 10 }
+    expect(repo.queryAppLogs(conn, base).total).toBe(3)
+    expect(repo.queryAppLogs(conn, { ...base, level: 'warn' }).rows[0]?.message).toBe('模型超时')
+    expect(repo.queryAppLogs(conn, { ...base, keyword: '端口' }).rows[0]?.level).toBe('error')
+  })
+})
+
 describe('清理', () => {
   it('只删过期明细与过期分钟桶，日聚合保留', async () => {
     const { repo } = await load()
@@ -194,10 +232,13 @@ describe('清理', () => {
     const now = Date.now()
     repo.recordRequest(conn, ev({ ts: now - 40 * 86_400_000 }), { ...extra, day: '2026-10-01' })
     repo.recordRequest(conn, ev({ ts: now }), extra)
+    repo.insertAppLog(conn, 'old', now - 40 * 86_400_000, 'info', 'startup', '旧日志')
+    repo.insertAppLog(conn, 'new', now, 'info', 'startup', '新日志')
 
     const out = repo.prune(conn, now, 30, 30)
     expect(out.requests).toBe(1)
     expect(conn.get<{ c: number }>('select count(*) c from requests')?.c).toBe(1)
+    expect(conn.get<{ c: number }>('select count(*) c from app_logs')?.c).toBe(1)
     expect(conn.get<{ c: number }>('select count(*) c from rollup_minute')?.c).toBe(1)
     expect(conn.get<{ c: number }>('select count(*) c from rollup_day')?.c).toBe(2)
   })

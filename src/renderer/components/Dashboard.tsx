@@ -1,7 +1,6 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
-import type { ConfigView, LiveSnapshot, ModelLive, RequestEvent } from '../../shared/types'
-import { FORMAT_LABEL } from '../../shared/types'
-import { fmtClock, fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
+import { useCallback, useEffect, useState } from 'react'
+import type { ConfigView, LiveSnapshot, ModelLive } from '../../shared/types'
+import { fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
 import { Sparkline } from './Sparkline'
 
 interface Props {
@@ -9,56 +8,7 @@ interface Props {
   config: ConfigView
   notify: (text: string, kind?: 'ok' | 'bad') => void
   onChanged: () => Promise<void>
-}
-
-function Recent({ modelId }: { modelId: string }): JSX.Element {
-  const [rows, setRows] = useState<RequestEvent[] | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    void window.api.recent(modelId, 20).then((res) => {
-      if (alive) setRows(res.ok && res.data ? res.data : [])
-    })
-    return () => {
-      alive = false
-    }
-  }, [modelId])
-
-  if (!rows) return <div className="detail">读取中…</div>
-  if (rows.length === 0) return <div className="detail">还没有请求记录</div>
-
-  return (
-    <div className="detail">
-      <table>
-        <thead>
-          <tr>
-            <th>时间</th>
-            <th>来源</th>
-            <th>状态</th>
-            <th>输入</th>
-            <th>输出</th>
-            <th>TTFT</th>
-            <th>成本</th>
-            <th>备注</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((ev) => (
-            <tr key={ev.id}>
-              <td className="mono">{fmtClock(ev.ts)}</td>
-              <td>{ev.source === 'probe' ? '测速' : '代理'}</td>
-              <td>{ev.ok ? <span className="pill ok">ok</span> : <span className="pill bad">{ev.status || 'err'}</span>}</td>
-              <td className="mono">{fmtTokens(ev.inputTokens)}</td>
-              <td className="mono">{fmtTokens(ev.outputTokens)}</td>
-              <td className="mono">{fmtMs(ev.ttftMs)}</td>
-              <td className="mono">{fmtMoney(ev.cost, ev.currency)}</td>
-              <td className="err-line">{ev.note ?? ''}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+  onOpenLogs: (modelId: string) => void
 }
 
 interface MenuState {
@@ -89,10 +39,10 @@ function ChartPanel(props: { title: string; buckets: number[]; rate: string }): 
   )
 }
 
-export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.Element {
-  const [open, setOpen] = useState<string | null>(null)
+export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: Props): JSX.Element {
   const [probing, setProbing] = useState<Record<string, boolean>>({})
   const [menu, setMenu] = useState<MenuState | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!menu) return
@@ -136,6 +86,21 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
   const tailReq = (snapshot?.totals.reqBuckets ?? []).slice(-10)
   const reqPerSec = tailReq.reduce((a, b) => a + b, 0) / 10
 
+  const dropOn = async (targetId: string, sourceId: string | null): Promise<void> => {
+    if (!sourceId || sourceId === targetId) return
+    const all = config.models.map((m) => m.id)
+    const from = all.indexOf(sourceId)
+    const to = all.indexOf(targetId)
+    if (from < 0 || to < 0) return
+    const ids = all.filter((id) => id !== sourceId)
+    // 往下拖放到目标行之后，往上拖放到目标行之前
+    ids.splice(ids.indexOf(targetId) + (from < to ? 1 : 0), 0, sourceId)
+    setDragId(null)
+    const res = await window.api.reorderModels(ids)
+    if (!res.ok) notify(res.error ?? '排序失败')
+    else await onChanged()
+  }
+
   if (config.models.length === 0) {
     return (
       <div className="section">
@@ -164,8 +129,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
           <thead>
             <tr>
               <th className="c-model">模型</th>
-              <th className="c-url">上游供应商/地址</th>
-              <th className="c-format">上游协议</th>
+              <th className="c-url">供应商</th>
               <th className="c-rate">tok/s</th>
               <th className="c-ttft">TTFT P50</th>
               <th className="c-ttft">TTFT P95</th>
@@ -178,38 +142,39 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
           </thead>
           <tbody>
             {models.map((m: ModelLive) => {
-              const isOpen = open === m.modelId
               const running = probing[m.modelId] === true || m.probing
               return (
-                <Fragment key={m.modelId}>
-                  <tr
+                <tr
+                    key={m.modelId}
+                    draggable
                     className={[
                       'clickable',
-                      isOpen && 'open',
                       running && 'probing',
-                      flash[m.modelId] && 'bad-flash'
+                      flash[m.modelId] && 'bad-flash',
+                      dragId === m.modelId && 'dragging'
                     ]
                       .filter(Boolean)
                       .join(' ')}
-                    onClick={() => setOpen(isOpen ? null : m.modelId)}
+                    onClick={() => onOpenLogs(m.modelId)}
+                    onDragStart={(e) => {
+                      e.dataTransfer?.setData('text/plain', m.modelId)
+                      setDragId(m.modelId)
+                    }}
+                    onDragEnd={() => setDragId(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const sourceId = e.dataTransfer?.getData('text/plain') || dragId
+                      void dropOn(m.modelId, sourceId)
+                    }}
                     onContextMenu={(event) => {
                       event.preventDefault()
                       setMenu({ modelId: m.modelId, x: event.clientX, y: event.clientY })
                     }}
                   >
-                    <td className="c-model">
-                      <div className="cell-model">
-                        <b>{m.alias}</b>
-                        <small className="mono">{m.upstreamModel}</small>
-                      </div>
-                    </td>
+                    <td className="c-model">{m.alias}</td>
                     <td className="c-url" title={`${m.providerName} ${m.baseUrl}`}>
-                      <div className="cell-model">
-                        <span>{m.providerName}</span>
-                        <small className="mono ellipsis">{m.baseUrl}</small>
-                      </div>
+                      {m.providerName}
                     </td>
-                    <td className="c-format">{FORMAT_LABEL[m.format]}</td>
                     <td className="c-rate">
                       <div className="rate">
                         <span className="mono">{m.lastTps === null ? '—' : Math.round(m.lastTps)}</span>
@@ -229,19 +194,11 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
                     <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>
                   </tr>
-                  {isOpen ? (
-                    <tr className="detail-row">
-                      <td colSpan={11} style={{ padding: 0 }}>
-                        <Recent modelId={m.modelId} />
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
               )
             })}
             {models.length === 0 ? (
               <tr>
-                      <td colSpan={11} className="empty">
+                      <td colSpan={10} className="empty">
                   还没有启用的模型
                 </td>
               </tr>
@@ -257,9 +214,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
           onClick={(e) => e.stopPropagation()}
         >
           <button onClick={() => void runProbe(menu.modelId)}>测速</button>
-          <button onClick={() => setOpen(open === menu.modelId ? null : menu.modelId)}>
-            {open === menu.modelId ? '收起明细' : '展开明细'}
-          </button>
+          <button onClick={() => onOpenLogs(menu.modelId)}>查看日志</button>
         </div>
       ) : null}
     </div>

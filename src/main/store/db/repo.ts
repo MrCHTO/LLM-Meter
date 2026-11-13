@@ -1,4 +1,4 @@
-import type { RequestEvent } from '../../../shared/types'
+import type { AppLog, AppLogLevel, LogPage, LogQuery, RequestEvent, RequestLog } from '../../../shared/types'
 import type { Db, SqlValue } from './driver'
 
 const MINUTE = 60_000
@@ -211,6 +211,94 @@ function recentAfter(db: Db, since: number): RequestEvent[] {
     currency: r.currency,
     note: r.note ?? undefined
   }))
+}
+
+/* ------------------------------- 日志页 ------------------------------- */
+
+export function queryRequests(db: Db, q: LogQuery): LogPage<RequestLog> {
+  const where = ['ts >= ?', 'ts <= ?']
+  const all: SqlValue[] = [q.from, q.to]
+  if (q.keyword && q.keyword.trim()) {
+    const like = `%${q.keyword.trim()}%`
+    where.push('(alias like ? or upstream_model like ? or provider_name like ? or note like ? or error_kind like ?)')
+    all.push(like, like, like, like, like)
+  }
+  if (q.modelId) {
+    where.push('model_id = ?')
+    all.push(q.modelId)
+  }
+  if (q.source) {
+    where.push('source = ?')
+    all.push(q.source)
+  }
+  if (q.ok !== undefined) {
+    where.push('ok = ?')
+    all.push(q.ok ? 1 : 0)
+  }
+  const clause = where.join(' and ')
+  const total = db.get<{ n: number }>(`select count(*) as n from requests where ${clause}`, ...all)?.n ?? 0
+  const rows = db.all<RecentRow & { provider_name: string; upstream_model: string }>(
+    `select id, ts, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
+            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+            cost, currency, model_id, alias, provider_id, note, provider_name, upstream_model
+     from requests where ${clause} order by ts desc limit ? offset ?`,
+    ...all,
+    q.pageSize,
+    (q.page - 1) * q.pageSize
+  )
+  return {
+    total,
+    rows: rows.map((r) => ({
+      id: r.id,
+      ts: r.ts,
+      source: r.source === 'probe' ? 'probe' : 'proxy',
+      modelId: r.model_id,
+      alias: r.alias,
+      providerId: r.provider_id,
+      providerName: r.provider_name,
+      upstreamModel: r.upstream_model,
+      status: r.status,
+      ok: r.ok === 1,
+      errorKind: (r.error_kind as RequestEvent['errorKind']) ?? null,
+      stream: r.stream === 1,
+      ttftMs: r.ttft_ms,
+      durationMs: r.duration_ms,
+      inputTokens: r.input_tokens,
+      outputTokens: r.output_tokens,
+      cacheReadTokens: r.cache_read_tokens,
+      cacheWriteTokens: r.cache_write_tokens,
+      cost: r.cost,
+      currency: r.currency,
+      note: r.note ?? undefined
+    }))
+  }
+}
+
+export function queryAppLogs(db: Db, q: LogQuery): LogPage<AppLog> {
+  const where = ['ts >= ?', 'ts <= ?']
+  const args: SqlValue[] = [q.from, q.to]
+  if (q.keyword && q.keyword.trim()) {
+    const like = `%${q.keyword.trim()}%`
+    where.push('(scope like ? or message like ?)')
+    args.push(like, like)
+  }
+  if (q.level) {
+    where.push('level = ?')
+    args.push(q.level)
+  }
+  const clause = where.join(' and ')
+  const total = db.get<{ n: number }>(`select count(*) as n from app_logs where ${clause}`, ...args)?.n ?? 0
+  const rows = db.all<{ id: string; ts: number; level: string; scope: string; message: string }>(
+    `select id, ts, level, scope, message from app_logs where ${clause} order by ts desc limit ? offset ?`,
+    ...args,
+    q.pageSize,
+    (q.page - 1) * q.pageSize
+  )
+  return { total, rows: rows.map((r) => ({ ...r, level: r.level as AppLogLevel })) }
+}
+
+export function insertAppLog(db: Db, id: string, ts: number, level: string, scope: string, message: string): void {
+  db.run('insert into app_logs (id, ts, level, scope, message) values (?, ?, ?, ?, ?)', id, ts, level, scope, message)
 }
 
 /* ------------------------------- 分析查询 ------------------------------- */
@@ -442,6 +530,7 @@ export function prune(db: Db, now: number, detailDays: number, minuteDays: numbe
   const minuteCut = now - minuteDays * 86_400_000
   const before = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
   db.run('delete from requests where ts < ?', detailCut)
+  db.run('delete from app_logs where ts < ?', detailCut)
   const after = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
   db.run('delete from rollup_minute where minute < ?', minuteCut)
   db.exec('pragma incremental_vacuum')

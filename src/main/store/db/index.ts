@@ -1,10 +1,12 @@
 import { join } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { existsSync, readFileSync, renameSync } from 'node:fs'
 import * as cfg from '../config'
 import { dataDir, ensureDirs } from '../paths'
 import { open, type Db } from './driver'
 import { ensureMeta, migrate } from './schema'
 import { alreadyImported, importLegacy } from './import'
-import { prune } from './repo'
+import { insertAppLog, prune } from './repo'
 
 let conn: Db | null = null
 let pruneTimer: NodeJS.Timeout | null = null
@@ -24,6 +26,7 @@ export function init(): void {
   conn = open(dbFile())
   ensureMeta(conn)
   migrate(conn)
+  importCalibrateLog(conn)
 
   if (!alreadyImported(conn)) {
     try {
@@ -38,6 +41,25 @@ export function init(): void {
   if (pruneTimer) clearInterval(pruneTimer)
   pruneTimer = setInterval(runPrune, 60 * 60_000)
   pruneTimer.unref?.()
+}
+
+/** 旧版 calibrate.log 一次性搬进运行日志表，搬完改名留档 */
+function importCalibrateLog(conn: Db): void {
+  const file = join(dataDir(), 'calibrate.log')
+  if (!existsSync(file)) return
+  try {
+    const lines = readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean)
+    conn.tx(() => {
+      for (const line of lines) {
+        const match = /^(\S+)\s+(.*)$/.exec(line)
+        const ts = match ? Date.parse(match[1] as string) : Number.NaN
+        insertAppLog(conn, randomUUID(), Number.isNaN(ts) ? Date.now() : ts, 'info', 'calibrate', match ? (match[2] as string) : line)
+      }
+    })
+    renameSync(file, `${file}.imported`)
+  } catch (err) {
+    console.error('[db] calibrate.log 迁移失败', err)
+  }
 }
 
 /** 每小时看一次，只在 04 点之后跑一次当天清理 */

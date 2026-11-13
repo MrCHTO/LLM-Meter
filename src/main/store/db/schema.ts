@@ -75,6 +75,17 @@ const MIGRATIONS: string[] = [
   alter table requests add column price_out real;
   alter table requests add column price_cache_read real;
   alter table requests add column price_cache_write real;
+  `,
+  // v3：运行日志（启动、代理、探针、校准、设置等）统一落库，供日志页筛选
+  `
+  create table app_logs (
+    id text primary key,
+    ts integer not null,
+    level text not null,
+    scope text not null,
+    message text not null
+  );
+  create index idx_app_logs_ts on app_logs (ts);
   `
 ]
 

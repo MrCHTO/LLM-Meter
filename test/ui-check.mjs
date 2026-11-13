@@ -233,7 +233,11 @@ try {
 
   check('主窗标题带版本', /^LLM Meter \d+\.\d+\.\d+$/.test(await s.eval('document.title')), await s.eval('document.title'))
   check('顶栏显示版本号', /v\d+\.\d+\.\d+/.test(await s.eval("document.querySelector('.brand')?.innerText ?? ''")))
-  check('表头四页签齐全', (await s.eval("document.querySelectorAll('.tab').length")) === 4)
+  check(
+    '表头五页签齐全',
+    (await s.eval("[...document.querySelectorAll('.topbar .tab')].map((t) => t.innerText).join(',')")) ===
+      '仪表盘,分析,模型与供应商,日志,设置'
+  )
   check('汇总条已移除', (await s.eval("document.querySelectorAll('.strip').length")) === 0)
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
   check('两块曲线图', (await s.eval("document.querySelectorAll('.chart-card').length")) === 2)
@@ -249,7 +253,7 @@ try {
     !/\.\d/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''"))
   )
   check('曲线图下带峰值', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
-  check('表头是十一列', (await s.eval("document.querySelectorAll('thead th').length")) === 11)
+  check('表头是十列', (await s.eval("document.querySelectorAll('thead th').length")) === 10)
   const headText = await s.eval("[...document.querySelectorAll('thead th')].map((n) => n.innerText).join('|')")
   check(
     'TTFT 拆为三个分位列',
@@ -257,8 +261,10 @@ try {
   )
   check('速率列叫 tok/s', headText.includes('|tok/s|'))
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
+  check('仪表盘去掉上游协议列', !headText.includes('上游协议'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
-  check('上游地址与协议列有值', (await s.eval("document.querySelector('td.c-url')?.innerText ?? ''")).includes('10.130.6.32'))
+  check('供应商列只显示名字', (await s.eval("document.querySelector('td.c-url')?.innerText ?? ''")).length > 0)
+  check('模型列只有别名一行', (await s.eval("document.querySelector('td.c-model')?.querySelectorAll('small').length")) === 0)
   check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark path.spark-line').length")) > 0)
   check('金额用人民币', /¥/.test(await s.eval("document.querySelector('td.c-cost')?.innerText ?? ''")))
   check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('td.c-hit')?.innerText ?? ''")))
@@ -292,8 +298,51 @@ try {
   )
   check(
     '探活点在最前面',
-    (await s.eval("document.querySelector('tbody tr .probe-dot')?.parentElement?.firstElementChild?.className ?? ''")) === 'probe-dot'
+    (await s.eval("document.querySelector('tbody tr .row-name')?.firstElementChild?.className ?? ''")) === 'probe-dot'
   )
+  check('模型表别名与模型分两行', (await s.eval("document.querySelectorAll('tbody tr td .cell-model b').length")) > 0 &&
+    (await s.eval("document.querySelectorAll('tbody tr td .cell-model small').length")) > 0)
+  check(
+    '模型名一行是灰色小字',
+    (await s.eval("document.querySelector('tbody .cell-model small')?.className")) === 'mono' &&
+      (await s.eval("getComputedStyle(document.querySelector('tbody .cell-model small')).color")) === 'rgb(140, 150, 163)'
+  )
+  const modelHeads = await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")
+  check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|输入价格|输出价格|缓存读取|缓存写入|悬浮窗|自动探针'))
+  check('模型表没有状态列', !modelHeads.includes('状态'))
+  // 右键菜单：关闭该行后整行变灰，再开启恢复
+  await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
+  await sleep(200)
+  const menuItems = await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")
+  check('右键菜单有开启状态项与编辑删除', /^(开启|关闭),编辑,删除$/.test(menuItems), menuItems)
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '关闭' || b.innerText === '开启')?.click()")
+  await sleep(900)
+  check('关闭后整行变灰', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === true)
+  await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
+  await sleep(200)
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '开启')?.click()")
+  await sleep(900)
+  check('重新开启后恢复', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === false)
+  // 拖动排序：把第一行拖到第二行位置
+  const aliasBefore = await s.eval("[...document.querySelectorAll('.tbl-models tbody .cell-model b')].map((b) => b.innerText).join(',')")
+  await s.eval("window.__dt = new DataTransfer(); (() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt })); return true })()")
+  await sleep(100)
+  check('拖动开始有拖拽样式', (await s.eval("document.querySelectorAll('.tbl-models tbody tr.dragging').length")) === 1)
+  check('dataTransfer 带上模型 id', (await s.eval("window.__dt.getData('text/plain')")) === 'm1')
+  await s.eval("window.__ev = []; document.addEventListener('dragstart', (e) => window.__ev.push('start:' + e.target.tagName), true); document.addEventListener('dragover', (e) => window.__ev.push('over:' + e.target.tagName), true); document.addEventListener('drop', (e) => window.__ev.push('drop:' + e.target.tagName), true)")
+  await s.eval("(() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[1].dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer: window.__dt })); rows[1].dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: window.__dt })); return true })()")
+  await sleep(900)
+  check('drop 事件到达行', (await s.eval("window.__ev.join(',')")).includes('drop:TR'), await s.eval("window.__ev.join(',')"))
+  const aliasAfter = await s.eval("[...document.querySelectorAll('.tbl-models tbody .cell-model b')].map((b) => b.innerText).join(',')")
+  const aliasList = aliasBefore.split(',')
+  const aliasExpected = [aliasList[1], aliasList[0], ...aliasList.slice(2)].join(',')
+  check('拖动后顺序交换', aliasAfter === aliasExpected, `${aliasBefore} -> ${aliasAfter}`)
+  // 再拖回来，后续用例仍按原顺序假设
+  await s.eval("window.__dt2 = new DataTransfer(); (() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt2 })); return true })()")
+  await sleep(100)
+  await s.eval("(() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[1].dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: window.__dt2 })); return true })()")
+  await sleep(900)
+  check('拖回原顺序', (await s.eval("[...document.querySelectorAll('.tbl-models tbody .cell-model b')].map((b) => b.innerText).join(',')")) === aliasBefore)
   check('模型表没有日预算列', !(await s.eval("document.querySelector('thead')?.innerText ?? ''")).includes('日预算'))
   check('供应商显示掩码 Key', /••••/.test(await s.eval("document.body.innerText")))
   check('文案已改为 OpenAI', !(await s.eval('document.body.innerText')).includes('OpenAI 兼容'))
@@ -304,16 +353,16 @@ try {
       (await s.eval("document.querySelectorAll('.pick.btn, .state .pill').length")) === 0
   )
   const aligns = await s.eval(
-    "[...document.querySelectorAll('.tbl-left thead th')].filter((th) => ['悬浮窗', '状态'].includes(th.innerText)).map((th) => getComputedStyle(th).textAlign).join(',')"
+    "[...document.querySelectorAll('.tbl-models thead th')].filter((th) => ['悬浮窗', '自动探针'].includes(th.innerText)).map((th) => getComputedStyle(th).textAlign).join(',')"
   )
-  check('悬浮窗与状态列居中', aligns.split(',').slice(-2).join(',') === 'center,center', aligns)
+  check('悬浮窗与自动探针列居中', aligns === 'center,center', aligns)
 
   // 状态一致：点另一行「选中」，胶囊立刻跟上；随后切回 m1 保持后续断言的环境
   const ovSync = await session(await waitTarget('overlay.html'))
   await ovSync.send('Runtime.enable')
   // 已选行按钮是「● 已选」，未选是「○ 选中」，都含「选」
   const modelRows = "[...document.querySelectorAll('tbody tr')].filter((tr) => [...tr.querySelectorAll('button')].some((b) => b.innerText.includes('选')))"
-  const aliases = await s.eval(`${modelRows}.map((tr) => tr.querySelector('td')?.innerText.trim() ?? '')`)
+  const aliases = await s.eval(`${modelRows}.map((tr) => tr.querySelector('td b')?.innerText.trim() ?? '')`)
   const pickRow = async (idx) =>
     s.eval(
       `(() => { const rows = ${modelRows}; const b = rows[${idx}] && [...rows[${idx}].querySelectorAll('button')].find((x) => x.innerText.includes('选')); b && b.click(); return !!b })()`
@@ -358,7 +407,7 @@ try {
   await s.eval(
     "(() => { const sel = [...document.querySelectorAll('.card select')][0]; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(sel, '24h'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()"
   )
-  await sleep(900)
+  await sleep(1600)
   const svgW = await s.eval("document.querySelector('.series-svg')?.getBoundingClientRect().width ?? 0")
   const hoverAt = async (px) => {
     await s.eval(
@@ -393,7 +442,7 @@ try {
   check('自动刷新时查询按钮不闪', !flicker)
   await s.shot('analysis.png')
 
-  await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")
+  await s.eval("document.querySelector('.tab:nth-child(5)')?.click()")
   for (let i = 0; i < 20; i++) {
     if (await s.eval("!!document.querySelector('.settings-nav')")) break
     await sleep(300)
@@ -465,11 +514,13 @@ try {
     '自动探针间隔是数字输入',
     (await s.eval("[...document.querySelectorAll('.field')].filter((f) => f.innerText.includes('自动探针间隔')).length")) === 1
   )
+  check('设置页不再显示当前汇率', !(await s.eval("document.body.innerText")).includes('当前汇率'))
+  check('设置页不再显示上次校准', !(await s.eval("document.body.innerText")).includes('上次校准'))
+  check('设置页没有立即校准按钮', !(await s.eval("document.body.innerText")).includes('立即校准'))
   check(
-    '汇率只展示不可改',
-    !(await s.eval("[...document.querySelectorAll('.field')].some((f) => f.innerText.includes('汇率') && f.querySelector('input'))"))
+    '保留自动校准开关',
+    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('自动校准'))")
   )
-  check('有立即校准入口', (await s.eval("document.body.innerText")).includes('立即校准'))
 
   await openGroup('数据')
   check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
@@ -525,13 +576,54 @@ try {
   )
   await s.shot('probe.png')
 
+  // 点行直接跳日志页并按该模型过滤
+  const clickedAlias = await s.eval("document.querySelector('tbody tr.clickable td.c-model')?.innerText ?? ''")
   await s.eval("document.querySelector('tbody tr.clickable').click()")
-  for (let i = 0; i < 20; i++) {
-    if ((await s.eval("document.querySelectorAll('.detail table tbody tr').length")) > 0) break
-    await sleep(300)
-  }
-  check('点行展开明细', (await s.eval("document.querySelectorAll('.detail table tbody tr').length")) > 0)
-  await s.shot('detail.png')
+  await sleep(900)
+  check('点行跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(4)')?.getAttribute('aria-selected')")) === 'true')
+  const logModel = await s.eval("[...document.querySelectorAll('.log-filters select')].find((x) => x.options[0]?.value === '')?.value ?? ''")
+  check('日志页按所点模型过滤', logModel !== '', clickedAlias)
+  check(
+    '请求日志有行且带来源列',
+    (await s.eval("document.querySelectorAll('.tbl-log tbody tr').length")) > 0 &&
+      (await s.eval("document.querySelector('.tbl-log thead')?.innerText ?? ''")).includes('来源')
+  )
+  // 关键字过滤：填一个不可能命中的词
+  await s.eval(`(() => {
+    const input = document.querySelector('.log-filters input[type="text"]')
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+    setter.call(input, 'zzz-not-exist')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    ;[...document.querySelectorAll('.log-filters button')].find((b) => b.innerText === '查询')?.click()
+    return true
+  })()`)
+  await sleep(700)
+  check('关键字过滤生效', (await s.eval("document.querySelector('.tbl-log tbody tr') ? 0 : 1")) === 1)
+  // 来源筛选为探针
+  await s.eval(`(() => {
+    const input = document.querySelector('.log-filters input[type="text"]')
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+    setter.call(input, '')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    ;[...document.querySelectorAll('.log-filters button')].find((b) => b.innerText === '查询')?.click()
+    const sel = [...document.querySelectorAll('.log-filters select')].find((x) => [...x.options].some((o) => o.value === 'probe'))
+    sel.value = 'probe'
+    sel.dispatchEvent(new Event('change', { bubbles: true }))
+    return true
+  })()`)
+  await sleep(700)
+  check(
+    '来源筛选只剩探针',
+    await s.eval("document.querySelector('.tbl-log tbody tr') ? [...document.querySelectorAll('.tbl-log tbody tr')].every((tr) => tr.innerText.includes('探针')) : true")
+  )
+  // 运行日志页有启动记录，且可筛选级别
+  await s.eval("document.querySelector('.card .tab:nth-child(2)')?.click()")
+  await sleep(800)
+  check('运行日志有内容', (await s.eval("document.querySelectorAll('.tbl-log tbody tr').length")) > 0)
+  check('运行日志有启动范围', (await s.eval("document.querySelector('.tbl-log')?.innerText ?? ''")).includes('startup'))
+  check('运行日志可筛选级别', (await s.eval("[...document.querySelectorAll('.log-filters select')].some((x) => [...x.options].some((o) => o.value === 'warn'))")) === true)
+  check('有立即校准入口', (await s.eval("document.body.innerText")).includes('立即校准'))
+  await s.shot('logs.png')
 
   // 添加模型弹窗里按 id 查价
   await s.eval("document.querySelector('.tab:nth-child(3)').click()")
@@ -642,7 +734,7 @@ try {
   check('悬浮窗位置已持久化', cfgFile.settings.overlay.x > 0, `${cfgFile.settings.overlay.x},${cfgFile.settings.overlay.y}`)
   check('胶囊盯住的模型已持久化', cfgFile.settings.overlay.modelId === 'm1', String(cfgFile.settings.overlay.modelId))
 } catch (err) {
-  check('整体执行', false, err.message)
+  check('整体执行', false, `${err.message}\n${err.stack ?? ''}`)
   console.log(log.join('').slice(-2000))
 } finally {
   electron.kill()
