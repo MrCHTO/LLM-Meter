@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ConfigView, LiveSnapshot, ModelLive } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
+import { useColumnWidths } from '../columns'
 import { Sparkline } from './Sparkline'
 
 interface Props {
@@ -43,6 +44,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   const [probing, setProbing] = useState<Record<string, boolean>>({})
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+  const cols = useColumnWidths('dashboard', [200, 120, 95, 70, 70, 70, 100, 80, 80, 90, 34])
 
   useEffect(() => {
     if (!menu) return
@@ -125,19 +127,21 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
       </div>
 
       <div className="card">
-        <table className="tbl tbl-flush">
+        <table className="tbl tbl-flush col-fixed">
+          {cols.colgroup}
           <thead>
             <tr>
-              <th className="c-model">模型</th>
-              <th className="c-url">供应商</th>
-              <th className="c-rate">tok/s</th>
-              <th className="c-ttft">TTFT P50</th>
-              <th className="c-ttft">TTFT P95</th>
-              <th className="c-ttft">TTFT P99</th>
-              <th className="c-hit">缓存命中率</th>
-              <th className="c-tok">输入</th>
-              <th className="c-tok">输出</th>
-              <th className="c-cost">费用</th>
+              <th className="c-model">模型{cols.resizer(0)}</th>
+              <th className="c-url">供应商{cols.resizer(1)}</th>
+              <th className="c-rate">tok/s{cols.resizer(2)}</th>
+              <th className="c-ttft">TTFT P50{cols.resizer(3)}</th>
+              <th className="c-ttft">TTFT P95{cols.resizer(4)}</th>
+              <th className="c-ttft">TTFT P99{cols.resizer(5)}</th>
+              <th className="c-hit">缓存命中率{cols.resizer(6)}</th>
+              <th className="c-tok">输入{cols.resizer(7)}</th>
+              <th className="c-tok">输出{cols.resizer(8)}</th>
+              <th className="c-cost">费用{cols.resizer(9)}</th>
+              <th className="c-drag">{cols.resizer(10)}</th>
             </tr>
           </thead>
           <tbody>
@@ -146,7 +150,6 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               return (
                 <tr
                     key={m.modelId}
-                    draggable
                     className={[
                       'clickable',
                       running && 'probing',
@@ -193,12 +196,27 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     <td className="c-tok mono">{fmtTokens(m.today.input)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
                     <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>
+                    <td className="c-drag">
+                      <span
+                        className="grip"
+                        draggable
+                        title="拖动排序"
+                        onClick={(e) => e.stopPropagation()}
+                        onDragStart={(e) => {
+                          e.dataTransfer?.setData('text/plain', m.modelId)
+                          setDragId(m.modelId)
+                        }}
+                        onDragEnd={() => setDragId(null)}
+                      >
+                        ⋮⋮
+                      </span>
+                    </td>
                   </tr>
               )
             })}
             {models.length === 0 ? (
               <tr>
-                      <td colSpan={10} className="empty">
+                      <td colSpan={11} className="empty">
                   还没有启用的模型
                 </td>
               </tr>

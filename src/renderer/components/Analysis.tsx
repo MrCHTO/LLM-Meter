@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsRow, StatsSeries } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtTokens } from '../format'
+import { useColumnWidths } from '../columns'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
 
 interface Props {
@@ -43,6 +44,7 @@ function granularityOf(span: number): StatsGranularity {
 }
 
 export function Analysis({ config, notify }: Props): JSX.Element {
+  const cols = useColumnWidths('analysis-detail', [160, 70, 60, 80, 80, 90, 80, 80, 80, 80, 70, 80])
   const [preset, setPreset] = useState<Preset>('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -218,21 +220,22 @@ export function Analysis({ config, notify }: Props): JSX.Element {
 
       <div className="card">
         <h2>分组明细</h2>
-        <table className="tbl tbl-detail">
+        <table className="tbl tbl-detail col-fixed">
+          {cols.colgroup}
           <thead>
             <tr>
-              <th className="c-model">{groupBy === 'model' ? '模型' : '供应商'}</th>
-              <th>请求</th>
-              <th>错误</th>
-              <th>输入</th>
-              <th>输出</th>
-              <th>总 token</th>
-              <th>缓存读</th>
-              <th>TTFT P50</th>
-              <th>TTFT P95</th>
-              <th>TTFT P99</th>
-              <th>tok/s</th>
-              <th>成本</th>
+              <th className="c-model">{groupBy === 'model' ? '模型' : '供应商'}{cols.resizer(0)}</th>
+              <th>请求{cols.resizer(1)}</th>
+              <th>错误{cols.resizer(2)}</th>
+              <th>输入{cols.resizer(3)}</th>
+              <th>输出{cols.resizer(4)}</th>
+              <th>总 token{cols.resizer(5)}</th>
+              <th>缓存读{cols.resizer(6)}</th>
+              <th>TTFT P50{cols.resizer(7)}</th>
+              <th>TTFT P95{cols.resizer(8)}</th>
+              <th>TTFT P99{cols.resizer(9)}</th>
+              <th>tok/s{cols.resizer(10)}</th>
+              <th>成本{cols.resizer(11)}</th>
             </tr>
           </thead>
           <tbody>

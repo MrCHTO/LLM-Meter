@@ -333,6 +333,45 @@ table {
   border-collapse: collapse;
 }
 
+table.col-fixed {
+  table-layout: fixed;
+}
+
+table.col-fixed thead th {
+  position: relative;
+}
+
+.col-resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.col-resize::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  right: 3px;
+  width: 2px;
+  height: 60%;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.col-resize:hover::after,
+body.col-resizing .col-resize::after {
+  background: var(--accent);
+}
+
+body.col-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 thead th {
   text-align: right;
   font-size: 11px;
@@ -685,19 +724,12 @@ body.overlay-body {
 
 .tbl .c-url {
   width: 18%;
-  text-align: left;
-  white-space: normal;
-}
-
-.tbl .c-format {
-  width: 10%;
-  text-align: left;
   white-space: normal;
 }
 
 .tbl th.c-url,
-.tbl th.c-format {
-  text-align: left;
+.tbl td.c-url {
+  text-align: center;
 }
 
 .tbl .c-rate {
@@ -865,6 +897,28 @@ tr[draggable='true'] {
   cursor: grab;
 }
 
+.c-drag {
+  text-align: center;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.grip {
+  display: inline-block;
+  color: var(--dim);
+  cursor: grab;
+  letter-spacing: -1px;
+  user-select: none;
+}
+
+.grip:active {
+  cursor: grabbing;
+}
+
+tr.dragging .grip {
+  color: var(--accent);
+}
+
 .ellipsis {
   display: block;
   overflow: hidden;
@@ -991,6 +1045,17 @@ tr[draggable='true'] {
 .tbl-log th {
   padding-left: 6px;
   padding-right: 6px;
+}
+
+/* 请求日志：连同表头、备注全部居中 */
+table.tbl-request th,
+table.tbl-request td,
+.tbl-request td.log-note {
+  text-align: center;
+}
+
+.tbl-request {
+  table-layout: fixed;
 }
 
 .tbl-log .log-note {

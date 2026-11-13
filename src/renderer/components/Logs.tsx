@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppLog, ConfigView, LogPage, LogQuery, RequestLog } from '../../shared/types'
 import { fmtClock, fmtMoney, fmtMs, fmtTokens } from '../format'
+import { useColumnWidths } from '../columns'
 
 interface Props {
   config: ConfigView
@@ -51,6 +52,8 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
   const [data, setData] = useState<LogPage<RequestLog> | LogPage<AppLog> | null>(null)
   const [loading, setLoading] = useState(false)
   const seq = useRef(0)
+  const requestCols = useColumnWidths('log-requests', [90, 120, 110, 60, 60, 70, 70, 70, 70, 80, 200])
+  const appCols = useColumnWidths('log-apps', [90, 60, 90, 600])
 
   useEffect(() => {
     setModelId(initialModelId ?? '')
@@ -280,20 +283,21 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
         ) : data.rows.length === 0 ? (
           <div className="empty">没有符合条件的日志</div>
         ) : kind === 'request' ? (
-          <table className="tbl tbl-flush tbl-log">
+          <table className="tbl tbl-flush tbl-log tbl-request col-fixed">
+            {requestCols.colgroup}
             <thead>
               <tr>
-                <th>时间</th>
-                <th>模型</th>
-                <th>供应商</th>
-                <th>来源</th>
-                <th>状态</th>
-                <th>输入</th>
-                <th>输出</th>
-                <th>TTFT</th>
-                <th>tok/s</th>
-                <th>成本</th>
-                <th>备注</th>
+                <th>时间{requestCols.resizer(0)}</th>
+                <th>模型{requestCols.resizer(1)}</th>
+                <th>供应商{requestCols.resizer(2)}</th>
+                <th>来源{requestCols.resizer(3)}</th>
+                <th>状态{requestCols.resizer(4)}</th>
+                <th>输入{requestCols.resizer(5)}</th>
+                <th>输出{requestCols.resizer(6)}</th>
+                <th>TTFT{requestCols.resizer(7)}</th>
+                <th>tok/s{requestCols.resizer(8)}</th>
+                <th>成本{requestCols.resizer(9)}</th>
+                <th>备注{requestCols.resizer(10)}</th>
               </tr>
             </thead>
             <tbody>
@@ -319,13 +323,14 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
             </tbody>
           </table>
         ) : (
-          <table className="tbl tbl-flush tbl-log">
+          <table className="tbl tbl-flush tbl-log col-fixed">
+            {appCols.colgroup}
             <thead>
               <tr>
-                <th>时间</th>
-                <th>级别</th>
-                <th>范围</th>
-                <th>内容</th>
+                <th>时间{appCols.resizer(0)}</th>
+                <th>级别{appCols.resizer(1)}</th>
+                <th>范围{appCols.resizer(2)}</th>
+                <th>内容{appCols.resizer(3)}</th>
               </tr>
             </thead>
             <tbody>

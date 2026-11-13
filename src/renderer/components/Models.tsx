@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ApiFormat, ConfigView, LiveSnapshot, ModelCfg, ProviderView } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney } from '../format'
+import { useColumnWidths } from '../columns'
 
 interface Props {
   config: ConfigView
@@ -55,6 +56,8 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   const [lookedUpFor, setLookedUpFor] = useState('')
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+  const cols = useColumnWidths('models', [210, 130, 85, 85, 85, 85, 80, 88, 110, 34])
+  const providerCols = useColumnWidths('providers', [150, 220, 110, 140, 80, 150])
 
   useEffect(() => {
     if (!menu) return
@@ -254,15 +257,16 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
         {providers.length === 0 ? (
           <div className="empty">还没有供应商</div>
         ) : (
-          <table className="tbl-left">
+          <table className="tbl-left col-fixed">
+            {providerCols.colgroup}
             <thead>
               <tr>
-                <th>名称</th>
-                <th>Base URL</th>
-                <th className="c-left">协议</th>
-                <th className="c-left">Key</th>
-                <th className="c-center">状态</th>
-                <th />
+                <th>名称{providerCols.resizer(0)}</th>
+                <th>Base URL{providerCols.resizer(1)}</th>
+                <th className="c-left">协议{providerCols.resizer(2)}</th>
+                <th className="c-left">Key{providerCols.resizer(3)}</th>
+                <th className="c-center">状态{providerCols.resizer(4)}</th>
+                <th>{providerCols.resizer(5)}</th>
               </tr>
             </thead>
             <tbody>
@@ -340,18 +344,20 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
         {config.models.length === 0 ? (
           <div className="empty">{providers.length === 0 ? '先添加供应商' : '还没有模型'}</div>
         ) : (
-          <table className="tbl-left tbl-models">
+          <table className="tbl-left tbl-models col-fixed">
+            {cols.colgroup}
             <thead>
               <tr>
-                <th>别名/模型</th>
-                <th>供应商</th>
-                <th title="每百万 token 单价">输入价格</th>
-                <th title="每百万 token 单价">输出价格</th>
-                <th title="每百万 token 单价">缓存读取</th>
-                <th title="每百万 token 单价">缓存写入</th>
-                <th className="c-center">悬浮窗</th>
-                <th className="c-center">自动探针</th>
-                <th />
+                <th>别名/模型{cols.resizer(0)}</th>
+                <th>供应商{cols.resizer(1)}</th>
+                <th title="每百万 token 单价">输入价格{cols.resizer(2)}</th>
+                <th title="每百万 token 单价">输出价格{cols.resizer(3)}</th>
+                <th title="每百万 token 单价">缓存读取{cols.resizer(4)}</th>
+                <th title="每百万 token 单价">缓存写入{cols.resizer(5)}</th>
+                <th className="c-center">悬浮窗{cols.resizer(6)}</th>
+                <th className="c-center">自动探针{cols.resizer(7)}</th>
+                <th>{cols.resizer(8)}</th>
+                <th className="c-drag">{cols.resizer(9)}</th>
               </tr>
             </thead>
             <tbody>
@@ -366,7 +372,6 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                 return (
                   <tr
                     key={m.id}
-                    draggable
                     className={[
                       m.enabled ? '' : 'row-off',
                       m.autoProbe && (live?.probeFails ?? 0) >= 3 && 'bad-flash',
@@ -374,11 +379,6 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                     ]
                       .filter(Boolean)
                       .join(' ')}
-                    onDragStart={(e) => {
-                      e.dataTransfer?.setData('text/plain', m.id)
-                      setDragId(m.id)
-                    }}
-                    onDragEnd={() => setDragId(null)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       const sourceId = e.dataTransfer?.getData('text/plain') || dragId
@@ -442,6 +442,20 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                       <button className="btn sm" onClick={() => void remove(m)}>
                         删除
                       </button>
+                    </td>
+                    <td className="c-drag">
+                      <span
+                        className="grip"
+                        draggable
+                        title="拖动排序"
+                        onDragStart={(e) => {
+                          e.dataTransfer?.setData('text/plain', m.id)
+                          setDragId(m.id)
+                        }}
+                        onDragEnd={() => setDragId(null)}
+                      >
+                        ⋮⋮
+                      </span>
                     </td>
                   </tr>
                 )

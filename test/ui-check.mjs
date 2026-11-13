@@ -253,7 +253,7 @@ try {
     !/\.\d/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''"))
   )
   check('曲线图下带峰值', /峰值/.test(await s.eval("document.querySelector('.chart-foot')?.innerText ?? ''")))
-  check('表头是十列', (await s.eval("document.querySelectorAll('thead th').length")) === 10)
+  check('表头是十一列', (await s.eval("document.querySelectorAll('thead th').length")) === 11)
   const headText = await s.eval("[...document.querySelectorAll('thead th')].map((n) => n.innerText).join('|')")
   check(
     'TTFT 拆为三个分位列',
@@ -264,7 +264,39 @@ try {
   check('仪表盘去掉上游协议列', !headText.includes('上游协议'))
   check('模型行渲染出来', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) >= 1)
   check('供应商列只显示名字', (await s.eval("document.querySelector('td.c-url')?.innerText ?? ''")).length > 0)
+  check(
+    '供应商表头与值居中',
+    (await s.eval("getComputedStyle(document.querySelector('th.c-url')).textAlign")) === 'center' &&
+      (await s.eval("getComputedStyle(document.querySelector('td.c-url')).textAlign")) === 'center'
+  )
   check('模型列只有别名一行', (await s.eval("document.querySelector('td.c-model')?.querySelectorAll('small').length")) === 0)
+  check('行尾是专用拖拽列', (await s.eval("document.querySelector('thead th:last-child')?.className")) === 'c-drag')
+  check('整行不再 draggable', (await s.eval("document.querySelector('tbody tr.clickable')?.getAttribute('draggable')")) === null)
+  // 列宽拖动后重载仍保留
+  const widthBefore = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
+  await s.eval(`(() => {
+    const handle = document.querySelector('.col-resize')
+    const r = handle.getBoundingClientRect()
+    handle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: r.left }))
+    window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: r.left + 70 }))
+    window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    return true
+  })()`)
+  await sleep(300)
+  const widthAfter = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
+  check('拖动表头能调列宽', widthAfter > widthBefore + 40, `${widthBefore} -> ${widthAfter}`)
+  await s.eval('location.reload()')
+  for (let i = 0; i < 40; i++) {
+    try {
+      if (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) break
+    } catch {
+      /* 页面重载中 */
+    }
+    await sleep(300)
+  }
+  await sleep(500)
+  const widthRestored = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
+  check('列宽重载后保留', Math.abs(widthRestored - widthAfter) < 3, `${widthAfter} -> ${widthRestored}`)
   check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark path.spark-line').length")) > 0)
   check('金额用人民币', /¥/.test(await s.eval("document.querySelector('td.c-cost')?.innerText ?? ''")))
   check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('td.c-hit')?.innerText ?? ''")))
@@ -310,6 +342,8 @@ try {
   const modelHeads = await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")
   check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|输入价格|输出价格|缓存读取|缓存写入|悬浮窗|自动探针'))
   check('模型表没有状态列', !modelHeads.includes('状态'))
+  check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 10)
+  check('供应商表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.card:first-child thead .col-resize').length")) === 6)
   // 右键菜单：关闭该行后整行变灰，再开启恢复
   await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
   await sleep(200)
@@ -325,7 +359,7 @@ try {
   check('重新开启后恢复', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === false)
   // 拖动排序：把第一行拖到第二行位置
   const aliasBefore = await s.eval("[...document.querySelectorAll('.tbl-models tbody .cell-model b')].map((b) => b.innerText).join(',')")
-  await s.eval("window.__dt = new DataTransfer(); (() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt })); return true })()")
+  await s.eval("window.__dt = new DataTransfer(); (() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[0].querySelector('.grip').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt })); return true })()")
   await sleep(100)
   check('拖动开始有拖拽样式', (await s.eval("document.querySelectorAll('.tbl-models tbody tr.dragging').length")) === 1)
   check('dataTransfer 带上模型 id', (await s.eval("window.__dt.getData('text/plain')")) === 'm1')
@@ -338,7 +372,7 @@ try {
   const aliasExpected = [aliasList[1], aliasList[0], ...aliasList.slice(2)].join(',')
   check('拖动后顺序交换', aliasAfter === aliasExpected, `${aliasBefore} -> ${aliasAfter}`)
   // 再拖回来，后续用例仍按原顺序假设
-  await s.eval("window.__dt2 = new DataTransfer(); (() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[0].dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt2 })); return true })()")
+  await s.eval("window.__dt2 = new DataTransfer(); (() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[0].querySelector('.grip').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt2 })); return true })()")
   await sleep(100)
   await s.eval("(() => { const rows = document.querySelectorAll('.tbl-models tbody tr'); rows[1].dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: window.__dt2 })); return true })()")
   await sleep(900)
@@ -578,15 +612,22 @@ try {
 
   // 点行直接跳日志页并按该模型过滤
   const clickedAlias = await s.eval("document.querySelector('tbody tr.clickable td.c-model')?.innerText ?? ''")
-  await s.eval("document.querySelector('tbody tr.clickable').click()")
+  const preClick = await s.eval("document.querySelectorAll('tbody tr.clickable').length + '/' + document.querySelector('.content')?.innerText.slice(0, 120)")
+  check('测速后行仍在', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) > 0, preClick)
+  await s.eval("document.querySelector('tbody tr.clickable')?.click()")
   await sleep(900)
   check('点行跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(4)')?.getAttribute('aria-selected')")) === 'true')
   const logModel = await s.eval("[...document.querySelectorAll('.log-filters select')].find((x) => x.options[0]?.value === '')?.value ?? ''")
   check('日志页按所点模型过滤', logModel !== '', clickedAlias)
+  const requestRows = await s.eval("document.querySelectorAll('.tbl-log tbody tr').length")
+  const alignInfo = await s.eval("(() => { const th = [...document.querySelectorAll('.tbl-request thead th')].map((x) => getComputedStyle(x).textAlign).join(','); const td = [...document.querySelectorAll('.tbl-request tbody td')].map((x) => getComputedStyle(x).textAlign).join(','); return th + ' | ' + td })()")
   check(
-    '请求日志有行且带来源列',
-    (await s.eval("document.querySelectorAll('.tbl-log tbody tr').length")) > 0 &&
-      (await s.eval("document.querySelector('.tbl-log thead')?.innerText ?? ''")).includes('来源')
+    '请求日志有行且表头与值全部居中',
+    requestRows > 0 &&
+      (await s.eval("document.querySelector('.tbl-log thead')?.innerText ?? ''")).includes('来源') &&
+      (await s.eval("[...document.querySelectorAll('.tbl-request thead th')].every((th) => getComputedStyle(th).textAlign === 'center')")) &&
+      (await s.eval("[...document.querySelectorAll('.tbl-request tbody td')].every((td) => getComputedStyle(td).textAlign === 'center')")),
+    `${requestRows} 行 | ${alignInfo}`
   )
   // 关键字过滤：填一个不可能命中的词
   await s.eval(`(() => {
