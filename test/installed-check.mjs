@@ -120,7 +120,7 @@ try {
         if (msg.id === 6) resolve(String(msg.result?.result?.value ?? ''))
       }
     })
-    check('顶栏带版本号', /v\d+\.\d+\.\d+/.test(brand), brand)
+    check('窗口标题带版本号', /\d+\.\d+\.\d+/.test(brand), brand)
 
     // 去分析页看历史导入的数据
     const clickedAnalysis = await (async () => {
@@ -143,35 +143,29 @@ try {
       })
     })()
     console.log('analysis click:', clickedAnalysis)
-    await sleep(2500)
-    // 刚过零点时「今天」可能还没有流量，切到近 24 小时再看
-    ws.send(
-      JSON.stringify({
-        id: 7,
-        method: 'Runtime.evaluate',
-        params: {
-          expression:
-            "(() => { const sel = [...document.querySelectorAll('.card select')][0]; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(sel, '24h'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()"
-        }
-      })
-    )
-    await sleep(1800)
-    const bars = await (async () => {
-      ws.send(
-        JSON.stringify({
-          id: 5,
-          method: 'Runtime.evaluate',
-          params: { expression: "document.querySelectorAll('rect.series-bar').length", returnByValue: true }
-        })
-      )
-      return new Promise((resolve) => {
+    const evalNow = (expression) =>
+      new Promise((resolve) => {
+        ws.send(JSON.stringify({ id: 9, method: 'Runtime.evaluate', params: { expression, returnByValue: true } }))
         ws.onmessage = (e) => {
           const msg = JSON.parse(e.data)
-          if (msg.id === 5) resolve(msg.result?.result?.value ?? 0)
+          if (msg.id === 9) resolve(msg.result?.result?.value ?? 0)
         }
       })
-    })()
-    check('分析页画出柱状图', Number(bars) > 0, `bars=${bars}`)
+    for (let i = 0; i < 30; i++) {
+      if (await evalNow("document.querySelectorAll('.card select').length")) break
+      await sleep(300)
+    }
+    // 刚过零点时「今天」可能还没有流量，切到近 24 小时再看
+    await evalNow(
+      "(() => { const sel = [...document.querySelectorAll('.card select')][0]; if (!sel) return 0; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(sel, '24h'); sel.dispatchEvent(new Event('change', { bubbles: true })); return 1 })()"
+    )
+    let bars = 0
+    for (let i = 0; i < 24; i++) {
+      bars = Number(await evalNow("document.querySelectorAll('rect.series-bar').length"))
+      if (bars > 0) break
+      await sleep(500)
+    }
+    check('分析页画出柱状图', bars > 0, `bars=${bars}`)
     ws.send(JSON.stringify({ id: 3, method: 'Page.captureScreenshot', params: { format: 'png' } }))
     const shot2 = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('分析页截图超时')), 10_000)
