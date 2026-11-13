@@ -883,7 +883,12 @@ tr.open > td {
   display: inline-block;
   padding: 1px 6px;
   border-radius: 4px;
-  color: #fff;
+  color: var(--text);
+  background-image: repeating-linear-gradient(
+    45deg,
+    hsl(var(--mc) / 26%) 0 4px,
+    hsl(var(--mc) / 9%) 4px 8px
+  );
 }
 
 .row-name .probe-dot {
@@ -1055,6 +1060,7 @@ tr.dragging .grip {
   width: 9px;
   height: 9px;
   border-radius: 2px;
+  background: hsl(var(--mc));
 }
 
 .multi-svg {

@@ -256,7 +256,6 @@ try {
       (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) > 0
   )
   check('增量曲线下方没有峰值', (await s.eval("document.querySelectorAll('.chart-card:first-child .chart-foot').length")) === 0)
-  const legendFirst = await s.eval("getComputedStyle(document.querySelector('.multi-legend i')).backgroundColor")
   check(
     '图例只有颜色块且在曲线下方',
     (await s.eval("document.querySelector('.multi-legend span')?.innerText.trim()")) === '' &&
@@ -268,9 +267,10 @@ try {
   await sleep(150)
   check('图例不可点击', (await s.eval("document.querySelectorAll('.multi-legend button').length")) === 0)
   check(
-    '模型名底纹与图例同色',
-    (await s.eval("document.querySelector('td.c-model .model-name') ? getComputedStyle(document.querySelector('td.c-model .model-name')).backgroundColor : ''")) === legendFirst,
-    legendFirst
+    '模型名底纹为同色半透明斜纹',
+    (await s.eval("document.querySelector('td.c-model .model-name')?.style.getPropertyValue('--mc')")) ===
+      (await s.eval("document.querySelector('.multi-legend i')?.style.getPropertyValue('--mc')")) &&
+      /repeating-linear-gradient/.test(await s.eval("getComputedStyle(document.querySelector('td.c-model .model-name')).backgroundImage"))
   )
   // 仪表盘右键菜单的曲线开关
   await s.eval("(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); return true })()")

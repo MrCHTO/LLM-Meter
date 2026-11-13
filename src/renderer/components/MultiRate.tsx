@@ -1,19 +1,20 @@
+import type { CSSProperties } from 'react'
 import type { ModelLive } from '../../shared/types'
 
-const PALETTE = ['#1f6feb', '#0f9d63', '#c26b1b', '#8a4bd8', '#d34a7a', '#0f8fa3', '#7b8b3a', '#b0392f']
-
-export function colorOf(id: string): string {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0
-  return PALETTE[hash % PALETTE.length] as string
+/** 按顺序取色相：黄金角错开，低饱和；同表内相邻颜色区分明显 */
+export function rateColor(index: number): string {
+  const hue = Math.round((index * 137.5) % 360)
+  return `${hue} 52% 42%`
 }
 
 interface Props {
   models: ModelLive[]
+  /** 模型 id → HSL 三段值（颜色在完整模型列表里固定，不受隐藏影响） */
+  colors: Record<string, string>
 }
 
 /** 多模型增量速率叠加图：同轴、各自配色，折线 + 半透明面积；图例只做标注 */
-export function MultiRate({ models }: Props): JSX.Element {
+export function MultiRate({ models, colors }: Props): JSX.Element {
   const width = 60
   const height = 20
   const peak = Math.max(1, ...models.flatMap((m) => m.deltaBuckets))
@@ -22,7 +23,7 @@ export function MultiRate({ models }: Props): JSX.Element {
     <div className="multi-rate">
       <svg className="multi-svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
         {models.map((m) => {
-          const color = colorOf(m.modelId)
+          const color = `hsl(${colors[m.modelId] ?? '210 52% 42%'})`
           const points = m.deltaBuckets.map((v, i) => `${i},${height - (v / peak) * (height - 2) - 1}`)
           return (
             <g key={m.modelId}>
@@ -39,7 +40,7 @@ export function MultiRate({ models }: Props): JSX.Element {
       <div className="multi-legend">
         {models.map((m) => (
           <span key={m.modelId} title={m.alias}>
-            <i style={{ background: colorOf(m.modelId) }} />
+            <i style={{ '--mc': colors[m.modelId] } as CSSProperties} />
           </span>
         ))}
       </div>

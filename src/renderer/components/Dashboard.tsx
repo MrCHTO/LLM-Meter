@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import type { ConfigView, LiveSnapshot, ModelLive } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
 import { useColumnWidths } from '../columns'
-import { MultiRate, colorOf } from './MultiRate'
+import { MultiRate, rateColor } from './MultiRate'
 import { Sparkline } from './Sparkline'
 
 interface Props {
@@ -85,6 +85,12 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   )
 
   const models = snapshot?.models ?? []
+  // 颜色按完整列表的位置分配，隐藏某条曲线不会让其他模型换色
+  const colors: Record<string, string> = {}
+  models.forEach((m, i) => {
+    colors[m.modelId] = rateColor(i)
+  })
+  const rateModels = models.filter((m) => m.showRate !== false)
   // 请求速率取最近 10 秒均值，避免空闲时恒为 0
   const tailReq = (snapshot?.totals.reqBuckets ?? []).slice(-10)
   const reqPerSec = tailReq.reduce((a, b) => a + b, 0) / 10
@@ -128,7 +134,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             <span className="chart-title">增量速率 tok/s</span>
           </div>
           <div className="chart-body">
-            <MultiRate models={models.filter((m) => m.showRate !== false)} />
+            <MultiRate models={rateModels} colors={colors} />
           </div>
         </div>
         <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} rate="次/s" />
@@ -183,7 +189,10 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     }}
                   >
                     <td className="c-model">
-                      <span className="model-name" style={{ background: colorOf(m.modelId) }}>
+                      <span
+                        className="model-name"
+                        style={{ '--mc': colors[m.modelId] } as CSSProperties}
+                      >
                         {m.alias}
                       </span>
                     </td>
