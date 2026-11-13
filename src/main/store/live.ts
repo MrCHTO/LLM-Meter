@@ -8,6 +8,7 @@ import type {
 } from '../../shared/types'
 import * as cfg from './config'
 import * as db from './db'
+import { tps } from '../metrics/cost'
 import * as repo from './db/repo'
 import { dayKey } from './paths'
 
@@ -27,6 +28,8 @@ interface ModelState {
   lastError: string | null
   lastErrorAt: number | null
   lastTtftMs: number | null
+  lastTps: number | null
+  lastTpsAt: number | null
   /** 今天的 TTFT 样本，重启时从明细回灌 */
   ttftSamples: number[]
   probing: boolean
@@ -72,6 +75,8 @@ function ensure(modelId: string): ModelState {
     lastError: null,
     lastErrorAt: null,
     lastTtftMs: null,
+    lastTps: null,
+    lastTpsAt: null,
     ttftSamples: [],
     probing: false,
     probeFails: 0,
@@ -153,7 +158,13 @@ export function record(ev: RequestEvent): void {
     s.today.cost += ev.cost
     if (ev.ttftMs !== null) {
       s.lastTtftMs = ev.ttftMs
-      pushTtftSample(s, ev.ttftMs)
+      if (ev.source === 'proxy') pushTtftSample(s, ev.ttftMs)
+    }
+    // 最近一次请求的生成速率（tok/s），给胶囊与表格的「上一条」口径用
+    const gen = tps(ev.outputTokens, ev.durationMs, ev.ttftMs)
+    if (gen !== null) {
+      s.lastTps = gen
+      s.lastTpsAt = ev.ts
     }
     s.buckets[idx] = (s.buckets[idx] ?? 0) + ev.outputTokens
   } else {
@@ -268,6 +279,8 @@ export function snapshot(
       lastError: s.lastError,
       lastErrorAt: s.lastErrorAt,
       lastTtftMs: s.lastTtftMs,
+      lastTps: s.lastTps,
+      lastTpsAt: s.lastTpsAt,
       ttftP50: ttftPct(s.ttftSamples, 50),
       ttftP95: ttftPct(s.ttftSamples, 95),
       ttftP99: ttftPct(s.ttftSamples, 99),

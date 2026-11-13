@@ -661,6 +661,10 @@ body.overlay-body {
   font-weight: 600;
 }
 
+.capsule-metric.last {
+  color: #93a1b1;
+}
+
 .capsule-empty {
   color: #93a1b1;
 }

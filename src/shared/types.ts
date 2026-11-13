@@ -167,6 +167,9 @@ export interface ModelLive {
   lastError: string | null
   lastErrorAt: number | null
   lastTtftMs: number | null
+  /** 最近一次成功请求的生成速率（tok/s）与时间 */
+  lastTps: number | null
+  lastTpsAt: number | null
   /** 今天的 TTFT 分位数（毫秒），无样本为 null */
   ttftP50: number | null
   ttftP95: number | null

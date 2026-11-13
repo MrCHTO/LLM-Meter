@@ -212,7 +212,7 @@ export function Dashboard({ snapshot, config, notify, onChanged }: Props): JSX.E
                     <td className="c-format">{FORMAT_LABEL[m.format]}</td>
                     <td className="c-rate">
                       <div className="rate">
-                        <span className="mono">{Math.round(m.tps)}</span>
+                        <span className="mono">{m.lastTps === null ? '—' : Math.round(m.lastTps)}</span>
                         <Sparkline buckets={m.buckets} tail={18} />
                       </div>
                     </td>

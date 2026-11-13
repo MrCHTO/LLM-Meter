@@ -179,6 +179,11 @@ describe('查询', () => {
     expect(rows[0]?.ttft_p50).toBe(500)
     expect(rows[0]?.ttft_p95).toBe(1000)
     expect(rows[0]?.ttft_p99).toBe(1000)
+
+    // 探针样本不进分位
+    repo.recordRequest(conn, ev({ ts: now + 20, ttftMs: 9999, source: 'probe' }), extra)
+    const again = repo.totals(conn, { from: now - 1000, to: now + 1000, groupBy: 'model', source: 'all' })
+    expect(again[0]?.ttft_p99).toBe(1000)
   })
 })
 

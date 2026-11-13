@@ -115,7 +115,7 @@ export function dayTotals(db: Db, modelId: string, day: string): TotalsRow {
 export function ttftSamplesSince(db: Db, modelId: string, sinceTs: number): number[] {
   return db
     .all<{ v: number }>(
-      'select ttft_ms as v from requests where model_id = ? and ok = 1 and ttft_ms is not null and ts >= ? order by ts',
+      "select ttft_ms as v from requests where model_id = ? and ok = 1 and source = 'proxy' and ttft_ms is not null and ts >= ? order by ts",
       modelId,
       sinceTs
     )
@@ -361,10 +361,10 @@ export function totals(
     ...params
   )
 
-  // 分位数要逐样本，单独拉一列 ttft 再在内存里按组排序
+  // 分位数要逐样本，单独拉一列 ttft 再在内存里按组排序；只算代理流量，探针不进分位
   const ttftRows = db.all<{ k: string; v: number }>(
     `select ${keyCol} as k, ttft_ms as v from requests
-     where ${where} and ok = 1 and ttft_ms is not null`,
+     where ${where} and ok = 1 and source = 'proxy' and ttft_ms is not null`,
     ...params
   )
   const byKey = new Map<string, number[]>()

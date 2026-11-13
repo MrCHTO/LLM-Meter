@@ -518,6 +518,11 @@ try {
     relayUp ? toast || '(没有 toast)' : '跳过：测试中继不可达'
   )
   check('测速不再报缓存结论', !/缓存/.test(toast), toast)
+  check(
+    '表格 tok/s 列显示上一条速率',
+    relayUp ? /^\d+$/.test(await s.eval("document.querySelector('td.c-rate .mono')?.innerText ?? ''")) : true,
+    relayUp ? '' : '跳过：测试中继不可达'
+  )
   await s.shot('probe.png')
 
   await s.eval("document.querySelector('tbody tr.clickable').click()")
@@ -570,10 +575,9 @@ try {
   check('悬浮窗是胶囊且只有一个', (await o.eval("document.querySelectorAll('.capsule').length")) === 1)
   check('胶囊显示供应商与模型', (await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('·'))
   check(
-    '胶囊只有 tok/s 与费用',
-    (await o.eval("document.querySelectorAll('.capsule-metric').length")) === 1 &&
-      (await o.eval("document.querySelector('.capsule-metric')?.innerText ?? ''")).includes('tok/s') &&
-      !(await o.eval("document.querySelector('.capsule-metric')?.innerText ?? ''")).includes(' t/s') &&
+    '胶囊最多一个 tok/s 指标加费用',
+    (await o.eval("document.querySelectorAll('.capsule-metric').length")) <= 1 &&
+      (await o.eval("[...document.querySelectorAll('.capsule-metric')].every((n) => n.innerText.includes('tok/s') && !n.innerText.includes(' t/s'))")) &&
       (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1 &&
       !(await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('%')
   )
@@ -622,6 +626,11 @@ try {
     check('请求结束后流光熄灭', cleared)
   }
   check('缓冲过后恢复常态', (await o.eval("!!document.querySelector('.capsule.inflight')")) === false)
+  check(
+    '结束后 tok/s 转灰显示上一条',
+    relayUp ? await o.eval("!!document.querySelector('.capsule-metric.last')") : true,
+    relayUp ? '' : '跳过：测试中继不可达'
+  )
 
   const box = await o.eval("JSON.stringify({x:window.screenX,y:window.screenY,w:window.outerWidth,h:window.outerHeight})")
   const parsed = JSON.parse(box)

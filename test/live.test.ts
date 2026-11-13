@@ -140,3 +140,30 @@ describe('流光可见性', () => {
     spy.mockRestore()
   })
 })
+
+describe('上一条速率', () => {
+  it('成功请求记录生成速率，失败不覆盖', async () => {
+    const live = await load()
+    const t0 = 1_700_000_000_000
+    live.record({ ...ev(t0, 100), ttftMs: 200, durationMs: 1000 })
+    const first = live.snapshot(false, null, '', t0).models[0]
+    expect(first?.lastTps).toBeCloseTo(125)
+    expect(first?.lastTpsAt).toBe(t0)
+    live.record({ ...ev(t0 + 1, 50, false), ttftMs: 300, durationMs: 900 })
+    const after = live.snapshot(false, null, '', t0 + 1).models[0]
+    expect(after?.lastTps).toBeCloseTo(125)
+  })
+})
+
+describe('TTFT 分位样本', () => {
+  it('探针样本不进分位数', async () => {
+    const live = await load()
+    const t0 = 1_700_000_000_000
+    live.record({ ...ev(t0, 10), ttftMs: 100 })
+    live.record({ ...ev(t0 + 1, 10), ttftMs: 200 })
+    live.record({ ...ev(t0 + 2, 10), ttftMs: 9999, source: 'probe' })
+    const m = live.snapshot(false, null, '', t0 + 3).models[0]
+    expect(m?.ttftP50).toBe(100)
+    expect(m?.ttftP99).toBe(200)
+  })
+})
