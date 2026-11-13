@@ -217,7 +217,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     </td>
                     <td className="c-tok mono">{fmtTokens(m.today.uncachedInput)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.cacheRead)}</td>
-                    <td className="c-tok mono">{fmtTokens(m.today.cacheInput)}</td>
+                    <td className="c-tok mono">{m.today.cacheInputReported > 0 ? fmtTokens(m.today.cacheInput) : '—'}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
                     <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>
                     <td className="c-drag">

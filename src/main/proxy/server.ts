@@ -133,6 +133,7 @@ function recordEvent(input: {
   usage: Usage
   source: RequestEvent['source']
   note?: string
+  cacheInputReported?: boolean
   tokenId?: string | null
   tokenRemark?: string | null
 }): void {
@@ -154,6 +155,7 @@ function recordEvent(input: {
     outputTokens: input.usage.output,
     cacheReadTokens: input.usage.cacheRead,
     cacheInputTokens: input.usage.cacheInput,
+    cacheInputReported: input.cacheInputReported === true,
     cost: input.ok ? cost(input.model, input.usage) : 0,
     currency: input.model.currency,
     note: input.note
@@ -302,6 +304,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   })
 
   let usage: Usage = { ...EMPTY_USAGE }
+    let reportedCacheInput = false
   let ttftMs: number | null = null
   let chars = 0
   let upstreamError: string | null = null
@@ -349,6 +352,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         durationMs: Date.now() - started,
         usage,
         source: 'proxy',
+      cacheInputReported: reportedCacheInput,
       tokenId: matched?.id ?? null,
       tokenRemark: matched?.remark ?? null,
         note: upstreamError ?? undefined
@@ -363,8 +367,9 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       const buf = Buffer.from(await upstream.arrayBuffer())
       const parsed = adapter.parseUsage(buf.toString('utf8'))
       if (parsed) {
-        usage = { ...usage, ...parsed }
+        usage = { ...usage, ...parsed.usage }
         usage = normalizeUsage(usage.input, usage.cacheRead, usage.cacheInput, usage.output)
+        if (parsed.reportedCacheInput) reportedCacheInput = true
       }
       res.writeHead(status || 200, passed)
       res.end(buf)
@@ -379,6 +384,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         durationMs: Date.now() - started,
         usage,
         source: 'proxy',
+      cacheInputReported: reportedCacheInput,
       tokenId: matched?.id ?? null,
       tokenRemark: matched?.remark ?? null,
       })
@@ -406,6 +412,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         if (info.usage) {
           usage = { ...usage, ...info.usage }
           usage = normalizeUsage(usage.input, usage.cacheRead, usage.cacheInput, usage.output)
+          if (info.reportedCacheInput) reportedCacheInput = true
           if (process.env.LLM_METER_DEBUG) console.log('[debug] usage', JSON.stringify(info.usage))
         }
         if (info.error) upstreamError = info.error
@@ -428,6 +435,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       durationMs: Date.now() - started,
       usage,
       source: 'proxy',
+      cacheInputReported: reportedCacheInput,
       tokenId: matched?.id ?? null,
       tokenRemark: matched?.remark ?? null,
       note: upstreamError ?? undefined
@@ -456,6 +464,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       durationMs: Date.now() - started,
       usage,
       source: 'proxy',
+      cacheInputReported: reportedCacheInput,
       tokenId: matched?.id ?? null,
       tokenRemark: matched?.remark ?? null,
       note: message

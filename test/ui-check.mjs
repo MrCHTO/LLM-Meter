@@ -286,6 +286,10 @@ try {
   check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
   check('表头是十三列', (await s.eval("document.querySelectorAll('thead th').length")) === 13)
+  check(
+    '未上报缓存输入显示破折号',
+    (await s.eval("[...document.querySelectorAll('tbody tr.clickable')].every((tr) => tr.children[9]?.innerText === '—')")) === true
+  )
   const headText = await s.eval("[...document.querySelectorAll('thead th')].map((n) => n.innerText).join('|')")
   check(
     'TTFT 拆为三个分位列',

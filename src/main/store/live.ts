@@ -123,7 +123,7 @@ function realtimeOf(s: ModelState, now: number): number | null {
 }
 
 function blankToday(): TodayTotals {
-  return { requests: 0, errors: 0, input: 0, uncachedInput: 0, output: 0, cacheRead: 0, cacheInput: 0, cost: 0 }
+  return { requests: 0, errors: 0, input: 0, uncachedInput: 0, output: 0, cacheRead: 0, cacheInput: 0, cacheInputReported: 0, cost: 0 }
 }
 
 function ensure(modelId: string): ModelState {
@@ -188,6 +188,7 @@ export function init(): void {
         output: t.output,
         cacheRead: t.cache_read,
         cacheInput: t.cache_input,
+        cacheInputReported: t.cache_input_reported,
         cost: t.cost
       }
       // 今天的 TTFT 样本从明细回灌，重启后分位数不空；replay 不再补，避免最近 60 秒被算两遍
@@ -228,6 +229,7 @@ export function record(ev: RequestEvent): void {
     s.today.output += ev.outputTokens
     s.today.cacheRead += ev.cacheReadTokens
     s.today.cacheInput += ev.cacheInputTokens
+    if (ev.cacheInputReported) s.today.cacheInputReported += 1
     s.today.cost += ev.cost
     if (ev.ttftMs !== null) {
       s.lastTtftMs = ev.ttftMs

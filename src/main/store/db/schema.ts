@@ -163,6 +163,14 @@ const MIGRATIONS: string[] = [
   delete from rollup_token_minute where minute < 1794585600000;
   delete from rollup_token_day where day < '2026-11-14';
   delete from app_logs where ts < 1794585600000;
+  `,
+  // v7：记录上游是否上报缓存输入字段，未上报显示 —，与真实 0 区分
+  `
+  alter table requests add column cache_input_reported integer not null default 0;
+  alter table rollup_minute add column cache_input_reported integer not null default 0;
+  alter table rollup_day add column cache_input_reported integer not null default 0;
+  alter table rollup_token_minute add column cache_input_reported integer not null default 0;
+  alter table rollup_token_day add column cache_input_reported integer not null default 0;
   `
 ]
 

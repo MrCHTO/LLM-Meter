@@ -292,12 +292,14 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                 <th>供应商{requestCols.resizer(2)}</th>
                 <th>来源{requestCols.resizer(3)}</th>
                 <th>状态{requestCols.resizer(4)}</th>
-                <th>输入{requestCols.resizer(5)}</th>
-                <th>输出{requestCols.resizer(6)}</th>
-                <th>TTFT{requestCols.resizer(7)}</th>
-                <th>tok/s{requestCols.resizer(8)}</th>
-                <th>成本{requestCols.resizer(9)}</th>
-                <th>备注{requestCols.resizer(10)}</th>
+                <th>未缓存输入{requestCols.resizer(5)}</th>
+                <th>缓存读取{requestCols.resizer(6)}</th>
+                <th>缓存输入{requestCols.resizer(7)}</th>
+                <th>输出{requestCols.resizer(8)}</th>
+                <th>TTFT{requestCols.resizer(9)}</th>
+                <th>tok/s{requestCols.resizer(10)}</th>
+                <th>成本{requestCols.resizer(11)}</th>
+                <th>备注{requestCols.resizer(12)}</th>
               </tr>
             </thead>
             <tbody>
@@ -310,7 +312,9 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                   <td>
                     {row.ok ? <span className="pill ok">ok</span> : <span className="pill bad">{row.status || 'err'}</span>}
                   </td>
-                  <td className="mono">{fmtTokens(row.inputTokens)}</td>
+                  <td className="mono">{fmtTokens(row.uncachedInputTokens)}</td>
+                  <td className="mono">{fmtTokens(row.cacheReadTokens)}</td>
+                  <td className="mono">{row.cacheInputReported ? fmtTokens(row.cacheInputTokens) : '—'}</td>
                   <td className="mono">{fmtTokens(row.outputTokens)}</td>
                   <td className="mono">{fmtMs(row.ttftMs)}</td>
                   <td className="mono">{tpsOf(row)}</td>

@@ -45,6 +45,7 @@ interface Run {
   tps: number | null
   inputTokens: number
   outputTokens: number
+  cacheInputReported: boolean
   error?: string
 }
 
@@ -67,6 +68,7 @@ function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, st
     outputTokens: usage.output,
     cacheReadTokens: usage.cacheRead,
     cacheInputTokens: usage.cacheInput,
+    cacheInputReported: run.cacheInputReported,
     cost: run.ok ? cost(model, usage) : 0,
     currency: model.currency,
     note: run.error
@@ -134,7 +136,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
 
   const started = Date.now()
   const usage: Usage = { ...EMPTY_USAGE }
-  const run: Run = { status: 0, ok: false, ttftMs: null, tps: null, inputTokens: 0, outputTokens: 0 }
+  const run: Run = { status: 0, ok: false, ttftMs: null, tps: null, inputTokens: 0, outputTokens: 0, cacheInputReported: false }
 
   try {
     // 连续点测速时先让开一点，减少自己触发限流
@@ -193,6 +195,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
         if (info.usage) {
           Object.assign(usage, info.usage)
           Object.assign(usage, normalizeUsage(usage.input, usage.cacheRead, usage.cacheInput, usage.output))
+          if (info.reportedCacheInput) run.cacheInputReported = true
         }
         if (info.error) run.error = info.error
       }

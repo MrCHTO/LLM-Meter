@@ -49,6 +49,7 @@ function ev(ts: number, tokens: number, ok = true): Parameters<Awaited<ReturnTyp
     outputTokens: tokens,
     cacheReadTokens: 0,
     cacheInputTokens: 0,
+    cacheInputReported: false,
     cost: 0,
     currency: 'CNY'
   }

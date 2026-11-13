@@ -45,7 +45,7 @@ declare global {
       updateModel: (id: string, patch: Partial<ModelCfg>) => Promise<IpcResult<boolean>>
       deleteModel: (id: string) => Promise<IpcResult<boolean>>
       reorderModels: (ids: string[]) => Promise<IpcResult<boolean>>
-      lookupPrice: (modelId: string) => Promise<
+      lookupPrice: (modelId: string, providerId?: string) => Promise<
         IpcResult<{
           found: boolean
           exact?: boolean
@@ -54,6 +54,8 @@ declare global {
           priceOut?: number
           priceCacheRead?: number
           priceCacheInput?: number
+          cacheWriteProbed?: boolean
+          cacheWriteReported?: boolean
           note: string
         }>
       >

@@ -77,6 +77,7 @@ export async function ping(modelId: string): Promise<boolean> {
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheInputTokens: 0,
+    cacheInputReported: false,
     cost: 0,
     currency: 'CNY',
     note

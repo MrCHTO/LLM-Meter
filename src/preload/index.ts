@@ -14,7 +14,7 @@ const api = {
   updateModel: (id: string, patch: unknown) => ipcRenderer.invoke(CH.modelUpdate, id, patch),
   deleteModel: (id: string) => ipcRenderer.invoke(CH.modelDelete, id),
   reorderModels: (ids: string[]) => ipcRenderer.invoke(CH.modelReorder, ids),
-  lookupPrice: (modelId: string) => ipcRenderer.invoke(CH.priceLookup, modelId),
+  lookupPrice: (modelId: string, providerId?: string) => ipcRenderer.invoke(CH.priceLookup, modelId, providerId),
   runProbe: (id: string) => ipcRenderer.invoke(CH.probeRun, id),
   stopProbe: (id?: string) => ipcRenderer.invoke(CH.probeStop, id),
 

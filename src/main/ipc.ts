@@ -28,6 +28,7 @@ import { mask, open as openKey, seal } from './security/keys'
 import * as token from './security/token'
 import * as probe from './probe/runner'
 import * as proxy from './proxy/server'
+import { adapterFor } from './proxy/adapters'
 import { joinUrl } from './proxy/url'
 import { lookup as lookupPrice } from './pricing'
 import * as rate from './rate'
@@ -314,15 +315,48 @@ export function register(): void {
 
   ipcMain.handle(
     CH.priceLookup,
-    wrap(async (modelId: string) => {
-      const out = await lookupPrice(modelId)
-      if (!out.found) return out
+    wrap(async (modelId: string, providerId?: string) => {
+      // 同时探测一次上游 usage 是否带缓存写入字段，决定界面是否允许填写入价
+      const probeCacheWrite = async (): Promise<{ probed: boolean; reported: boolean }> => {
+        if (!providerId) return { probed: false, reported: false }
+        const p = cfg.providerById(providerId)
+        if (!p) return { probed: false, reported: false }
+        const key = openKey(p.keyCipher)
+        if (!key) return { probed: false, reported: false }
+        const adapter = adapterFor(p.format)
+        const prepared = adapter.prepare(
+          { model: modelId, messages: [{ role: 'user', content: 'hi' }], max_tokens: 1, stream: false },
+          modelId
+        )
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 15_000)
+        try {
+          const res = await fetch(joinUrl(p.baseUrl, `/v1/${p.format === 'anthropic' ? 'messages' : 'chat/completions'}`), {
+            method: 'POST',
+            headers: { ...adapter.baseHeaders(), ...adapter.auth(key) },
+            body: prepared.body,
+            signal: controller.signal
+          })
+          if (!res.ok) return { probed: false, reported: false }
+          const parsed = adapter.parseUsage(await res.text())
+          return { probed: true, reported: parsed?.reportedCacheInput === true }
+        } catch {
+          return { probed: false, reported: false }
+        } finally {
+          clearTimeout(timer)
+        }
+      }
+
+      const [out, capability] = await Promise.all([lookupPrice(modelId), probeCacheWrite()])
+      const cached = { cacheWriteProbed: capability.probed, cacheWriteReported: capability.reported }
+      if (!out.found) return { ...out, ...cached }
       // 价源报的是美元，按当天汇率折成人民币再给界面
       const today = await rate.current()
       const conv = (v?: number): number | undefined =>
         v === undefined ? undefined : Math.round(v * today.rate * 1e6) / 1e6
       return {
         ...out,
+        ...cached,
         priceIn: conv(out.priceIn),
         priceOut: conv(out.priceOut),
         priceCacheRead: conv(out.priceCacheRead),
@@ -542,6 +576,7 @@ export function register(): void {
     total: r.total,
     cacheRead: r.cache_read,
     cacheInput: r.cache_input,
+    cacheInputReported: r.cache_input_reported,
     cost: r.cost,
     ttftP50: r.ttft_p50,
     ttftP95: r.ttft_p95,
@@ -676,6 +711,7 @@ export function register(): void {
           outputTokens: output,
           cacheReadTokens: cacheRead,
           cacheInputTokens: 0,
+          cacheInputReported: false,
           cost: (Math.max(0, input - cacheRead) * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) / 1e6,
           currency: model.currency
         }

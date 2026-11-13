@@ -54,6 +54,8 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   const [busy, setBusy] = useState(false)
   const [priceNote, setPriceNote] = useState('')
   const [lookedUpFor, setLookedUpFor] = useState('')
+  /** 查价时顺便探测上游是否上报缓存输入字段 */
+  const [writeField, setWriteField] = useState<'unknown' | 'yes' | 'no'>('unknown')
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const cols = useColumnWidths('models', [210, 130, 85, 85, 85, 85, 80, 88, 34])
@@ -78,6 +80,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   const openEdit = (m: ModelCfg): void => {
     setPriceNote('')
     setLookedUpFor('')
+    setWriteField('unknown')
     setModel({
       id: m.id,
       providerId: m.providerId,
@@ -122,13 +125,21 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
     if (!modelId.trim()) return
     setLookedUpFor(modelId.trim())
     setPriceNote('查询中…')
-    const res = await window.api.lookupPrice(modelId)
+    const res = await window.api.lookupPrice(modelId, model?.providerId)
     if (!res.ok || !res.data) {
       setPriceNote('连接openrouter超时，请手动填写')
       return
     }
     const data = res.data
-    setPriceNote(data.note)
+    if (data.cacheWriteProbed) {
+      setWriteField(data.cacheWriteReported ? 'yes' : 'no')
+      setPriceNote(
+        data.cacheWriteReported ? data.note : `${data.note}；该通道无缓存输入字段，缓存输入价已禁用`
+      )
+    } else {
+      setWriteField('unknown')
+      setPriceNote(data.note)
+    }
     if (!data.found) return
     setModel((m) =>
       m
@@ -137,7 +148,10 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
             priceIn: String(Math.round((data.priceIn ?? 0) * 100) / 100),
             priceOut: String(Math.round((data.priceOut ?? 0) * 100) / 100),
             priceCacheRead: String(Math.round((data.priceCacheRead ?? 0) * 100) / 100),
-            priceCacheInput: String(Math.round((data.priceCacheInput ?? 0) * 100) / 100),
+            priceCacheInput:
+              data.cacheWriteProbed && !data.cacheWriteReported
+                ? ''
+                : String(Math.round((data.priceCacheInput ?? 0) * 100) / 100),
             currency: 'CNY'
           }
         : m
@@ -336,6 +350,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
             onClick={() => {
               setPriceNote('')
               setLookedUpFor('')
+              setWriteField('unknown')
               setModel(emptyModel(providers[0]?.id ?? ''))
             }}
           >
@@ -632,7 +647,9 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                   <input
                     type="number"
                     step="0.01"
-                    value={model.priceCacheInput}
+                    value={writeField === 'no' ? '' : model.priceCacheInput}
+                    placeholder={writeField === 'no' ? '-' : undefined}
+                    disabled={writeField === 'no'}
                     onChange={(e) => setModel({ ...model, priceCacheInput: e.target.value })}
                   />
                 </label>

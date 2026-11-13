@@ -225,15 +225,17 @@ export function Analysis({ config, notify }: Props): JSX.Element {
               <th className="c-model">{groupBy === 'model' ? '模型' : groupBy === 'provider' ? '供应商' : 'Token 备注'}{cols.resizer(0)}</th>
               <th>请求{cols.resizer(1)}</th>
               <th>错误{cols.resizer(2)}</th>
-              <th>输入{cols.resizer(3)}</th>
-              <th>输出{cols.resizer(4)}</th>
-              <th>总 token{cols.resizer(5)}</th>
-              <th>缓存读取{cols.resizer(6)}</th>
-              <th>TTFT P50{cols.resizer(7)}</th>
-              <th>TTFT P95{cols.resizer(8)}</th>
-              <th>TTFT P99{cols.resizer(9)}</th>
-              <th>tok/s{cols.resizer(10)}</th>
-              <th>成本{cols.resizer(11)}</th>
+              <th>未缓存输入{cols.resizer(3)}</th>
+              <th>缓存读取{cols.resizer(4)}</th>
+              <th>缓存输入{cols.resizer(5)}</th>
+              <th>输出{cols.resizer(6)}</th>
+              <th>总输入{cols.resizer(7)}</th>
+              <th>总 token{cols.resizer(8)}</th>
+              <th>TTFT P50{cols.resizer(9)}</th>
+              <th>TTFT P95{cols.resizer(10)}</th>
+              <th>TTFT P99{cols.resizer(11)}</th>
+              <th>tok/s{cols.resizer(12)}</th>
+              <th>成本{cols.resizer(13)}</th>
             </tr>
           </thead>
           <tbody>
@@ -242,10 +244,12 @@ export function Analysis({ config, notify }: Props): JSX.Element {
                 <td className="c-model">{r.label}</td>
                 <td className="mono">{fmtTokens(r.requests)}</td>
                 <td className="mono">{r.errors || '—'}</td>
-                <td className="mono">{fmtTokens(r.input)}</td>
-                <td className="mono">{fmtTokens(r.output)}</td>
-                <td className="mono">{fmtTokens(r.total)}</td>
+                <td className="mono">{fmtTokens(r.uncached)}</td>
                 <td className="mono">{fmtTokens(r.cacheRead)}</td>
+                <td className="mono">{r.cacheInputReported > 0 ? fmtTokens(r.cacheInput) : '—'}</td>
+                <td className="mono">{fmtTokens(r.output)}</td>
+                <td className="mono">{fmtTokens(r.input)}</td>
+                <td className="mono">{fmtTokens(r.total)}</td>
                 <td className="mono">{fmtMs(r.ttftP50)}</td>
                 <td className="mono">{fmtMs(r.ttftP95)}</td>
                 <td className="mono">{fmtMs(r.ttftP99)}</td>

@@ -69,12 +69,15 @@ describe('openai 适配器', () => {
   })
 
   it('非流式响应体解析 usage', () => {
-    expect(a.parseUsage('{"usage":{"prompt_tokens":10,"completion_tokens":20}}')).toEqual({
-      input: 10,
-      output: 20,
-      cacheRead: 0,
-      cacheInput: 0
-    })
+    const out = a.parseUsage('{"usage":{"prompt_tokens":10,"completion_tokens":20}}')
+    expect(out?.usage).toEqual({ input: 10, output: 20, cacheRead: 0, cacheInput: 0 })
+    expect(out?.reportedCacheInput).toBe(false)
+  })
+
+  it('带缓存写入字段时标记已上报', () => {
+    const out = a.parseUsage('{"usage":{"prompt_tokens":10,"completion_tokens":20,"prompt_tokens_details":{"cache_creation_tokens":5}}}')
+    expect(out?.reportedCacheInput).toBe(true)
+    expect(out?.usage.cacheInput).toBe(5)
   })
 })
 
@@ -92,6 +95,7 @@ describe('anthropic 适配器', () => {
       'data: {"type":"message_start","message":{"usage":{"input_tokens":120,"cache_read_input_tokens":1080,"cache_creation_input_tokens":0,"output_tokens":1}}}'
     )
     expect(info.usage).toEqual({ input: 1200, output: 1, cacheRead: 1080, cacheInput: 0 })
+    expect(info.reportedCacheInput).toBe(true)
   })
 
   it('message_delta 覆盖输出 token', () => {

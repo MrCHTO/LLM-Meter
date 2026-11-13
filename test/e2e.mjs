@@ -233,6 +233,7 @@ try {
     `${first?.uncached_input_tokens} → ${second?.uncached_input_tokens}`
   )
   check('隐式缓存写入为 0', first?.cache_input_tokens === 0 && second?.cache_input_tokens === 0)
+  check('隐式缓存未上报写入字段', first?.cache_input_reported === 0 && second?.cache_input_reported === 0)
   check('TTFT 已测量', typeof first?.ttft_ms === 'number' && first.ttft_ms >= 0, `${first?.ttft_ms}`)
   const expectedCost = ((1200 - 1080) * 1 + 42 * 2 + 1080 * 0.1) / 1_000_000
   check('成本按单价折算', Math.abs((second?.cost ?? 0) - expectedCost) < 1e-9, `${second?.cost} vs ${expectedCost}`)
