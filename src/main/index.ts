@@ -12,6 +12,11 @@ import * as overlay from './windows/overlay'
 import * as tray from './windows/tray'
 import { send, getMain, setMain } from './windows/registry'
 
+// Intel UHD 的 MPO 会把 DirectComposition 透明窗垫成灰底（肉眼可见的灰框；
+// 抓屏走另一条合成路径，看不到这个叠加层，所以截图复现不出来）。
+// 关掉 DC 视觉树，退回老的 layered window 路径，透明区域恢复逐像素 alpha。
+app.commandLine.appendSwitch('disable-features', 'DirectCompositionVisuals')
+
 let pushTimer: NodeJS.Timeout | null = null
 let proxyError: string | null = null
 
