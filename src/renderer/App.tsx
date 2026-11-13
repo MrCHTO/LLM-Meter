@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConfigView, LiveSnapshot } from '../shared/types'
 import { Analysis } from './components/Analysis'
+import { Access } from './components/Access'
 import { Dashboard } from './components/Dashboard'
 import { Logs } from './components/Logs'
 import { Models } from './components/Models'
 import { SettingsView } from './components/Settings'
 import { Toasts, type ToastItem } from './components/Toasts'
 
-type Tab = 'dash' | 'analysis' | 'models' | 'logs' | 'settings'
+type Tab = 'dash' | 'analysis' | 'models' | 'access' | 'logs' | 'settings'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dash', label: '仪表盘' },
   { id: 'analysis', label: '分析' },
   { id: 'models', label: '模型与供应商' },
+  { id: 'access', label: '接入' },
   { id: 'logs', label: '日志' },
   { id: 'settings', label: '设置' }
 ]
@@ -61,15 +63,10 @@ export default function App(): JSX.Element {
   }
 
   const running = snapshot?.proxyRunning ?? false
-  const enabledModels = config.models.filter((m) => m.enabled).length
 
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand">
-          LLM Meter<small>本地计量</small>
-          <span className="brand-ver mono">v{config.version}</span>
-        </div>
         <div className="tabs" role="tablist">
           {TABS.map((item) => (
             <button
@@ -98,7 +95,6 @@ export default function App(): JSX.Element {
           ) : (
             <span>{snapshot?.proxyError ?? '代理未启动'}</span>
           )}
-          <span className="pill">{enabledModels} 个模型启用</span>
         </div>
       </header>
 
@@ -117,6 +113,7 @@ export default function App(): JSX.Element {
         )}
         {tab === 'analysis' && <Analysis config={config} notify={notify} />}
         {tab === 'models' && <Models config={config} snapshot={snapshot} notify={notify} onChanged={reload} />}
+        {tab === 'access' && <Access config={config} notify={notify} onChanged={reload} />}
         {tab === 'logs' && <Logs config={config} notify={notify} initialModelId={logModel} />}
         {tab === 'settings' && (
           <SettingsView config={config} notify={notify} onChanged={reload} />

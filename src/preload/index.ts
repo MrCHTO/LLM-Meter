@@ -20,6 +20,8 @@ const api = {
 
   updateSettings: (patch: unknown) => ipcRenderer.invoke(CH.settingsUpdate, patch),
   rotateToken: () => ipcRenderer.invoke(CH.tokenRotate),
+  createToken: (remark: string) => ipcRenderer.invoke(CH.tokenCreate, remark),
+  deleteToken: (id: string) => ipcRenderer.invoke(CH.tokenDelete, id),
   refreshRate: () => ipcRenderer.invoke(CH.rateRefresh),
   calibrate: () => ipcRenderer.invoke(CH.calibrate),
   restartProxy: () => ipcRenderer.invoke(CH.proxyRestart),

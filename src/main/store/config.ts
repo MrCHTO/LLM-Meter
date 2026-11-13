@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS: Settings = {
   usdCnyDate: '',
   localToken: '',
   localKey: null,
+  tokens: [],
   retentionDays: 30,
   rollupRetentionDays: 365,
   overlay: {
@@ -42,8 +43,9 @@ function emptyConfig(): ConfigFile {
     settings: {
       ...DEFAULT_SETTINGS,
       overlay: { ...DEFAULT_SETTINGS.overlay },
-      localKey: issued.key,
-      localToken: issued.token
+      localKey: null,
+      localToken: issued.token,
+      tokens: [{ id: randomUUID(), remark: '默认', token: issued.token, createdAt: Date.now() }]
     }
   }
 }
@@ -133,6 +135,7 @@ function normalize(raw: unknown): ConfigFile {
     usdCnyDate: /^\d{4}-\d{2}-\d{2}$/.test(str(os.usdCnyDate)) ? str(os.usdCnyDate) : '',
     localToken: keep ? storedToken : issued!.token,
     localKey: keep ? (signed ? storedKey : null) : null,
+    tokens: [],
     retentionDays: clamp(Math.round(num(os.retentionDays, DEFAULT_SETTINGS.retentionDays)), 1, 3650),
     rollupRetentionDays: clamp(
       Math.round(num(os.rollupRetentionDays, DEFAULT_SETTINGS.rollupRetentionDays)),
@@ -159,6 +162,30 @@ function normalize(raw: unknown): ConfigFile {
         : null
   }
 
+  // 旧配置没有命名 token 列表：把现有本地 token 收编为「默认」，保证仍可用
+  const rawTokens = Array.isArray(os.tokens) ? os.tokens : []
+  const seen = new Set<string>()
+  for (const item of rawTokens) {
+    const t = (item ?? {}) as Record<string, unknown>
+    const remark = str(t.remark).trim()
+    const value = str(t.token)
+    if (!remark || !value || seen.has(remark)) continue
+    seen.add(remark)
+    settings.tokens.push({
+      id: typeof t.id === 'string' && t.id ? t.id : randomUUID(),
+      remark,
+      token: value,
+      createdAt: num(t.createdAt, Date.now())
+    })
+  }
+  if (settings.tokens.length === 0) {
+    settings.tokens.push({
+      id: randomUUID(),
+      remark: '默认',
+      token: settings.localToken,
+      createdAt: Date.now()
+    })
+  }
   // 历史配置里的外币单价一次性折成人民币，之后不再重复折算
   for (const m of models) {
     if (m.currency === 'CNY') continue

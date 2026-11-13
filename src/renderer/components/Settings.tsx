@@ -1,6 +1,5 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { ConfigView } from '../../shared/types'
-import { FORMAT_MOUNT } from '../../shared/types'
 
 interface Props {
   config: ConfigView
@@ -8,39 +7,24 @@ interface Props {
   onChanged: () => Promise<void>
 }
 
-type Group = 'access' | 'overlay' | 'run' | 'data'
+type Group = 'overlay' | 'run' | 'data'
 
 const GROUPS: { id: Group; label: string }[] = [
-  { id: 'access', label: '接入' },
   { id: 'overlay', label: '悬浮窗' },
   { id: 'run', label: '运行' },
   { id: 'data', label: '数据' }
 ]
 
 export function SettingsView({ config, notify, onChanged }: Props): JSX.Element {
-  const [group, setGroup] = useState<Group>('access')
-  const [showToken, setShowToken] = useState(false)
-  const [port, setPort] = useState(String(config.settings.port))
+  const [group, setGroup] = useState<Group>('overlay')
   const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
   const [probeInterval, setProbeInterval] = useState(String(config.settings.autoProbeIntervalSec))
-  const tokenRef = useRef<HTMLInputElement>(null)
 
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
     const res = await window.api.updateSettings(values)
     if (!res.ok) notify(res.error ?? '保存失败')
     else await onChanged()
-  }
-
-  const copyToken = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(config.settings.localToken)
-      notify('token 已复制', 'ok')
-    } catch {
-      tokenRef.current?.select()
-      document.execCommand('copy')
-      notify('已复制（回退方式）', 'ok')
-    }
   }
 
   const applyOpacity = async (): Promise<void> => {
@@ -50,18 +34,6 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
   }
 
   const overlayModel = config.models.find((m) => m.id === config.settings.overlay.modelId)
-  const localBase = `http://127.0.0.1:${config.settings.port}`
-  const lanBase = `http://${config.settings.lanIp}:${config.settings.port}`
-  const lanOn = config.settings.allowLan
-
-  const copy = async (text: string, label: string): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(text)
-      notify(`${label} 已复制`, 'ok')
-    } catch {
-      notify('复制失败，请手动选中', 'bad')
-    }
-  }
 
   return (
     <div className="section">
@@ -75,117 +47,6 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
         </nav>
 
         <div className="settings-pane">
-          {group === 'access' ? (
-            <div className="card">
-              <h2>客户端接入</h2>
-              <dl className="kv kv-wide">
-                <dt>本机 · OpenAI</dt>
-                <dd>
-                  <div className="row nowrap">
-                    <span className="mono selectable grow ellipsis">
-                      {localBase}{FORMAT_MOUNT.openai}/v1
-                    </span>
-                    <button className="btn sm" onClick={() => void copy(`${localBase}${FORMAT_MOUNT.openai}/v1`, '本机地址')}>
-                      复制
-                    </button>
-                  </div>
-                </dd>
-                <dt>本机 · Anthropic</dt>
-                <dd>
-                  <div className="row nowrap">
-                    <span className="mono selectable grow ellipsis">
-                      {localBase}{FORMAT_MOUNT.anthropic}
-                    </span>
-                    <button className="btn sm" onClick={() => void copy(`${localBase}${FORMAT_MOUNT.anthropic}`, '本机地址')}>
-                      复制
-                    </button>
-                  </div>
-                </dd>
-                <dt>局域网 · OpenAI</dt>
-                <dd className={lanOn ? undefined : 'dimmed'}>
-                  <div className="row nowrap">
-                    <span className="mono selectable grow ellipsis">
-                      {lanBase}{FORMAT_MOUNT.openai}/v1
-                    </span>
-                    <button
-                      className="btn sm"
-                      disabled={!lanOn}
-                      onClick={() => void copy(`${lanBase}${FORMAT_MOUNT.openai}/v1`, '局域网地址')}
-                    >
-                      复制
-                    </button>
-                  </div>
-                </dd>
-                <dt>本地 token</dt>
-                <dd>
-                  <div className="row nowrap">
-                    <input
-                      ref={tokenRef}
-                      className="mono grow"
-                      type="text"
-                      readOnly
-                      value={showToken ? config.settings.localToken : config.settings.localTokenMasked}
-                      onFocus={(e) => e.currentTarget.select()}
-                    />
-                    <button className="btn sm" onClick={() => setShowToken((v) => !v)}>
-                      {showToken ? '隐藏' : '显示'}
-                    </button>
-                    <button className="btn sm" onClick={() => void copyToken()}>
-                      复制
-                    </button>
-                    <button
-                      className="btn sm danger"
-                      onClick={async () => {
-                        if (!confirm('重签会让现有客户端全部失效，继续？')) return
-                        const res = await window.api.rotateToken()
-                        if (res.ok) {
-                          notify('token 已重签，记得更新客户端', 'ok')
-                          await onChanged()
-                        } else notify(res.error ?? '重签失败')
-                      }}
-                    >
-                      重签
-                    </button>
-                  </div>
-                </dd>
-              </dl>
-
-              <div className="divider" />
-
-              <div className="row">
-                <label className="row nowrap" style={{ gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={lanOn}
-                    onChange={(e) => void patch({ allowLan: e.target.checked })}
-                  />
-                  <span>允许局域网访问</span>
-                </label>
-              </div>
-
-              <label className="field mt">
-                <span>监听端口</span>
-                <div className="row nowrap">
-                  <input className="mono w-sm" type="number" value={port} onChange={(e) => setPort(e.target.value)} />
-                  <button
-                    className="btn"
-                    onClick={async () => {
-                      const value = Number(port)
-                      if (!value || value < 1024 || value > 65535) {
-                        notify('端口需要在 1024-65535')
-                        return
-                      }
-                      await patch({ port: value })
-                      notify('端口已应用', 'ok')
-                    }}
-                  >
-                    应用
-                  </button>
-                </div>
-              </label>
-            </div>
-          ) : null}
-
           {group === 'overlay' ? (
             <div className="card">
               <h2>悬浮窗</h2>

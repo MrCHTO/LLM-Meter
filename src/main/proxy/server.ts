@@ -133,6 +133,8 @@ function recordEvent(input: {
   usage: Usage
   source: RequestEvent['source']
   note?: string
+  tokenId?: string | null
+  tokenRemark?: string | null
 }): void {
   const ev: RequestEvent = {
     id: randomUUID(),
@@ -165,7 +167,9 @@ function recordEvent(input: {
       priceIn: input.model.priceIn,
       priceOut: input.model.priceOut,
       priceCacheRead: input.model.priceCacheRead,
-      priceCacheWrite: input.model.priceCacheWrite
+      priceCacheWrite: input.model.priceCacheWrite,
+      tokenId: input.tokenId ?? null,
+      tokenRemark: input.tokenRemark ?? null
     })
   } catch (err) {
     console.error('[db] 写入失败', err)
@@ -188,8 +192,9 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
   const auth = token.fromHeaders(req.headers)
   const settings = cfg.get().settings
-  if (!token.verifyToken(settings.localKey, settings.localToken, auth)) {
-    fail(res, 401, '本地 token 不对，请在设置里复制正确的 token', 'auth')
+  const matched = token.matchToken(settings.tokens, auth)
+  if (!matched && !token.verifyToken(settings.localKey, settings.localToken, auth)) {
+    fail(res, 401, '本地 token 不对，请在接入页复制正确的 token', 'auth')
     return
   }
 
@@ -343,6 +348,8 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         durationMs: Date.now() - started,
         usage,
         source: 'proxy',
+      tokenId: matched?.id ?? null,
+      tokenRemark: matched?.remark ?? null,
         note: upstreamError ?? undefined
       })
       return
@@ -367,7 +374,9 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         ttftMs: null,
         durationMs: Date.now() - started,
         usage,
-        source: 'proxy'
+        source: 'proxy',
+      tokenId: matched?.id ?? null,
+      tokenRemark: matched?.remark ?? null,
       })
       return
     }
@@ -414,6 +423,8 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       durationMs: Date.now() - started,
       usage,
       source: 'proxy',
+      tokenId: matched?.id ?? null,
+      tokenRemark: matched?.remark ?? null,
       note: upstreamError ?? undefined
     })
   } catch (err) {
@@ -440,6 +451,8 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       durationMs: Date.now() - started,
       usage,
       source: 'proxy',
+      tokenId: matched?.id ?? null,
+      tokenRemark: matched?.remark ?? null,
       note: message
     })
   } finally {

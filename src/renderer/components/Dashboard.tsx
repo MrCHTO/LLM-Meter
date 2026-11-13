@@ -134,7 +134,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
       </div>
 
       <div className="card">
-        <table className="tbl tbl-flush col-fixed">
+        <table className={`tbl tbl-flush${cols.fixed ? ' col-fixed' : ''}`} {...cols.tableProps}>
           {cols.colgroup}
           <thead>
             <tr>

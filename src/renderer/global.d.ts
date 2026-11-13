@@ -1,4 +1,5 @@
 import type {
+  AccessToken,
   ApiFormat,
   AppLog,
   ConfigView,
@@ -77,6 +78,8 @@ declare global {
         autoProbeIntervalSec?: number
       }) => Promise<IpcResult<boolean>>
       rotateToken: () => Promise<IpcResult<string>>
+      createToken: (remark: string) => Promise<IpcResult<AccessToken>>
+      deleteToken: (id: string) => Promise<IpcResult<boolean>>
       refreshRate: () => Promise<IpcResult<{ rate: number; date: string; fresh: boolean }>>
       calibrate: () => Promise<IpcResult<void>>
       restartProxy: () => Promise<IpcResult<unknown>>

@@ -333,6 +333,16 @@ table {
   border-collapse: collapse;
 }
 
+/* 自动列宽下给自由文本列封顶，长内容省略而不是撑爆整表 */
+.tbl-models td:first-child,
+.tbl-left td:nth-child(2),
+.tbl .c-model,
+.tbl .c-url {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 table.col-fixed {
   table-layout: fixed;
 }
@@ -713,10 +723,6 @@ body.overlay-body {
 }
 
 /* ---------- 按模型表 ---------- */
-.tbl {
-  table-layout: fixed;
-}
-
 .tbl .c-model {
   width: 15%;
   white-space: normal;
@@ -1085,10 +1091,6 @@ table.tbl-request td,
   text-align: center;
 }
 
-.tbl-request {
-  table-layout: fixed;
-}
-
 .tbl-log .log-note {
   max-width: 280px;
   overflow: hidden;
@@ -1139,6 +1141,17 @@ table.tbl-request td,
 
 .selectable {
   user-select: text;
+}
+
+.copy-text {
+  cursor: copy;
+  border-bottom: 1px dashed var(--line);
+  user-select: all;
+}
+
+.copy-text:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 tr.clickable > td {

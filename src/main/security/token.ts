@@ -42,6 +42,18 @@ function constantEquals(expected: string, got: string): boolean {
   return timingSafeEqual(a, b)
 }
 
+/** 在多条命名 token 里找命中的那条；返回备注供统计分组 */
+export function matchToken(
+  tokens: { id: string; remark: string; token: string }[],
+  got: string
+): { id: string; remark: string } | null {
+  let hit: { id: string; remark: string } | null = null
+  for (const t of tokens) {
+    if (constantEquals(t.token, got) && !hit) hit = { id: t.id, remark: t.remark }
+  }
+  return hit
+}
+
 /**
  * 校验：带 `.` 的是旧版签名票据，验签；否则按明文常量比较。
  */

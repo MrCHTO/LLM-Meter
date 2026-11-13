@@ -283,7 +283,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
         ) : data.rows.length === 0 ? (
           <div className="empty">没有符合条件的日志</div>
         ) : kind === 'request' ? (
-          <table className="tbl tbl-flush tbl-log tbl-request col-fixed">
+          <table className={`tbl tbl-flush tbl-log tbl-request${requestCols.fixed ? ' col-fixed' : ''}`} {...requestCols.tableProps}>
             {requestCols.colgroup}
             <thead>
               <tr>
@@ -323,7 +323,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
             </tbody>
           </table>
         ) : (
-          <table className="tbl tbl-flush tbl-log col-fixed">
+          <table className={`tbl tbl-flush tbl-log${appCols.fixed ? ' col-fixed' : ''}`} {...appCols.tableProps}>
             {appCols.colgroup}
             <thead>
               <tr>

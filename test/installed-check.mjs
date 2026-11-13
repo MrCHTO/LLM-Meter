@@ -111,7 +111,7 @@ try {
       JSON.stringify({
         id: 6,
         method: 'Runtime.evaluate',
-        params: { expression: "document.querySelector('.brand')?.innerText ?? ''", returnByValue: true }
+        params: { expression: "document.title", returnByValue: true }
       })
     )
     const brand = await new Promise((resolve) => {

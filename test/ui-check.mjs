@@ -232,11 +232,12 @@ try {
   await sleep(800)
 
   check('主窗标题带版本', /^LLM Meter \d+\.\d+\.\d+$/.test(await s.eval('document.title')), await s.eval('document.title'))
-  check('顶栏显示版本号', /v\d+\.\d+\.\d+/.test(await s.eval("document.querySelector('.brand')?.innerText ?? ''")))
+  check('顶栏左侧不再有文字', (await s.eval("document.querySelectorAll('.brand').length")) === 0)
+  check('顶栏不再显示启用模型数', !(await s.eval("document.querySelector('.status')?.innerText ?? ''")).includes('个模型启用'))
   check(
     '表头五页签齐全',
     (await s.eval("[...document.querySelectorAll('.topbar .tab')].map((t) => t.innerText).join(',')")) ===
-      '仪表盘,分析,模型与供应商,日志,设置'
+      '仪表盘,分析,模型与供应商,接入,日志,设置'
   )
   check('汇总条已移除', (await s.eval("document.querySelectorAll('.strip').length")) === 0)
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
@@ -300,19 +301,41 @@ try {
   check('模型列只有别名一行', (await s.eval("document.querySelector('td.c-model')?.querySelectorAll('small').length")) === 0)
   check('行尾是专用拖拽列', (await s.eval("document.querySelector('thead th:last-child')?.className")) === 'c-drag')
   check('整行不再 draggable', (await s.eval("document.querySelector('tbody tr.clickable')?.getAttribute('draggable')")) === null)
-  // 列宽拖动后重载仍保留
+  // 默认自动列宽；拖动后才固定并记住
+  check(
+    '默认列宽自动',
+    (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'auto' &&
+      (await s.eval("document.querySelectorAll('thead').length")) > 0 &&
+      (await s.eval("document.querySelectorAll('table colgroup').length")) === 0
+  )
   const widthBefore = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
-  await s.eval(`(() => {
-    const handle = document.querySelector('.col-resize')
-    const r = handle.getBoundingClientRect()
-    handle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: r.left }))
-    window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: r.left + 70 }))
-    window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
-    return true
-  })()`)
-  await sleep(300)
+  const dragCol = async (dx) => {
+    await s.eval(`(() => {
+      const handle = document.querySelector('.col-resize')
+      const r = handle.getBoundingClientRect()
+      handle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: r.left }))
+      window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: r.left + ${dx} }))
+      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+      return true
+    })()`)
+    await sleep(300)
+  }
+  await dragCol(70)
   const widthAfter = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
   check('拖动表头能调列宽', widthAfter > widthBefore + 40, `${widthBefore} -> ${widthAfter}`)
+  check('拖动后转成固定布局', (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'fixed')
+  // 双击分隔条恢复该列自动
+  await s.eval("document.querySelector('.col-resize').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))")
+  await sleep(200)
+  check(
+    '双击恢复单列自动',
+    ['', 'none', 'width: auto;'].includes(await s.eval("document.querySelector('table colgroup col')?.getAttribute('style') ?? 'none'")) &&
+      (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'fixed',
+    await s.eval("document.querySelector('table colgroup col')?.getAttribute('style') ?? 'none'")
+  )
+  // 再拖一次供重载验证
+  await dragCol(70)
+  const widthFixed = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
   await s.eval('location.reload()')
   for (let i = 0; i < 40; i++) {
     try {
@@ -324,7 +347,15 @@ try {
   }
   await sleep(500)
   const widthRestored = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
-  check('列宽重载后保留', Math.abs(widthRestored - widthAfter) < 3, `${widthAfter} -> ${widthRestored}`)
+  check('列宽重载后保留', Math.abs(widthRestored - widthFixed) < 3, `${widthFixed} -> ${widthRestored}`)
+  // 右键表头恢复整表自动并清记录
+  await s.eval("document.querySelector('thead th').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))")
+  await sleep(300)
+  check(
+    '右键表头恢复自动并清记录',
+    (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'auto' &&
+      (await s.eval("localStorage.getItem('cols:dashboard')")) === null
+  )
   check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark path.spark-line').length")) > 0)
   check('金额用人民币', /¥/.test(await s.eval("document.querySelector('td.c-cost')?.innerText ?? ''")))
   check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('td.c-hit')?.innerText ?? ''")))
@@ -439,6 +470,57 @@ try {
   ovSync.close()
   await s.shot('models.png')
 
+  // 接入页：地址点击复制、端口、多 token（备注必填）、局域网开关
+  await s.eval("document.querySelector('.tab:nth-child(4)')?.click()")
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("!!document.querySelector('.copy-text')")) break
+    await sleep(300)
+  }
+  check('接入页在本机地址可点击复制', (await s.eval("document.querySelector('.copy-text')?.innerText ?? ''")).includes('127.0.0.1'))
+  await s.eval("document.querySelector('.copy-text')?.click()")
+  await sleep(800)
+  check('点地址有复制反馈', /复制/.test(await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ')")))
+  check('接入页有监听端口输入', (await s.eval("document.querySelector('.kv input[type=number]') ? 1 : 0")) === 1)
+  check('默认至少一个 token 且掩码显示', (await s.eval("document.querySelectorAll('.copy-text.mono').length")) >= 2)
+  // 空备注被拒
+  await s.eval("[...document.querySelectorAll('button')].find((b) => b.innerText === '生成 Token')?.click()")
+  await sleep(400)
+  check('空备注不能生成', /备注必须填写/.test(await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ')")))
+  // 带备注生成
+  await s.eval(`(() => {
+    const input = [...document.querySelectorAll('input[type="text"]')].find((i) => i.placeholder.includes('备注'))
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+    setter.call(input, '测试备注')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    return true
+  })()`)
+  await s.eval("[...document.querySelectorAll('button')].find((b) => b.innerText === '生成 Token')?.click()")
+  await sleep(800)
+  check(
+    '备注 token 生成成功',
+    /测试备注/.test(await s.eval("document.querySelector('.card:nth-child(2) tbody')?.innerText ?? ''")) &&
+      (await s.eval("(async () => (await window.api.config()).data.settings.tokens.some((t) => t.remark === '测试备注'))()", true))
+  )
+  check('token 是 sk- 加十六进制', (await s.eval("(async () => (await window.api.config()).data.settings.tokens.every((t) => /^sk-[0-9a-f]{32}$/.test(t.token)))()", true)) === true)
+  // 局域网开关：默认关，开后有局域网地址和双层状态
+  check('局域网默认关闭', (await s.eval("document.body.innerText")).includes('允许局域网访问'))
+  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("!!document.querySelector('.status-stack.dual')")) break
+    await sleep(300)
+  }
+  const dualLines = await s.eval("[...document.querySelectorAll('.status-stack.dual .mono')].map((n) => n.innerText)")
+  check(
+    '开启局域网后状态双层且出现局域网地址',
+    dualLines.length === 2 && (await s.eval("document.body.innerText.includes('局域网地址')")),
+    dualLines.join(' / ')
+  )
+  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
+  for (let i = 0; i < 20; i++) {
+    if (!(await s.eval("!!document.querySelector('.status-stack.dual')"))) break
+    await sleep(300)
+  }
+
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
   await sleep(1500)
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) === 3)
@@ -456,6 +538,29 @@ try {
       '请求数,总 token,输入 token,输出 token,成本'
   )
   check('分析页有明细表', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
+  check(
+    '分组含 Token 备注',
+    (await s.eval("[...document.querySelectorAll('.card select')][2] ? [...[...document.querySelectorAll('.card select')][2].options].map((o) => o.value).join(',') : ''")) ===
+      'model,provider,token'
+  )
+  // 切到按 token 备注分组：表头与行标签都换成备注
+  await s.eval(`(() => {
+    const sel = [...document.querySelectorAll('.card select')][2]
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set
+    setter.call(sel, 'token')
+    sel.dispatchEvent(new Event('change', { bubbles: true }))
+    return true
+  })()`)
+  await sleep(1200)
+  check('按 Token 备注分组生效', (await s.eval("document.querySelector('.tbl-detail thead th')?.innerText ?? ''")) === 'Token 备注')
+  await s.eval(`(() => {
+    const sel = [...document.querySelectorAll('.card select')][2]
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set
+    setter.call(sel, 'model')
+    sel.dispatchEvent(new Event('change', { bubbles: true }))
+    return true
+  })()`)
+  await sleep(1200)
   check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
   check(
     '0 值不画柱',
@@ -509,41 +614,15 @@ try {
   check('自动刷新时查询按钮不闪', !flicker)
   await s.shot('analysis.png')
 
-  await s.eval("document.querySelector('.tab:nth-child(5)')?.click()")
+  await s.eval("document.querySelector('.tab:nth-child(6)')?.click()")
   for (let i = 0; i < 20; i++) {
     if (await s.eval("!!document.querySelector('.settings-nav')")) break
     await sleep(300)
   }
   await sleep(300)
-  check('设置页有四个分组', (await s.eval("document.querySelectorAll('.settings-nav button').length")) === 4)
-  // 默认落在接入组
-  check('设置页给出本地入口', (await s.eval("document.body.innerText")).includes('127.0.0.1'))
-  check('设置页同时给出局域网入口', (await s.eval("document.body.innerText")).includes('局域网'))
-  check('局域网默认关闭且置灰', (await s.eval("document.querySelectorAll('dd.dimmed').length")) === 1)
+  check('设置页有三个分组', (await s.eval("document.querySelectorAll('.settings-nav button').length")) === 3)
+  check('设置页不再有接入组', (await s.eval("document.querySelector('.settings-nav')?.innerText || ''")).includes('接入') === false)
   check('右上角状态只有本机一行', (await s.eval("document.querySelectorAll('.status-stack .mono').length")) === 1)
-  // 开启局域网后右上角变双层：上本机、下局域网
-  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
-  for (let i = 0; i < 20; i++) {
-    if (await s.eval("!!document.querySelector('.status-stack.dual')")) break
-    await sleep(300)
-  }
-  const dualLines = await s.eval("[...document.querySelectorAll('.status-stack.dual .mono')].map((n) => n.innerText)")
-  check(
-    '开启局域网后上下双层显示',
-    dualLines.length === 2 && dualLines[0].includes('127.0.0.1') && dualLines[1].includes(':8787'),
-    dualLines.join(' / ')
-  )
-  await s.eval("[...document.querySelectorAll('label')].find((l) => l.innerText.includes('允许局域网访问'))?.click()")
-  for (let i = 0; i < 20; i++) {
-    if (!(await s.eval("!!document.querySelector('.status-stack.dual')"))) break
-    await sleep(300)
-  }
-  check(
-    '本地 token 是 sk- 加十六进制',
-    /^sk-[0-9a-f]{32}$/.test(
-      await s.eval("(async()=> (await window.api.config()).data?.settings.localToken ?? '')()", true)
-    )
-  )
 
   const openGroup = async (label) => {
     await s.eval(`[...document.querySelectorAll('.settings-nav button')].find((b) => b.innerText === '${label}')?.click()`)
@@ -649,7 +728,7 @@ try {
   check('测速后行仍在', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) > 0, preClick)
   await s.eval("document.querySelector('tbody tr.clickable')?.click()")
   await sleep(900)
-  check('点行跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(4)')?.getAttribute('aria-selected')")) === 'true')
+  check('点行跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(5)')?.getAttribute('aria-selected')")) === 'true')
   const logModel = await s.eval("[...document.querySelectorAll('.log-filters select')].find((x) => x.options[0]?.value === '')?.value ?? ''")
   check('日志页按所点模型过滤', logModel !== '', clickedAlias)
   const requestRows = await s.eval("document.querySelectorAll('.tbl-log tbody tr').length")

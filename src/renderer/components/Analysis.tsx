@@ -184,6 +184,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
               <option value="model">按模型</option>
               <option value="provider">按供应商</option>
+              <option value="token">按 Token 备注</option>
             </select>
           </label>
           <div className="row nowrap" style={{ marginLeft: 'auto', gap: 8 }}>
@@ -201,7 +202,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
         <div className="row">
           <h2 style={{ margin: 0 }}>{meta.label}</h2>
           <span className="muted">
-            {groupBy === 'model' ? '按模型' : '按供应商'} · {granularity === 'day' ? '按天' : granularity === 'hour' ? '按小时' : '按分钟'}
+            {groupBy === 'model' ? '按模型' : groupBy === 'provider' ? '按供应商' : '按 Token 备注'} · {granularity === 'day' ? '按天' : granularity === 'hour' ? '按小时' : '按分钟'}
             {preset !== 'custom' ? ' · 每 5 秒刷新' : ''}
           </span>
           <span className="muted" style={{ marginLeft: 'auto' }}>
@@ -220,11 +221,11 @@ export function Analysis({ config, notify }: Props): JSX.Element {
 
       <div className="card">
         <h2>分组明细</h2>
-        <table className="tbl tbl-detail col-fixed">
+        <table className={`tbl tbl-detail${cols.fixed ? ' col-fixed' : ''}`} {...cols.tableProps}>
           {cols.colgroup}
           <thead>
             <tr>
-              <th className="c-model">{groupBy === 'model' ? '模型' : '供应商'}{cols.resizer(0)}</th>
+              <th className="c-model">{groupBy === 'model' ? '模型' : groupBy === 'provider' ? '供应商' : 'Token 备注'}{cols.resizer(0)}</th>
               <th>请求{cols.resizer(1)}</th>
               <th>错误{cols.resizer(2)}</th>
               <th>输入{cols.resizer(3)}</th>

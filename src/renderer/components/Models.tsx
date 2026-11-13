@@ -258,7 +258,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
         {providers.length === 0 ? (
           <div className="empty">还没有供应商</div>
         ) : (
-          <table className="tbl-left col-fixed">
+          <table className={`tbl-left${providerCols.fixed ? ' col-fixed' : ''}`} {...providerCols.tableProps}>
             {providerCols.colgroup}
             <thead>
               <tr>
@@ -345,7 +345,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
         {config.models.length === 0 ? (
           <div className="empty">{providers.length === 0 ? '先添加供应商' : '还没有模型'}</div>
         ) : (
-          <table className="tbl-left tbl-models col-fixed">
+          <table className={`tbl-left tbl-models${cols.fixed ? ' col-fixed' : ''}`} {...cols.tableProps}>
             {cols.colgroup}
             <thead>
               <tr>

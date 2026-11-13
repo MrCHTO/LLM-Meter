@@ -101,7 +101,14 @@ function view(): ConfigView {
       lastCalibrate: c.settings.lastCalibrate,
       localToken: c.settings.localToken,
       localKey: c.settings.localKey,
-      localTokenMasked: token.masked(c.settings.localToken)
+      localTokenMasked: token.masked(c.settings.localToken),
+      tokens: c.settings.tokens.map((t) => ({
+        id: t.id,
+        remark: t.remark,
+        token: t.token,
+        masked: token.masked(t.token),
+        createdAt: t.createdAt
+      }))
     },
     dataDir: dataDir(),
     version: app.getVersion()
@@ -395,6 +402,34 @@ export function register(): void {
   )
 
   ipcMain.handle(
+    CH.tokenCreate,
+    wrap((remarkInput: string) => {
+      const remark = String(remarkInput ?? '').trim()
+      if (!remark) throw new Error('备注必须填写')
+      if (remark.length > 40) throw new Error('备注最长 40 个字')
+      if (cfg.get().settings.tokens.some((t) => t.remark === remark)) throw new Error(`备注 ${remark} 已存在`)
+      const issued = token.issue()
+      const created = { id: randomUUID(), remark, token: issued.token, createdAt: Date.now() }
+      cfg.mutate((c) => {
+        c.settings.tokens.push(created)
+      })
+      return { ...created, masked: token.masked(created.token) }
+    })
+  )
+
+  ipcMain.handle(
+    CH.tokenDelete,
+    wrap((id: string) => {
+      const list = cfg.get().settings.tokens
+      if (list.length <= 1) throw new Error('至少保留一个 token')
+      cfg.mutate((c) => {
+        c.settings.tokens = c.settings.tokens.filter((t) => t.id !== id)
+      })
+      return true
+    })
+  )
+
+  ipcMain.handle(
     CH.proxyRestart,
     wrap(async () => {
       const state = await proxy.start(cfg.get().settings.port)
@@ -460,7 +495,8 @@ export function register(): void {
   )
 
   // 分析
-  const labelOf = (group: 'model' | 'provider', key: string): string => {
+  const labelOf = (group: StatsGroup, key: string): string => {
+    if (group === 'token') return key || '（未记录）'
     if (!key) return '（已删除）'
     const found = group === 'model' ? cfg.modelById(key)?.alias : cfg.providerById(key)?.name
     if (found) return found
@@ -477,7 +513,7 @@ export function register(): void {
     return row?.v ?? key
   }
 
-  const mapRow = (group: 'model' | 'provider') => (r: repo.GroupTotals): StatsRow => ({
+  const mapRow = (group: StatsGroup) => (r: repo.GroupTotals): StatsRow => ({
     key: r.key,
     label: labelOf(group, r.key),
     requests: r.requests,
@@ -536,6 +572,7 @@ export function register(): void {
         '模型',
         '上游模型',
         '供应商',
+        'Token 备注',
         '地址',
         '状态',
         'ok',
@@ -560,6 +597,7 @@ export function register(): void {
             r.alias,
             r.upstream_model,
             r.provider_name,
+            r.token_remark ?? '',
             r.base_url,
             r.status,
             r.ok,

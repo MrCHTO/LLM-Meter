@@ -86,6 +86,40 @@ const MIGRATIONS: string[] = [
     message text not null
   );
   create index idx_app_logs_ts on app_logs (ts);
+  `,
+  // v4：请求记录命中的接入 token 及其备注，并按 token 备注建聚合
+  `
+  alter table requests add column token_id text;
+  alter table requests add column token_remark text;
+  create index idx_requests_token_ts on requests (token_remark, ts);
+
+  create table rollup_token_minute (
+    minute integer not null,
+    token_remark text not null,
+    source text not null,
+    requests integer not null default 0,
+    errors integer not null default 0,
+    input integer not null default 0,
+    output integer not null default 0,
+    cache_read integer not null default 0,
+    cache_write integer not null default 0,
+    cost real not null default 0,
+    primary key (minute, token_remark, source)
+  );
+  create table rollup_token_day (
+    day text not null,
+    token_remark text not null,
+    source text not null,
+    requests integer not null default 0,
+    errors integer not null default 0,
+    input integer not null default 0,
+    output integer not null default 0,
+    cache_read integer not null default 0,
+    cache_write integer not null default 0,
+    cost real not null default 0,
+    primary key (day, token_remark, source)
+  );
+  create index idx_token_day on rollup_token_day (day);
   `
 ]
 

@@ -14,6 +14,9 @@ export interface Enrich {
   priceOut?: number
   priceCacheRead?: number
   priceCacheWrite?: number
+  /** 命中的接入 token（探针为空） */
+  tokenId?: string | null
+  tokenRemark?: string | null
 }
 
 /** 一次请求：明细 + 两张聚合表，同一事务。 */
@@ -24,8 +27,8 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
         id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
         input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
         cost, currency, model_id, alias, provider_id, provider_name, base_url, upstream_model, note,
-        price_in, price_out, price_cache_read, price_cache_write
-      ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        price_in, price_out, price_cache_read, price_cache_write, token_id, token_remark
+      ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       ev.id,
       ev.ts,
       extra.day,
@@ -52,14 +55,50 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
       extra.priceIn ?? 0,
       extra.priceOut ?? 0,
       extra.priceCacheRead ?? 0,
-      extra.priceCacheWrite ?? 0
+      extra.priceCacheWrite ?? 0,
+      extra.tokenId ?? null,
+      extra.tokenRemark ?? null
     )
 
     const minute = Math.floor(ev.ts / MINUTE) * MINUTE
     const errors = ev.ok ? 0 : 1
     bump(db, 'rollup_minute', minute, ev, errors)
     bump(db, 'rollup_day', extra.day, ev, errors)
+    if (extra.tokenRemark) bumpToken(db, 'rollup_token_minute', minute, ev, errors, extra.tokenRemark)
+    if (extra.tokenRemark) bumpToken(db, 'rollup_token_day', extra.day, ev, errors, extra.tokenRemark)
   })
+}
+
+function bumpToken(
+  db: Db,
+  table: 'rollup_token_minute' | 'rollup_token_day',
+  bucket: number | string,
+  ev: RequestEvent,
+  errors: number,
+  remark: string
+): void {
+  const keyCol = table === 'rollup_token_minute' ? 'minute' : 'day'
+  db.run(
+    `insert into ${table} (${keyCol}, token_remark, source, requests, errors, input, output, cache_read, cache_write, cost)
+     values (?,?,?,?,1,?,?,?,?,?)
+     on conflict (${keyCol}, token_remark, source) do update set
+       requests = requests + 1,
+       errors = errors + excluded.errors,
+       input = input + excluded.input,
+       output = output + excluded.output,
+       cache_read = cache_read + excluded.cache_read,
+       cache_write = cache_write + excluded.cache_write,
+       cost = cost + excluded.cost`,
+    bucket,
+    remark,
+    ev.source,
+    errors,
+    ev.inputTokens,
+    ev.outputTokens,
+    ev.cacheReadTokens,
+    ev.cacheWriteTokens,
+    ev.cost
+  )
 }
 
 function bump(db: Db, table: 'rollup_minute' | 'rollup_day', bucket: number | string, ev: RequestEvent, errors: number): void {
@@ -142,6 +181,8 @@ export interface RecentRow {
   alias: string
   provider_id: string
   note: string | null
+  token_id?: string | null
+  token_remark?: string | null
 }
 
 export function recentFor(db: Db, modelId: string, limit: number): RequestEvent[] {
@@ -314,7 +355,7 @@ export type Metric =
   | 'cost'
   | 'tps'
 export type Granularity = 'minute' | 'hour' | 'day'
-export type GroupBy = 'model' | 'provider'
+export type GroupBy = 'model' | 'provider' | 'token'
 export type SourceFilter = 'all' | 'proxy' | 'probe'
 
 const METRIC_COL: Record<Exclude<Metric, 'tps' | 'total'>, string> = {
@@ -337,8 +378,15 @@ export function series(
   opts: { from: number; to: number; granularity: Granularity; metric: Metric; groupBy: GroupBy; source: SourceFilter }
 ): SeriesPointSet {
   const { from, to, granularity, metric, groupBy, source } = opts
-  const keyCol = groupBy === 'model' ? 'model_id' : 'provider_id'
-  const table = granularity === 'day' ? 'rollup_day' : 'rollup_minute'
+  const tokenGroup = groupBy === 'token'
+  const keyCol = groupBy === 'model' ? 'model_id' : groupBy === 'provider' ? 'provider_id' : 'token_remark'
+  const table = tokenGroup
+    ? granularity === 'day'
+      ? 'rollup_token_day'
+      : 'rollup_token_minute'
+    : granularity === 'day'
+      ? 'rollup_day'
+      : 'rollup_minute'
   const bucketExpr =
     granularity === 'day'
       ? 'day'
@@ -424,7 +472,7 @@ export function totals(
   db: Db,
   opts: { from: number; to: number; groupBy: GroupBy; source: SourceFilter }
 ): GroupTotals[] {
-  const keyCol = opts.groupBy === 'model' ? 'model_id' : 'provider_id'
+  const keyCol = opts.groupBy === 'model' ? 'model_id' : opts.groupBy === 'provider' ? 'provider_id' : "coalesce(token_remark, '(未记录)')"
   const params: SqlValue[] = [opts.from, opts.to]
   let where = 'ts >= ? and ts < ?'
   if (opts.source !== 'all') {
@@ -496,7 +544,7 @@ export function exportRange(db: Db, from: number, to: number, source: SourceFilt
   return db.all<ExportRow>(
     `select id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
             input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost, currency,
-            model_id, alias, provider_id, provider_name, base_url, upstream_model, note
+            model_id, alias, provider_id, provider_name, base_url, upstream_model, note, token_id, token_remark
      from requests where ${where} order by ts asc`,
     ...params
   )
@@ -531,6 +579,8 @@ export function prune(db: Db, now: number, detailDays: number, minuteDays: numbe
   const before = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
   db.run('delete from requests where ts < ?', detailCut)
   db.run('delete from app_logs where ts < ?', detailCut)
+  db.run('delete from rollup_token_minute where minute < ?', minuteCut)
+  db.run('delete from rollup_token_day where day < ?', dayKeyOf(minuteCut))
   const after = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
   db.run('delete from rollup_minute where minute < ?', minuteCut)
   db.exec('pragma incremental_vacuum')

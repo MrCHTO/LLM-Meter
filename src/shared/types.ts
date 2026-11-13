@@ -64,6 +64,15 @@ export interface OverlayState {
   theme: 'dark' | 'light'
 }
 
+export interface AccessToken {
+  id: string
+  /** 用途备注，必填，也是分析里的分组名 */
+  remark: string
+  /** 完整 token，界面点一下即可复制 */
+  token: string
+  createdAt: number
+}
+
 export interface Settings {
   port: number
   /** 是否允许局域网访问（绑 0.0.0.0） */
@@ -76,6 +85,8 @@ export interface Settings {
   localToken: string
   /** 签发本地 token 的密钥对；没有时验签退回明文比较 */
   localKey: { kid: string; privateKey: string } | null
+  /** 命名的接入 token，可多个，备注必填 */
+  tokens: AccessToken[]
   /** 明细保留天数 */
   retentionDays: number
   /** 分钟聚合保留天数 */
@@ -311,7 +322,12 @@ export interface ProviderView extends Omit<Provider, 'keyCipher'> {
 export interface ConfigView {
   providers: ProviderView[]
   models: ModelCfg[]
-  settings: Omit<Settings, 'localToken'> & { localTokenMasked: string; localToken: string; lanIp: string }
+  settings: Omit<Settings, 'localToken' | 'tokens'> & {
+    localTokenMasked: string
+    localToken: string
+    lanIp: string
+    tokens: (AccessToken & { masked: string })[]
+  }
   dataDir: string
   version: string
 }
@@ -326,7 +342,7 @@ export interface ProviderTestResult {
 
 export type StatsMetric = 'requests' | 'errors' | 'input' | 'output' | 'total' | 'cache_read' | 'cost' | 'tps'
 export type StatsGranularity = 'minute' | 'hour' | 'day'
-export type StatsGroup = 'model' | 'provider'
+export type StatsGroup = 'model' | 'provider' | 'token'
 export type StatsSource = 'all' | 'proxy' | 'probe'
 
 export interface StatsQuery {
@@ -394,6 +410,8 @@ export const CH = {
   probeStop: 'probe:stop',
   settingsUpdate: 'settings:update',
   tokenRotate: 'settings:rotateToken',
+  tokenCreate: 'token:create',
+  tokenDelete: 'token:delete',
   proxyRestart: 'proxy:restart',
   history: 'history:read',
   recent: 'history:recent',

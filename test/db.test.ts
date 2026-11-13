@@ -157,6 +157,18 @@ describe('查询', () => {
     expect(all[0]?.output).toBe(12)
   })
 
+  it('按 token 备注聚合序列与合计', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    const now = Date.now()
+    repo.recordRequest(conn, ev({ ts: now, outputTokens: 10 }), { ...extra, tokenRemark: '笔记本' })
+    repo.recordRequest(conn, ev({ ts: now + 1, outputTokens: 20 }), { ...extra, tokenRemark: '脚本' })
+    const s = repo.series(conn, { from: Math.floor(now / 60000) * 60000, to: Math.floor(now / 60000) * 60000 + 60000, granularity: 'minute', metric: 'output', groupBy: 'token', source: 'all' })
+    expect(s.series.map((x) => x.key).sort()).toEqual(['笔记本', '脚本'])
+    const t = repo.totals(conn, { from: now - 1000, to: now + 1000, groupBy: 'token', source: 'all' })
+    expect(t.find((x) => x.key === '笔记本')?.output).toBe(10)
+  })
+
   it('Top N 按指定指标排序', async () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>

@@ -214,6 +214,7 @@ try {
   await sleep(1200)
   const rows = dbRows('select * from requests order by ts asc')
   check('明细写进了数据库', rows.length > 0, `count=${rows.length}`)
+  check('请求记下命中的 token 备注', rows.every((r) => r.token_remark === '默认'), String(rows[0]?.token_remark))
 
   const streamRows = rows.filter((r) => r.stream === 1 && r.ok === 1 && r.alias === 'gpt-mini')
   check('流式请求两行落库', streamRows.length === 2, `count=${streamRows.length}`)
