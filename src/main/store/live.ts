@@ -358,6 +358,7 @@ export function snapshot(
       format: provider?.format ?? 'openai',
       currency: m.currency,
       watch: m.watch,
+      showRate: m.showRate,
       buckets: [...s.buckets],
       deltaBuckets: [...s.deltaBuckets],
       tps,

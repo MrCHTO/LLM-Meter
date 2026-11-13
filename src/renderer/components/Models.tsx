@@ -3,6 +3,7 @@ import type { ApiFormat, ConfigView, LiveSnapshot, ModelCfg, ProviderView } from
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney } from '../format'
 import { useColumnWidths } from '../columns'
+import { colorOf } from './MultiRate'
 
 interface Props {
   config: ConfigView
@@ -210,6 +211,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       alias: model.alias,
       enabled: current?.enabled ?? true,
       watch: model.watch,
+      showRate: current?.showRate ?? true,
       priceIn: Number(model.priceIn) || 0,
       priceOut: Number(model.priceOut) || 0,
       priceCacheRead: Number(model.priceCacheRead) || 0,
@@ -391,6 +393,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                   >
                     <td>
                       <div className="row-name">
+                        <span className="model-color" style={{ background: colorOf(m.id) }} />
                         <span
                           className={
                             'probe-dot' +
@@ -487,6 +490,16 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                   }}
                 >
                   {m.enabled ? '关闭' : '开启'}
+                </button>
+                <button
+                  onClick={async () => {
+                    setMenu(null)
+                    const res = await window.api.updateModel(m.id, { showRate: !m.showRate })
+                    if (!res.ok) notify(res.error ?? '切换失败')
+                    else await onChanged()
+                  }}
+                >
+                  {m.showRate !== false ? '隐藏曲线图' : '显示曲线图'}
                 </button>
                 <button
                   onClick={() => {

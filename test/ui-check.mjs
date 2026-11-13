@@ -247,7 +247,7 @@ try {
   )
   check(
     '增量曲线有图例且颜色不同',
-    (await s.eval("document.querySelectorAll('.multi-legend button').length")) >= 2 &&
+    (await s.eval("document.querySelectorAll('.multi-legend span').length")) >= 2 &&
       (await s.eval("[...document.querySelectorAll('.multi-legend i')].map((i) => getComputedStyle(i).backgroundColor).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
   )
   check(
@@ -256,9 +256,17 @@ try {
       (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) > 0
   )
   check('增量曲线下方没有峰值', (await s.eval("document.querySelectorAll('.chart-card:first-child .chart-foot').length")) === 0)
-  await s.eval("document.querySelector('.multi-legend button')?.click()")
+  const legendFirst = await s.eval("getComputedStyle(document.querySelector('.multi-legend i')).backgroundColor")
+  check(
+    '图例只有颜色块且在曲线下方',
+    (await s.eval("document.querySelector('.multi-legend span')?.innerText.trim()")) === '' &&
+      (await s.eval("document.querySelector('.multi-rate')?.lastElementChild?.className")) === 'multi-legend' &&
+      (await s.eval("document.querySelector('.multi-rate')?.firstElementChild?.getAttribute('class')")) === 'multi-svg',
+    `${await s.eval("document.querySelector('.multi-legend span')?.innerText")}|${await s.eval("document.querySelector('.multi-rate')?.lastElementChild?.className")}|${await s.eval("document.querySelector('.multi-rate')?.firstElementChild?.getAttribute('class')")}`
+  )
+  await s.eval("document.querySelector('.multi-legend span')?.click()")
   await sleep(150)
-  check('图例可点击隐藏', (await s.eval("document.querySelector('.multi-legend button')?.classList.contains('off')")) === true)
+  check('图例不可点击', (await s.eval("document.querySelectorAll('.multi-legend button').length")) === 0)
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
@@ -344,8 +352,14 @@ try {
       (await s.eval("[...document.querySelectorAll('.probe-dot')].some((d) => d.title && d.title !== '自动探针未开启')"))
   )
   check(
-    '探活点在最前面',
-    ((await s.eval("document.querySelector('tbody tr .row-name')?.firstElementChild?.className ?? ''")) || '').startsWith('probe-dot')
+    '模型颜色块在探活点前',
+    (await s.eval("document.querySelector('tbody tr .row-name')?.firstElementChild?.className ?? ''")) === 'model-color' &&
+      ((await s.eval("document.querySelector('tbody tr .row-name')?.children[1]?.className ?? ''")) || '').startsWith('probe-dot')
+  )
+  check(
+    '模型颜色块与图表图例同色',
+    (await s.eval("getComputedStyle(document.querySelector('tbody .model-color')).backgroundColor")) === legendFirst,
+    legendFirst
   )
   check('模型表别名与模型分两行', (await s.eval("document.querySelectorAll('tbody tr td .cell-model b').length")) > 0 &&
     (await s.eval("document.querySelectorAll('tbody tr td .cell-model small').length")) > 0)
@@ -364,7 +378,20 @@ try {
   await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
   await sleep(300)
   const menuItems = await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")
-  check('右键菜单有开启状态项与编辑删除', /^(开启|关闭),编辑,删除$/.test(menuItems), `${rowsBeforeMenu} 行, ctx=${await s.eval("document.querySelectorAll('.ctxmenu').length")}, ${menuItems}`)
+  check('右键菜单有开启状态项、曲线开关与编辑删除', /^(开启|关闭),(隐藏|显示)曲线图,编辑,删除$/.test(menuItems), `${rowsBeforeMenu} 行, ctx=${await s.eval("document.querySelectorAll('.ctxmenu').length")}, ${menuItems}`)
+  // 曲线开关：关掉后 showRate=false，菜单文字翻成显示曲线图，再打开恢复
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText.includes('曲线图'))?.click()")
+  await sleep(700)
+  const rateFlag = async () => (await s.eval("(async () => (await window.api.config()).data.models[0].showRate)()", true))
+  check('曲线开关写入配置', (await rateFlag()) === false)
+  await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
+  await sleep(250)
+  check('关闭后菜单变成显示曲线图', (await s.eval("[...document.querySelectorAll('.ctxmenu button')].some((b) => b.innerText === '显示曲线图')")) === true)
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '显示曲线图')?.click()")
+  await sleep(700)
+  check('重新打开曲线', (await rateFlag()) === true)
+  await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
+  await sleep(250)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '关闭' || b.innerText === '开启')?.click()")
   await sleep(900)
   check('关闭后整行变灰', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === true)

@@ -64,7 +64,6 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   }, [menu])
 
   const [flash, setFlash] = useState<Record<string, boolean>>({})
-  const [hiddenRates, setHiddenRates] = useState<Record<string, boolean>>({})
 
   const runProbe = useCallback(
     async (modelId: string): Promise<void> => {
@@ -129,11 +128,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             <span className="chart-title">增量速率 tok/s</span>
           </div>
           <div className="chart-body">
-            <MultiRate
-              models={models}
-              hidden={hiddenRates}
-              onToggle={(id) => setHiddenRates((h) => ({ ...h, [id]: !h[id] }))}
-            />
+            <MultiRate models={models.filter((m) => m.showRate !== false)} />
           </div>
         </div>
         <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} rate="次/s" />

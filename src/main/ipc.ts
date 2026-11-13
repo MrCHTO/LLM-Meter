@@ -263,6 +263,7 @@ export function register(): void {
         if (patch.enabled !== undefined) m.enabled = patch.enabled
         if (patch.autoProbe !== undefined) m.autoProbe = patch.autoProbe
         if (patch.watch !== undefined) m.watch = patch.watch
+    if (patch.showRate !== undefined) m.showRate = patch.showRate
         if (patch.priceIn !== undefined) m.priceIn = Math.max(0, patch.priceIn)
         if (patch.priceOut !== undefined) m.priceOut = Math.max(0, patch.priceOut)
         if (patch.priceCacheRead !== undefined) m.priceCacheRead = Math.max(0, patch.priceCacheRead)

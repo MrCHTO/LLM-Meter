@@ -104,6 +104,7 @@ function normalize(raw: unknown): ConfigFile {
         alias,
         enabled: o.enabled !== false,
         watch: o.watch !== false,
+        showRate: o.showRate !== false,
         priceIn: Math.max(0, num(o.priceIn, 0)),
         priceOut: Math.max(0, num(o.priceOut, 0)),
         priceCacheRead: Math.max(0, num(o.priceCacheRead, 0)),

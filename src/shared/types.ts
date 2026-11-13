@@ -36,6 +36,8 @@ export interface ModelCfg {
   enabled: boolean
   /** 是否在悬浮窗列出 */
   watch: boolean
+  /** 是否在仪表盘增量曲线显示 */
+  showRate: boolean
   /** 单价，单位：每百万 token */
   priceIn: number
   priceOut: number
@@ -194,6 +196,7 @@ export interface ModelLive {
   format: ApiFormat
   currency: string
   watch: boolean
+  showRate: boolean
   buckets: number[]
   /** 每秒增量估算 token，供多模型实时曲线；估算值，不参与统计与计费 */
   deltaBuckets: number[]
