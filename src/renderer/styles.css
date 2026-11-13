@@ -220,6 +220,11 @@ button {
   flex: none;
 }
 
+.setting-row input.w-sm {
+  width: 104px;
+  flex: none;
+}
+
 .setting-row .btn {
   white-space: nowrap;
 }

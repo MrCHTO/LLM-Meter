@@ -600,6 +600,10 @@ try {
     return true
   })()`)
   await sleep(1200)
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("document.querySelectorAll('rect.series-bar').length")) break
+    await sleep(300)
+  }
   check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
   check('空时段也保留时间刻度', (await s.eval("document.querySelectorAll('.series-svg text.axis').length")) >= 2)
   check(
@@ -665,6 +669,10 @@ try {
   check(
     '设置卡片随窗口撑满',
     await s.eval("(() => { const c = document.querySelector('.settings-cards .card'); const content = document.querySelector('.content'); return c && Math.abs(c.getBoundingClientRect().width - (content.clientWidth - 36)) < 2 })()")
+  )
+  check(
+    '应用按钮留在卡片内',
+    await s.eval("(() => { const card = document.querySelector('.settings-cards .card'); const btn = [...card.querySelectorAll('.btn')].find((b) => b.innerText === '应用'); return btn && btn.getBoundingClientRect().right <= card.getBoundingClientRect().right - 8 && btn.getBoundingClientRect().width > 30 })()")
   )
   check('设置项按行排布', (await s.eval("document.querySelectorAll('.setting-row').length")) >= 7)
   check('端口与局域网已不在设置页', !(await s.eval("document.body.innerText")).includes('监听端口') && !(await s.eval("document.body.innerText")).includes('允许局域网访问'))
