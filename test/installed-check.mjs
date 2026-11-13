@@ -123,15 +123,26 @@ try {
     check('顶栏带版本号', /v\d+\.\d+\.\d+/.test(brand), brand)
 
     // 去分析页看历史导入的数据
-    ws.send(
-      JSON.stringify({
-        id: 4,
-        method: 'Runtime.evaluate',
-        params: {
-          expression: `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '分析')?.click()`
+    const clickedAnalysis = await (async () => {
+      ws.send(
+        JSON.stringify({
+          id: 4,
+          method: 'Runtime.evaluate',
+          params: {
+            expression:
+              "(() => { const tabs = [...document.querySelectorAll('.tab')].map((x) => x.textContent.trim()); const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '分析'); if (b) b.click(); return JSON.stringify({ tabs, hit: !!b }) })()",
+            returnByValue: true
+          }
+        })
+      )
+      return new Promise((resolve) => {
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(e.data)
+          if (msg.id === 4) resolve(String(msg.result?.result?.value ?? ''))
         }
       })
-    )
+    })()
+    console.log('analysis click:', clickedAnalysis)
     await sleep(2500)
     // 刚过零点时「今天」可能还没有流量，切到近 24 小时再看
     ws.send(
