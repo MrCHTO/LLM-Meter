@@ -13,7 +13,7 @@ export interface Enrich {
   priceIn?: number
   priceOut?: number
   priceCacheRead?: number
-  priceCacheWrite?: number
+  priceCacheInput?: number
   /** 命中的接入 token（探针为空） */
   tokenId?: string | null
   tokenRemark?: string | null
@@ -27,10 +27,10 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
     db.run(
       `insert into requests (
         id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
-        input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+        input_tokens, uncached_input_tokens, output_tokens, cache_read_tokens, cache_input_tokens,
         cost, currency, model_id, alias, provider_id, provider_name, base_url, upstream_model, note,
-        price_in, price_out, price_cache_read, price_cache_write, token_id, token_remark
-      ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        price_in, price_out, price_cache_read, price_cache_input, token_id, token_remark
+      ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       ev.id,
       ev.ts,
       extra.day,
@@ -42,9 +42,10 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
       ev.ttftMs,
       ev.durationMs,
       ev.inputTokens,
+      ev.uncachedInputTokens,
       ev.outputTokens,
       ev.cacheReadTokens,
-      ev.cacheWriteTokens,
+      ev.cacheInputTokens,
       ev.cost,
       ev.currency,
       ev.modelId,
@@ -57,7 +58,7 @@ export function recordRequest(db: Db, ev: RequestEvent, extra: Enrich): void {
       extra.priceIn ?? 0,
       extra.priceOut ?? 0,
       extra.priceCacheRead ?? 0,
-      extra.priceCacheWrite ?? 0,
+      extra.priceCacheInput ?? 0,
       extra.tokenId ?? null,
       remark
     )
@@ -81,24 +82,26 @@ function bumpToken(
 ): void {
   const keyCol = table === 'rollup_token_minute' ? 'minute' : 'day'
   db.run(
-    `insert into ${table} (${keyCol}, token_remark, source, requests, errors, input, output, cache_read, cache_write, cost)
-     values (?,?,?,?,1,?,?,?,?,?)
+    `insert into ${table} (${keyCol}, token_remark, source, requests, errors, input, uncached, output, cache_read, cache_input, cost)
+     values (?,?,?,?,1,?,?,?,?,?,?)
      on conflict (${keyCol}, token_remark, source) do update set
        requests = requests + 1,
        errors = errors + excluded.errors,
        input = input + excluded.input,
+       uncached = uncached + excluded.uncached,
        output = output + excluded.output,
        cache_read = cache_read + excluded.cache_read,
-       cache_write = cache_write + excluded.cache_write,
+       cache_input = cache_input + excluded.cache_input,
        cost = cost + excluded.cost`,
     bucket,
     remark,
     ev.source,
     errors,
     ev.inputTokens,
+    ev.uncachedInputTokens,
     ev.outputTokens,
     ev.cacheReadTokens,
-    ev.cacheWriteTokens,
+    ev.cacheInputTokens,
     ev.cost
   )
 }
@@ -106,15 +109,16 @@ function bumpToken(
 function bump(db: Db, table: 'rollup_minute' | 'rollup_day', bucket: number | string, ev: RequestEvent, errors: number): void {
   const keyCol = table === 'rollup_minute' ? 'minute' : 'day'
   db.run(
-    `insert into ${table} (${keyCol}, model_id, provider_id, source, requests, errors, input, output, cache_read, cache_write, cost)
-     values (?,?,?,?,1,?,?,?,?,?,?)
+    `insert into ${table} (${keyCol}, model_id, provider_id, source, requests, errors, input, uncached, output, cache_read, cache_input, cost)
+     values (?,?,?,?,1,?,?,?,?,?,?,?)
      on conflict (${keyCol}, model_id, source) do update set
        requests = requests + 1,
        errors = errors + excluded.errors,
        input = input + excluded.input,
+       uncached = uncached + excluded.uncached,
        output = output + excluded.output,
        cache_read = cache_read + excluded.cache_read,
-       cache_write = cache_write + excluded.cache_write,
+       cache_input = cache_input + excluded.cache_input,
        cost = cost + excluded.cost`,
     bucket,
     ev.modelId,
@@ -122,9 +126,10 @@ function bump(db: Db, table: 'rollup_minute' | 'rollup_day', bucket: number | st
     ev.source,
     errors,
     ev.inputTokens,
+    ev.uncachedInputTokens,
     ev.outputTokens,
     ev.cacheReadTokens,
-    ev.cacheWriteTokens,
+    ev.cacheInputTokens,
     ev.cost
   )
 }
@@ -133,23 +138,24 @@ export interface TotalsRow {
   requests: number
   errors: number
   input: number
+  uncached: number
   output: number
   cache_read: number
-  cache_write: number
+  cache_input: number
   cost: number
 }
 
 export function dayTotals(db: Db, modelId: string, day: string): TotalsRow {
   const row = db.get<TotalsRow>(
     `select coalesce(sum(requests),0) requests, coalesce(sum(errors),0) errors,
-            coalesce(sum(input),0) input, coalesce(sum(output),0) output,
-            coalesce(sum(cache_read),0) cache_read, coalesce(sum(cache_write),0) cache_write,
+            coalesce(sum(input),0) input, coalesce(sum(uncached),0) uncached, coalesce(sum(output),0) output,
+            coalesce(sum(cache_read),0) cache_read, coalesce(sum(cache_input),0) cache_input,
             coalesce(sum(cost),0) cost
      from rollup_day where day = ? and model_id = ? and source = 'proxy'`,
     day,
     modelId
   )
-  return row ?? { requests: 0, errors: 0, input: 0, output: 0, cache_read: 0, cache_write: 0, cost: 0 }
+  return row ?? { requests: 0, errors: 0, input: 0, uncached: 0, output: 0, cache_read: 0, cache_input: 0, cost: 0 }
 }
 
 /** 今天的 TTFT 样本，供重启后回灌分位数 */
@@ -174,9 +180,10 @@ export interface RecentRow {
   ttft_ms: number | null
   duration_ms: number
   input_tokens: number
+  uncached_input_tokens: number
   output_tokens: number
   cache_read_tokens: number
-  cache_write_tokens: number
+  cache_input_tokens: number
   cost: number
   currency: string
   model_id: string
@@ -190,7 +197,7 @@ export interface RecentRow {
 export function recentFor(db: Db, modelId: string, limit: number): RequestEvent[] {
   const rows = db.all<RecentRow>(
     `select id, ts, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
-            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+            input_tokens, uncached_input_tokens, output_tokens, cache_read_tokens, cache_input_tokens,
             cost, currency, model_id, alias, provider_id, note
      from requests where model_id = ? order by ts desc limit ?`,
     modelId,
@@ -210,9 +217,10 @@ export function recentFor(db: Db, modelId: string, limit: number): RequestEvent[
     ttftMs: r.ttft_ms,
     durationMs: r.duration_ms,
     inputTokens: r.input_tokens,
+      uncachedInputTokens: r.uncached_input_tokens,
     outputTokens: r.output_tokens,
     cacheReadTokens: r.cache_read_tokens,
-    cacheWriteTokens: r.cache_write_tokens,
+    cacheInputTokens: r.cache_input_tokens,
     cost: r.cost,
     currency: r.currency,
     note: r.note ?? undefined
@@ -228,7 +236,7 @@ export function replaySince(db: Db, since: number): RequestEvent[] {
 function recentAfter(db: Db, since: number): RequestEvent[] {
   const rows = db.all<RecentRow>(
     `select id, ts, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
-            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+            input_tokens, uncached_input_tokens, output_tokens, cache_read_tokens, cache_input_tokens,
             cost, currency, model_id, alias, provider_id, note
      from requests where ts >= ? and ok = 1 order by ts asc`,
     since
@@ -247,9 +255,10 @@ function recentAfter(db: Db, since: number): RequestEvent[] {
     ttftMs: r.ttft_ms,
     durationMs: r.duration_ms,
     inputTokens: r.input_tokens,
+      uncachedInputTokens: r.uncached_input_tokens,
     outputTokens: r.output_tokens,
     cacheReadTokens: r.cache_read_tokens,
-    cacheWriteTokens: r.cache_write_tokens,
+    cacheInputTokens: r.cache_input_tokens,
     cost: r.cost,
     currency: r.currency,
     note: r.note ?? undefined
@@ -282,7 +291,7 @@ export function queryRequests(db: Db, q: LogQuery): LogPage<RequestLog> {
   const total = db.get<{ n: number }>(`select count(*) as n from requests where ${clause}`, ...all)?.n ?? 0
   const rows = db.all<RecentRow & { provider_name: string; upstream_model: string }>(
     `select id, ts, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
-            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+            input_tokens, uncached_input_tokens, output_tokens, cache_read_tokens, cache_input_tokens,
             cost, currency, model_id, alias, provider_id, note, provider_name, upstream_model
      from requests where ${clause} order by ts desc limit ? offset ?`,
     ...all,
@@ -307,9 +316,10 @@ export function queryRequests(db: Db, q: LogQuery): LogPage<RequestLog> {
       ttftMs: r.ttft_ms,
       durationMs: r.duration_ms,
       inputTokens: r.input_tokens,
+      uncachedInputTokens: r.uncached_input_tokens,
       outputTokens: r.output_tokens,
       cacheReadTokens: r.cache_read_tokens,
-      cacheWriteTokens: r.cache_write_tokens,
+      cacheInputTokens: r.cache_input_tokens,
       cost: r.cost,
       currency: r.currency,
       note: r.note ?? undefined
@@ -350,10 +360,11 @@ export type Metric =
   | 'requests'
   | 'errors'
   | 'input'
+  | 'uncached'
   | 'output'
   | 'total'
   | 'cache_read'
-  | 'cache_write'
+  | 'cache_input'
   | 'cost'
   | 'tps'
 export type Granularity = 'minute' | 'hour' | 'day'
@@ -364,9 +375,10 @@ const METRIC_COL: Record<Exclude<Metric, 'tps' | 'total'>, string> = {
   requests: 'requests',
   errors: 'errors',
   input: 'input',
+  uncached: 'uncached',
   output: 'output',
   cache_read: 'cache_read',
-  cache_write: 'cache_write',
+  cache_input: 'cache_input',
   cost: 'cost'
 }
 
@@ -473,10 +485,11 @@ export interface GroupTotals {
   requests: number
   errors: number
   input: number
+  uncached: number
   output: number
   total: number
   cache_read: number
-  cache_write: number
+  cache_input: number
   cost: number
   ttft_p50: number | null
   ttft_p95: number | null
@@ -507,10 +520,11 @@ export function totals(
             sum(1) as requests,
             sum(case when ok = 0 then 1 else 0 end) as errors,
             coalesce(sum(input_tokens),0) as input,
+            coalesce(sum(uncached_input_tokens),0) as uncached,
             coalesce(sum(output_tokens),0) as output,
             coalesce(sum(input_tokens + output_tokens),0) as total,
             coalesce(sum(cache_read_tokens),0) as cache_read,
-            coalesce(sum(cache_write_tokens),0) as cache_write,
+            coalesce(sum(cache_input_tokens),0) as cache_input,
             coalesce(sum(cost),0) as cost,
             case when sum(case when ok = 1 then duration_ms else 0 end) > 0
                  then sum(case when ok = 1 then output_tokens else 0 end) * 1000.0
@@ -566,7 +580,7 @@ export function exportRange(db: Db, from: number, to: number, source: SourceFilt
   }
   return db.all<ExportRow>(
     `select id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
-            input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost, currency,
+            input_tokens, uncached_input_tokens, output_tokens, cache_read_tokens, cache_input_tokens, cost, currency,
             model_id, alias, provider_id, provider_name, base_url, upstream_model, note, token_id, token_remark
      from requests where ${where} order by ts asc`,
     ...params

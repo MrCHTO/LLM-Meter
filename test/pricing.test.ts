@@ -9,7 +9,7 @@ const list = {
         prompt: '0.000003',
         completion: '0.000015',
         input_cache_read: '0.0000003',
-        input_cache_write: '0.00000375'
+        input_cache_input: '0.00000375'
       }
     },
     { id: 'free/model', pricing: { prompt: '0', completion: '0' } }
@@ -42,7 +42,7 @@ describe('价格查询', () => {
     expect(out.priceIn).toBeCloseTo(3)
     expect(out.priceOut).toBeCloseTo(15)
     expect(out.priceCacheRead).toBeCloseTo(0.3)
-    expect(out.priceCacheWrite).toBeCloseTo(3.75)
+    expect(out.priceCacheInput).toBeCloseTo(3.75)
   })
 
   it('只有末段名也能命中', async () => {

@@ -14,7 +14,7 @@ import * as token from '../security/token'
 import { adapterFor } from './adapters'
 import { SseTap } from './sse'
 import { joinUrl } from './url'
-import { cost, EMPTY_USAGE, type Usage } from '../metrics/cost'
+import { cost, EMPTY_USAGE, normalizeUsage, type Usage } from '../metrics/cost'
 
 const BODY_LIMIT = 64 * 1024 * 1024
 const TIMEOUT_MS = 300_000
@@ -150,9 +150,10 @@ function recordEvent(input: {
     ttftMs: input.ttftMs,
     durationMs: input.durationMs,
     inputTokens: input.usage.input,
+    uncachedInputTokens: input.usage.uncached,
     outputTokens: input.usage.output,
     cacheReadTokens: input.usage.cacheRead,
-    cacheWriteTokens: input.usage.cacheWrite,
+    cacheInputTokens: input.usage.cacheInput,
     cost: input.ok ? cost(input.model, input.usage) : 0,
     currency: input.model.currency,
     note: input.note
@@ -167,7 +168,7 @@ function recordEvent(input: {
       priceIn: input.model.priceIn,
       priceOut: input.model.priceOut,
       priceCacheRead: input.model.priceCacheRead,
-      priceCacheWrite: input.model.priceCacheWrite,
+      priceCacheInput: input.model.priceCacheInput,
       tokenId: input.tokenId ?? null,
       tokenRemark: input.tokenRemark ?? null
     })
@@ -361,7 +362,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     if (!isSse) {
       const buf = Buffer.from(await upstream.arrayBuffer())
       const parsed = adapter.parseUsage(buf.toString('utf8'))
-      if (parsed) usage = { ...usage, ...parsed }
+      if (parsed) {
+        usage = { ...usage, ...parsed }
+        usage = normalizeUsage(usage.input, usage.cacheRead, usage.cacheInput, usage.output)
+      }
       res.writeHead(status || 200, passed)
       res.end(buf)
       recordEvent({
@@ -401,6 +405,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         live.noteDelta(model.id, info.cjk, info.other)
         if (info.usage) {
           usage = { ...usage, ...info.usage }
+          usage = normalizeUsage(usage.input, usage.cacheRead, usage.cacheInput, usage.output)
           if (process.env.LLM_METER_DEBUG) console.log('[debug] usage', JSON.stringify(info.usage))
         }
         if (info.error) upstreamError = info.error

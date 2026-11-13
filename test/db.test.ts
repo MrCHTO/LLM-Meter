@@ -40,9 +40,10 @@ function ev(over: Partial<RequestEvent> = {}): RequestEvent {
     ttftMs: 120,
     durationMs: 1000,
     inputTokens: 1000,
+    uncachedInputTokens: 200,
     outputTokens: 200,
     cacheReadTokens: 800,
-    cacheWriteTokens: 0,
+    cacheInputTokens: 0,
     cost: 0.002,
     currency: 'CNY',
     ...over
@@ -292,7 +293,7 @@ describe('旧数据导入', () => {
     const minute = Math.floor(ts / 60_000) * 60_000
     writeFileSync(
       join(data, 'rollup', '2026-11-12.json'),
-      JSON.stringify({ [minute]: { m1: { out: 50, req: 1, err: 0, cost: 0.1, input: 500, cacheRead: 100, cacheWrite: 0 } } }),
+      JSON.stringify({ [minute]: { m1: { out: 50, req: 1, err: 0, cost: 0.1, input: 500, cacheRead: 100, cacheInput: 0 } } }),
       'utf8'
     )
 

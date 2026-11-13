@@ -136,6 +136,33 @@ const MIGRATIONS: string[] = [
          coalesce(sum(input_tokens),0), coalesce(sum(output_tokens),0),
          coalesce(sum(cache_read_tokens),0), coalesce(sum(cache_write_tokens),0), coalesce(sum(cost),0)
   from requests group by day, source;
+  `,
+  // v6：输入拆成未缓存/缓存读取/缓存输入；只保留今天的数据用于验证
+  `
+  alter table requests rename column cache_write_tokens to cache_input_tokens;
+  alter table requests rename column price_cache_write to price_cache_input;
+  alter table requests add column uncached_input_tokens integer;
+  update requests set uncached_input_tokens = max(0, input_tokens - cache_read_tokens - cache_input_tokens);
+
+  alter table rollup_minute rename column cache_write to cache_input;
+  alter table rollup_minute add column uncached integer not null default 0;
+  update rollup_minute set uncached = max(0, input - cache_read - cache_input);
+  alter table rollup_day rename column cache_write to cache_input;
+  alter table rollup_day add column uncached integer not null default 0;
+  update rollup_day set uncached = max(0, input - cache_read - cache_input);
+  alter table rollup_token_minute rename column cache_write to cache_input;
+  alter table rollup_token_minute add column uncached integer not null default 0;
+  update rollup_token_minute set uncached = max(0, input - cache_read - cache_input);
+  alter table rollup_token_day rename column cache_write to cache_input;
+  alter table rollup_token_day add column uncached integer not null default 0;
+  update rollup_token_day set uncached = max(0, input - cache_read - cache_input);
+
+  delete from requests where day < '2026-11-14';
+  delete from rollup_minute where minute < 1794585600000;
+  delete from rollup_day where day < '2026-11-14';
+  delete from rollup_token_minute where minute < 1794585600000;
+  delete from rollup_token_day where day < '2026-11-14';
+  delete from app_logs where ts < 1794585600000;
   `
 ]
 

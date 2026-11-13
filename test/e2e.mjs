@@ -60,7 +60,7 @@ function seed() {
             priceIn: 1,
             priceOut: 2,
             priceCacheRead: 0.1,
-            priceCacheWrite: 1.25,
+            priceCacheInput: 1.25,
             currency: 'CNY',
             dailyBudget: 5,
             sort: 0,
@@ -76,7 +76,7 @@ function seed() {
             priceIn: 3,
             priceOut: 15,
             priceCacheRead: 0.3,
-            priceCacheWrite: 3.75,
+            priceCacheInput: 3.75,
             currency: 'CNY',
             dailyBudget: null,
             sort: 1,
@@ -221,18 +221,24 @@ try {
   const first = streamRows[0]
   const second = streamRows[1]
   check(
-    '首次缓存读 0，第二次读到 1080',
+    '首次缓存读取 0，第二次读到 1080',
     first?.cache_read_tokens === 0 && second?.cache_read_tokens === 1080,
     `${first?.cache_read_tokens} → ${second?.cache_read_tokens}`
   )
   check('输出 token 记录正确', first?.output_tokens === 42, `${first?.output_tokens}`)
   check('输入 token 记录正确', first?.input_tokens === 1200, `${first?.input_tokens}`)
+  check(
+    '未缓存输入按命中钳出',
+    first?.uncached_input_tokens === 1200 && second?.uncached_input_tokens === 120,
+    `${first?.uncached_input_tokens} → ${second?.uncached_input_tokens}`
+  )
+  check('隐式缓存写入为 0', first?.cache_input_tokens === 0 && second?.cache_input_tokens === 0)
   check('TTFT 已测量', typeof first?.ttft_ms === 'number' && first.ttft_ms >= 0, `${first?.ttft_ms}`)
   const expectedCost = ((1200 - 1080) * 1 + 42 * 2 + 1080 * 0.1) / 1_000_000
   check('成本按单价折算', Math.abs((second?.cost ?? 0) - expectedCost) < 1e-9, `${second?.cost} vs ${expectedCost}`)
 
   const aRows = rows.filter((r) => r.alias === 'my-claude')
-  check('Anthropic 缓存读落库', aRows.at(-1)?.cache_read_tokens === 1080, `${aRows.at(-1)?.cache_read_tokens}`)
+  check('Anthropic 缓存读取落库', aRows.at(-1)?.cache_read_tokens === 1080, `${aRows.at(-1)?.cache_read_tokens}`)
   check('Anthropic 输入补足为总量', aRows.at(-1)?.input_tokens === 1200, `${aRows.at(-1)?.input_tokens}`)
   check('Anthropic 输出 token 取自 message_delta', aRows.at(-1)?.output_tokens === 33, `${aRows.at(-1)?.output_tokens}`)
 

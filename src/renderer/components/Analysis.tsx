@@ -14,7 +14,8 @@ type Preset = 'today' | '24h' | '7d' | 'custom'
 const METRICS: { id: StatsMetric; label: string; unit: string; digits: number }[] = [
   { id: 'requests', label: '请求数', unit: '次', digits: 0 },
   { id: 'total', label: '总 token', unit: '个', digits: 0 },
-  { id: 'input', label: '输入 token', unit: '个', digits: 0 },
+  { id: 'input', label: '总输入 token', unit: '个', digits: 0 },
+  { id: 'uncached', label: '未缓存输入 token', unit: '个', digits: 0 },
   { id: 'output', label: '输出 token', unit: '个', digits: 0 },
   { id: 'cost', label: '成本', unit: '¥', digits: 2 }
 ]
@@ -44,7 +45,7 @@ function granularityOf(span: number): StatsGranularity {
 }
 
 export function Analysis({ config, notify }: Props): JSX.Element {
-  const cols = useColumnWidths('analysis-detail', [160, 70, 60, 80, 80, 90, 80, 80, 80, 80, 70, 80])
+  const cols = useColumnWidths('analysis-detail', [160, 70, 60, 85, 85, 85, 80, 90, 90, 80, 80, 80, 70, 80])
   const [preset, setPreset] = useState<Preset>('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -227,7 +228,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
               <th>输入{cols.resizer(3)}</th>
               <th>输出{cols.resizer(4)}</th>
               <th>总 token{cols.resizer(5)}</th>
-              <th>缓存读{cols.resizer(6)}</th>
+              <th>缓存读取{cols.resizer(6)}</th>
               <th>TTFT P50{cols.resizer(7)}</th>
               <th>TTFT P95{cols.resizer(8)}</th>
               <th>TTFT P99{cols.resizer(9)}</th>
@@ -254,7 +255,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
             ))}
             {totals.length === 0 ? (
               <tr>
-                <td colSpan={12} className="empty">
+                <td colSpan={14} className="empty">
                   {range ? '这个区间没有数据' : '选一个合法区间'}
                 </td>
               </tr>

@@ -42,7 +42,7 @@ export interface ModelCfg {
   priceIn: number
   priceOut: number
   priceCacheRead: number
-  priceCacheWrite: number
+  priceCacheInput: number
   currency: string
   /** 价格来源：自动校准的会被每天刷新，手动改过的不动 */
   priceSource: 'auto' | 'manual'
@@ -142,9 +142,11 @@ export interface RequestEvent {
   ttftMs: number | null
   durationMs: number
   inputTokens: number
+  /** 输入中未命中缓存、按输入原价计费的部分 */
+  uncachedInputTokens: number
   outputTokens: number
   cacheReadTokens: number
-  cacheWriteTokens: number
+  cacheInputTokens: number
   cost: number
   currency: string
   /** 仅内存，给明细列表用；不落盘 */
@@ -187,12 +189,14 @@ export interface LogPage<T> {
   total: number
 }
 
-export interface TodayTotals {  requests: number
+export interface TodayTotals {
+  requests: number
   errors: number
   input: number
+  uncachedInput: number
   output: number
   cacheRead: number
-  cacheWrite: number
+  cacheInput: number
   cost: number
 }
 
@@ -303,7 +307,7 @@ export interface ModelInput {
   priceIn: number
   priceOut: number
   priceCacheRead: number
-  priceCacheWrite: number
+  priceCacheInput: number
   currency: string
 }
 
@@ -340,7 +344,7 @@ export interface ProviderTestResult {
 
 /* ------------------------------- 分析接口 ------------------------------- */
 
-export type StatsMetric = 'requests' | 'errors' | 'input' | 'output' | 'total' | 'cache_read' | 'cost' | 'tps'
+export type StatsMetric = 'requests' | 'errors' | 'input' | 'uncached' | 'output' | 'total' | 'cache_read' | 'cost' | 'tps'
 export type StatsGranularity = 'minute' | 'hour' | 'day'
 export type StatsGroup = 'model' | 'provider' | 'token'
 export type StatsSource = 'all' | 'proxy' | 'probe'
@@ -368,11 +372,12 @@ export interface StatsRow {
   requests: number
   errors: number
   input: number
+  uncached: number
   output: number
   /** 输入 + 输出 */
   total: number
   cacheRead: number
-  cacheWrite: number
+  cacheInput: number
   cost: number
   ttftP50: number | null
   ttftP95: number | null

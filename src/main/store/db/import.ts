@@ -14,7 +14,7 @@ interface LegacyBucket {
   cost?: number
   input?: number
   cacheRead?: number
-  cacheWrite?: number
+  cacheInput?: number
 }
 
 /** 已经导过就别重复导 */
@@ -120,7 +120,7 @@ function insertEvent(db: Db, ev: RequestEvent): void {
   db.run(
     `insert or ignore into requests (
       id, ts, day, source, status, ok, error_kind, stream, ttft_ms, duration_ms,
-      input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+      input_tokens, output_tokens, cache_read_tokens, cache_input_tokens,
       cost, currency, model_id, alias, provider_id, provider_name, base_url, upstream_model, note
     ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ev.id,
@@ -136,7 +136,7 @@ function insertEvent(db: Db, ev: RequestEvent): void {
     ev.inputTokens ?? 0,
     ev.outputTokens ?? 0,
     ev.cacheReadTokens ?? 0,
-    ev.cacheWriteTokens ?? 0,
+    ev.cacheInputTokens ?? 0,
     ev.cost ?? 0,
     ev.currency ?? 'CNY',
     ev.modelId,
@@ -155,7 +155,7 @@ function insertEvent(db: Db, ev: RequestEvent): void {
     out: ev.outputTokens ?? 0,
     input: ev.inputTokens ?? 0,
     cacheRead: ev.cacheReadTokens ?? 0,
-    cacheWrite: ev.cacheWriteTokens ?? 0,
+    cacheInput: ev.cacheInputTokens ?? 0,
     cost: ev.cost ?? 0
   }
   insertMinute(db, minute, ev.modelId, bucket)
@@ -173,7 +173,7 @@ function bumpDay(
 ): void {
   const pid = providerId || cfg.modelById(modelId)?.providerId || ''
   db.run(
-    `insert into rollup_day (day, model_id, provider_id, source, requests, errors, input, output, cache_read, cache_write, cost)
+    `insert into rollup_day (day, model_id, provider_id, source, requests, errors, input, output, cache_read, cache_input, cost)
      values (?,?,?,?,?,?,?,?,?,?,?)
      on conflict (day, model_id, source) do update set
        requests = requests + excluded.requests,
@@ -181,7 +181,7 @@ function bumpDay(
        input = input + excluded.input,
        output = output + excluded.output,
        cache_read = cache_read + excluded.cache_read,
-       cache_write = cache_write + excluded.cache_write,
+       cache_input = cache_input + excluded.cache_input,
        cost = cost + excluded.cost`,
     day,
     modelId,
@@ -192,7 +192,7 @@ function bumpDay(
     bucket.input ?? 0,
     bucket.out ?? 0,
     bucket.cacheRead ?? 0,
-    bucket.cacheWrite ?? 0,
+    bucket.cacheInput ?? 0,
     bucket.cost ?? 0
   )
 }
@@ -200,7 +200,7 @@ function bumpDay(
 function insertMinute(db: Db, minute: number, modelId: string, b: LegacyBucket): void {
   const providerId = cfg.modelById(modelId)?.providerId ?? ''
   db.run(
-    `insert into rollup_minute (minute, model_id, provider_id, source, requests, errors, input, output, cache_read, cache_write, cost)
+    `insert into rollup_minute (minute, model_id, provider_id, source, requests, errors, input, output, cache_read, cache_input, cost)
      values (?,?,?,?,?,?,?,?,?,?,?)
      on conflict (minute, model_id, source) do update set
        requests = requests + excluded.requests,
@@ -208,7 +208,7 @@ function insertMinute(db: Db, minute: number, modelId: string, b: LegacyBucket):
        input = input + excluded.input,
        output = output + excluded.output,
        cache_read = cache_read + excluded.cache_read,
-       cache_write = cache_write + excluded.cache_write,
+       cache_input = cache_input + excluded.cache_input,
        cost = cost + excluded.cost`,
     minute,
     modelId,
@@ -219,7 +219,7 @@ function insertMinute(db: Db, minute: number, modelId: string, b: LegacyBucket):
     b.input ?? 0,
     b.out ?? 0,
     b.cacheRead ?? 0,
-    b.cacheWrite ?? 0,
+    b.cacheInput ?? 0,
     b.cost ?? 0
   )
 }

@@ -38,7 +38,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   const [probing, setProbing] = useState<Record<string, boolean>>({})
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
-  const cols = useColumnWidths('dashboard', [200, 120, 95, 70, 70, 70, 100, 80, 80, 90, 34])
+  const cols = useColumnWidths('dashboard', [200, 120, 95, 70, 70, 70, 100, 80, 80, 80, 80, 90, 34])
 
   useEffect(() => {
     if (!menu) return
@@ -145,10 +145,12 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               <th className="c-ttft">TTFT P95{cols.resizer(4)}</th>
               <th className="c-ttft">TTFT P99{cols.resizer(5)}</th>
               <th className="c-hit">缓存命中率{cols.resizer(6)}</th>
-              <th className="c-tok">输入{cols.resizer(7)}</th>
-              <th className="c-tok">输出{cols.resizer(8)}</th>
-              <th className="c-cost">费用{cols.resizer(9)}</th>
-              <th className="c-drag">{cols.resizer(10)}</th>
+              <th className="c-tok">未缓存输入{cols.resizer(7)}</th>
+              <th className="c-tok">缓存读取{cols.resizer(8)}</th>
+              <th className="c-tok">缓存输入{cols.resizer(9)}</th>
+              <th className="c-tok">输出{cols.resizer(10)}</th>
+              <th className="c-cost">费用{cols.resizer(11)}</th>
+              <th className="c-drag">{cols.resizer(12)}</th>
             </tr>
           </thead>
           <tbody>
@@ -209,11 +211,13 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     <td className="c-ttft mono">{fmtMs(m.ttftP99)}</td>
                     <td
                       className="c-hit mono"
-                      title={`缓存读 ${fmtTokens(m.today.cacheRead)} / 输入 ${fmtTokens(m.today.input)}`}
+                      title={`缓存读取 ${fmtTokens(m.today.cacheRead)} / 输入 ${fmtTokens(m.today.input)}`}
                     >
                       {fmtPct(m.hitRate)}
                     </td>
-                    <td className="c-tok mono">{fmtTokens(m.today.input)}</td>
+                    <td className="c-tok mono">{fmtTokens(m.today.uncachedInput)}</td>
+                    <td className="c-tok mono">{fmtTokens(m.today.cacheRead)}</td>
+                    <td className="c-tok mono">{fmtTokens(m.today.cacheInput)}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
                     <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>
                     <td className="c-drag">
@@ -236,7 +240,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             })}
             {models.length === 0 ? (
               <tr>
-                      <td colSpan={11} className="empty">
+                      <td colSpan={13} className="empty">
                   还没有启用的模型
                 </td>
               </tr>

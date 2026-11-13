@@ -45,9 +45,10 @@ function ev(ts: number, tokens: number, ok = true): Parameters<Awaited<ReturnTyp
     ttftMs: null,
     durationMs: 1000,
     inputTokens: 10,
+    uncachedInputTokens: 10,
     outputTokens: tokens,
     cacheReadTokens: 0,
-    cacheWriteTokens: 0,
+    cacheInputTokens: 0,
     cost: 0,
     currency: 'CNY'
   }

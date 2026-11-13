@@ -10,7 +10,7 @@ import { open as openKey } from '../security/keys'
 import { adapterFor } from './../proxy/adapters'
 import { SseTap } from '../proxy/sse'
 import { joinUrl } from '../proxy/url'
-import { cost, EMPTY_USAGE, type Usage } from '../metrics/cost'
+import { cost, EMPTY_USAGE, normalizeUsage, type Usage } from '../metrics/cost'
 
 const TIMEOUT_MS = 120_000
 const FILLER = '温度、气压与湿度沿着海岸线缓慢变化，The quick brown fox jumps over the lazy dog。'
@@ -63,9 +63,10 @@ function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, st
     ttftMs: run.ttftMs,
     durationMs: Date.now() - started,
     inputTokens: usage.input,
+    uncachedInputTokens: usage.uncached,
     outputTokens: usage.output,
     cacheReadTokens: usage.cacheRead,
-    cacheWriteTokens: usage.cacheWrite,
+    cacheInputTokens: usage.cacheInput,
     cost: run.ok ? cost(model, usage) : 0,
     currency: model.currency,
     note: run.error
@@ -80,7 +81,7 @@ function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, st
       priceIn: model.priceIn,
       priceOut: model.priceOut,
       priceCacheRead: model.priceCacheRead,
-      priceCacheWrite: model.priceCacheWrite
+      priceCacheInput: model.priceCacheInput
     })
   } catch (err) {
     console.error('[db] 写入失败', err)
@@ -189,7 +190,10 @@ export async function run(modelId: string): Promise<ProbeResult> {
         const info = adapter.onFrame(frame)
         if (info.firstContent && run.ttftMs === null) run.ttftMs = Date.now() - started
         live.noteDelta(model.id, info.cjk, info.other)
-        if (info.usage) Object.assign(usage, info.usage)
+        if (info.usage) {
+          Object.assign(usage, info.usage)
+          Object.assign(usage, normalizeUsage(usage.input, usage.cacheRead, usage.cacheInput, usage.output))
+        }
         if (info.error) run.error = info.error
       }
     }

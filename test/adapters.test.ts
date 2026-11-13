@@ -24,11 +24,11 @@ describe('openai 适配器', () => {
     expect(JSON.parse(out.body).stream_options).toBeUndefined()
   })
 
-  it('从 usage 帧读缓存读 token', () => {
+  it('从 usage 帧读缓存读取 token', () => {
     const info = a.onFrame(
       'data: {"usage":{"prompt_tokens":1200,"completion_tokens":460,"prompt_tokens_details":{"cached_tokens":1080}}}'
     )
-    expect(info.usage).toEqual({ input: 1200, output: 460, cacheRead: 1080 })
+    expect(info.usage).toEqual({ input: 1200, output: 460, cacheRead: 1080, cacheInput: 0 })
   })
 
   it('兼容 DeepSeek 的 prompt_cache_hit_tokens', () => {
@@ -72,7 +72,8 @@ describe('openai 适配器', () => {
     expect(a.parseUsage('{"usage":{"prompt_tokens":10,"completion_tokens":20}}')).toEqual({
       input: 10,
       output: 20,
-      cacheRead: 0
+      cacheRead: 0,
+      cacheInput: 0
     })
   })
 })
@@ -90,7 +91,7 @@ describe('anthropic 适配器', () => {
     const info = a.onFrame(
       'data: {"type":"message_start","message":{"usage":{"input_tokens":120,"cache_read_input_tokens":1080,"cache_creation_input_tokens":0,"output_tokens":1}}}'
     )
-    expect(info.usage).toEqual({ input: 1200, output: 1, cacheRead: 1080, cacheWrite: 0 })
+    expect(info.usage).toEqual({ input: 1200, output: 1, cacheRead: 1080, cacheInput: 0 })
   })
 
   it('message_delta 覆盖输出 token', () => {

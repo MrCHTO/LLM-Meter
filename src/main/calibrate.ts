@@ -35,7 +35,7 @@ export async function run(): Promise<void> {
           in: (hit.priceIn ?? 0) * r.rate,
           out: (hit.priceOut ?? 0) * r.rate,
           read: (hit.priceCacheRead ?? 0) * r.rate,
-          write: (hit.priceCacheWrite ?? 0) * r.rate
+          write: (hit.priceCacheInput ?? 0) * r.rate
         })
       } else if (!hit.found) {
         missed++
@@ -52,7 +52,7 @@ export async function run(): Promise<void> {
         target.priceIn = u.in
         target.priceOut = u.out
         target.priceCacheRead = u.read
-        target.priceCacheWrite = u.write
+        target.priceCacheInput = u.write
         target.currency = 'CNY'
       }
       c.settings.lastCalibrate = { at, rate: r.rate, updated: updates.length, missed }

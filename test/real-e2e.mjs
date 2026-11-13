@@ -55,7 +55,7 @@ writeFileSync(
         priceIn: 1,
         priceOut: 2,
         priceCacheRead: 0.1,
-        priceCacheWrite: 0,
+        priceCacheInput: 0,
         currency: 'USD',
         dailyBudget: 1,
         sort: 0,
@@ -150,12 +150,12 @@ try {
   const tps = windowSec > 0 ? (a?.outputTokens ?? 0) / windowSec : 0
   check('tps 可计算且为正', tps > 0, `${tps.toFixed(1)} tok/s`)
   const hits = rows.map((r) => r.cacheReadTokens)
-  check('缓存读数不超过输入 token', rows.every((r) => r.cacheReadTokens <= r.inputTokens), `cacheRead=${hits.join(',')}`)
+  check('缓存读取数不超过输入 token', rows.every((r) => r.cacheReadTokens <= r.inputTokens), `cacheRead=${hits.join(',')}`)
   const anyHit = hits.slice(1).some((n) => n > 0)
   console.log(
     anyHit
-      ? `INFO  缓存读 ${hits.join(',')}`
-      : `INFO  缓存读 ${hits.join(',')} —— 该中转当前没有上报缓存命中，属上游行为`
+      ? `INFO  缓存读取 ${hits.join(',')}`
+      : `INFO  缓存读取 ${hits.join(',')} —— 该中转当前没有上报缓存命中，属上游行为`
   )
   check('缓存命中时成本按缓存单价折算', rows.every((r) => (r.cacheReadTokens > 0 ? r.cost < (r.inputTokens * 1 + r.outputTokens * 2) / 1e6 : true)))
 } catch (err) {

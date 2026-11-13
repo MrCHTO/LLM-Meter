@@ -53,7 +53,7 @@ declare global {
           priceIn?: number
           priceOut?: number
           priceCacheRead?: number
-          priceCacheWrite?: number
+          priceCacheInput?: number
           note: string
         }>
       >

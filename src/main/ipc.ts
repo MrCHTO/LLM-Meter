@@ -274,7 +274,7 @@ export function register(): void {
         if (patch.priceIn !== undefined) m.priceIn = Math.max(0, patch.priceIn)
         if (patch.priceOut !== undefined) m.priceOut = Math.max(0, patch.priceOut)
         if (patch.priceCacheRead !== undefined) m.priceCacheRead = Math.max(0, patch.priceCacheRead)
-        if (patch.priceCacheWrite !== undefined) m.priceCacheWrite = Math.max(0, patch.priceCacheWrite)
+        if (patch.priceCacheInput !== undefined) m.priceCacheInput = Math.max(0, patch.priceCacheInput)
         if (patch.currency !== undefined) m.currency = patch.currency || 'USD'
         // 显式给了 priceSource 就照办（恢复自动）；否则只要动过价格就判为手动
         if (patch.priceSource !== undefined) m.priceSource = patch.priceSource === 'auto' ? 'auto' : 'manual'
@@ -282,7 +282,7 @@ export function register(): void {
           patch.priceIn !== undefined ||
           patch.priceOut !== undefined ||
           patch.priceCacheRead !== undefined ||
-          patch.priceCacheWrite !== undefined
+          patch.priceCacheInput !== undefined
         ) {
           m.priceSource = 'manual'
         }
@@ -326,7 +326,7 @@ export function register(): void {
         priceIn: conv(out.priceIn),
         priceOut: conv(out.priceOut),
         priceCacheRead: conv(out.priceCacheRead),
-        priceCacheWrite: conv(out.priceCacheWrite),
+        priceCacheInput: conv(out.priceCacheInput),
         note: `已按照 ${out.matchedId} 查询并自动填写${
           out.source === 'official' ? '（官方价）' : '（OpenRouter 最低服务商价）'
         }，人民币汇率为 ${today.rate.toFixed(2)}${out.exact ? '' : '（近似匹配，请核对）'}`
@@ -537,10 +537,11 @@ export function register(): void {
     requests: r.requests,
     errors: r.errors,
     input: r.input,
+    uncached: r.uncached,
     output: r.output,
     total: r.total,
     cacheRead: r.cache_read,
-    cacheWrite: r.cache_write,
+    cacheInput: r.cache_input,
     cost: r.cost,
     ttftP50: r.ttft_p50,
     ttftP95: r.ttft_p95,
@@ -596,11 +597,12 @@ export function register(): void {
         'ok',
         'TTFT(ms)',
         '耗时(ms)',
-        '输入',
+        '总输入',
+        '未缓存输入',
+        '缓存读取',
+        '缓存输入',
         '输出',
         '总 token',
-        '缓存读',
-        '缓存写',
         '成本',
         '货币',
         '备注'
@@ -622,10 +624,11 @@ export function register(): void {
             r.ttft_ms ?? '',
             r.duration_ms,
             r.input_tokens,
+            r.uncached_input_tokens,
+            r.cache_read_tokens,
+            r.cache_input_tokens,
             r.output_tokens,
             Number(r.input_tokens) + Number(r.output_tokens),
-            r.cache_read_tokens,
-            r.cache_write_tokens,
             r.cost,
             r.currency,
             r.note ?? ''
@@ -669,9 +672,10 @@ export function register(): void {
           ttftMs: 120 + Math.floor(Math.random() * 900),
           durationMs: duration,
           inputTokens: input,
+          uncachedInputTokens: Math.max(0, input - cacheRead),
           outputTokens: output,
           cacheReadTokens: cacheRead,
-          cacheWriteTokens: 0,
+          cacheInputTokens: 0,
           cost: (Math.max(0, input - cacheRead) * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) / 1e6,
           currency: model.currency
         }
@@ -683,7 +687,7 @@ export function register(): void {
           priceIn: model.priceIn,
           priceOut: model.priceOut,
           priceCacheRead: model.priceCacheRead,
-          priceCacheWrite: model.priceCacheWrite
+          priceCacheInput: model.priceCacheInput
         })
         made++
       }

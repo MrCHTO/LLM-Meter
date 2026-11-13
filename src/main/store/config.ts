@@ -110,7 +110,7 @@ function normalize(raw: unknown): ConfigFile {
         priceIn: Math.max(0, num(o.priceIn, 0)),
         priceOut: Math.max(0, num(o.priceOut, 0)),
         priceCacheRead: Math.max(0, num(o.priceCacheRead, 0)),
-        priceCacheWrite: Math.max(0, num(o.priceCacheWrite, 0)),
+        priceCacheInput: Math.max(0, num(o.priceCacheInput, 0)),
         currency: str(o.currency, 'USD') || 'USD',
         priceSource: o.priceSource === 'manual' ? 'manual' : 'auto',
         autoProbe: o.autoProbe === true,
@@ -193,7 +193,7 @@ function normalize(raw: unknown): ConfigFile {
     m.priceIn *= rate
     m.priceOut *= rate
     m.priceCacheRead *= rate
-    m.priceCacheWrite *= rate
+    m.priceCacheInput *= rate
     m.currency = 'CNY'
   }
 

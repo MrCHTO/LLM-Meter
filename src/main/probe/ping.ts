@@ -73,9 +73,10 @@ export async function ping(modelId: string): Promise<boolean> {
     ttftMs: null,
     durationMs: Date.now() - started,
     inputTokens: 0,
+    uncachedInputTokens: 0,
     outputTokens: 0,
     cacheReadTokens: 0,
-    cacheWriteTokens: 0,
+    cacheInputTokens: 0,
     cost: 0,
     currency: 'CNY',
     note
@@ -90,7 +91,7 @@ export async function ping(modelId: string): Promise<boolean> {
       priceIn: model.priceIn,
       priceOut: model.priceOut,
       priceCacheRead: model.priceCacheRead,
-      priceCacheWrite: model.priceCacheWrite
+      priceCacheInput: model.priceCacheInput
     })
   } catch {
     /* 落库失败不影响探活结果 */

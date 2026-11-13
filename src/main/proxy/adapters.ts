@@ -118,10 +118,15 @@ const openai: Adapter = {
       if (usage) {
         const details = asRecord(usage.prompt_tokens_details)
         const cached = num(details?.cached_tokens) || num(usage.prompt_cache_hit_tokens)
+        const written =
+          num(usage.cache_write_tokens) ||
+          num(details?.cache_creation_tokens) ||
+          num(details?.cache_write_tokens)
         info.usage = {
           input: num(usage.prompt_tokens),
           output: num(usage.completion_tokens),
-          cacheRead: cached
+          cacheRead: cached,
+          cacheInput: written
         }
       }
 
@@ -147,7 +152,8 @@ const openai: Adapter = {
     return {
       input: num(usage.prompt_tokens),
       output: num(usage.completion_tokens),
-      cacheRead: num(details?.cached_tokens) || num(usage.prompt_cache_hit_tokens)
+      cacheRead: num(details?.cached_tokens) || num(usage.prompt_cache_hit_tokens),
+      cacheInput: num(usage.cache_write_tokens) || num(details?.cache_creation_tokens) || num(details?.cache_write_tokens)
     }
   },
 
@@ -182,7 +188,7 @@ const anthropic: Adapter = {
         continue
       }
 
-      // message_start 带输入侧 usage（含缓存读/写）
+      // message_start 带输入侧 usage（含缓存读取/写）
       const message = asRecord(parsed.message)
       const startUsage = asRecord(message?.usage) ?? asRecord(parsed.usage)
       if (startUsage) {
@@ -193,7 +199,7 @@ const anthropic: Adapter = {
           input: num(startUsage.input_tokens) + read + write,
           output: num(startUsage.output_tokens),
           cacheRead: read,
-          cacheWrite: write
+          cacheInput: write
         }
       }
 
@@ -223,7 +229,7 @@ const anthropic: Adapter = {
       input: num(usage.input_tokens) + read + write,
       output: num(usage.output_tokens),
       cacheRead: read,
-      cacheWrite: write
+      cacheInput: write
     }
   },
 

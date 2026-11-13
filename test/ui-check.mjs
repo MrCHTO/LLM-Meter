@@ -48,7 +48,7 @@ const rows = [0, 1, 2]
     inputTokens: 1200,
     outputTokens: 460,
     cacheReadTokens: i === 0 ? 0 : 1080,
-    cacheWriteTokens: 0,
+    cacheInputTokens: 0,
     cost: 0.0043,
     currency: 'USD'
   }))
@@ -69,7 +69,7 @@ const rows = [0, 1, 2]
     inputTokens: 800,
     outputTokens: 150,
     cacheReadTokens: 0,
-    cacheWriteTokens: 0,
+    cacheInputTokens: 0,
     cost: 0.0021,
     currency: 'USD'
   })
@@ -110,7 +110,7 @@ writeFileSync(
         priceIn: 3,
         priceOut: 15,
         priceCacheRead: 0.3,
-        priceCacheWrite: 3.75,
+        priceCacheInput: 3.75,
         currency: 'USD',
         dailyBudget: 5,
         sort: 0,
@@ -126,7 +126,7 @@ writeFileSync(
         priceIn: 3,
         priceOut: 15,
         priceCacheRead: 0.3,
-        priceCacheWrite: 3.75,
+        priceCacheInput: 3.75,
         currency: 'USD',
         dailyBudget: null,
         sort: 1,
@@ -285,7 +285,7 @@ try {
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
-  check('表头是十一列', (await s.eval("document.querySelectorAll('thead th').length")) === 11)
+  check('表头是十三列', (await s.eval("document.querySelectorAll('thead th').length")) === 13)
   const headText = await s.eval("[...document.querySelectorAll('thead th')].map((n) => n.innerText).join('|')")
   check(
     'TTFT 拆为三个分位列',
@@ -403,7 +403,7 @@ try {
       (await s.eval("getComputedStyle(document.querySelector('tbody .cell-model small')).color")) === 'rgb(140, 150, 163)'
   )
   const modelHeads = await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")
-  check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|输入价格|输出价格|缓存读取|缓存写入|悬浮窗|自动探针'))
+  check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|输入价格|输出价格|缓存读取|缓存输入|悬浮窗|自动探针'))
   check('模型表没有状态列', !modelHeads.includes('状态'))
   check('模型行内没有编辑删除按钮', (await s.eval("[...document.querySelectorAll('.tbl-models tbody button')].some((b) => ['编辑', '删除'].includes(b.innerText))")) === false)
   check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 9)
@@ -572,9 +572,9 @@ try {
   )
   check('分析页没有来源下拉', !(await s.eval('document.body.innerText')).includes('来源'))
   check(
-    '指标只剩五项',
+    '指标有六项',
     (await s.eval("[...document.querySelectorAll('.card select')][1] ? [...[...document.querySelectorAll('.card select')][1].options].map((o) => o.text).join(',') : ''")) ===
-      '请求数,总 token,输入 token,输出 token,成本'
+      '请求数,总 token,总输入 token,未缓存输入 token,输出 token,成本'
   )
   check('分析页有明细表', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check(

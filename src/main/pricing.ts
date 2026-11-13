@@ -24,7 +24,7 @@ export interface PriceLookup {
   priceIn?: number
   priceOut?: number
   priceCacheRead?: number
-  priceCacheWrite?: number
+  priceCacheInput?: number
   note: string
 }
 
@@ -35,7 +35,7 @@ interface Entry {
   priceIn: number
   priceOut: number
   priceCacheRead: number
-  priceCacheWrite: number
+  priceCacheInput: number
 }
 
 let cache: { at: number; list: Entry[] } | null = null
@@ -74,7 +74,7 @@ async function load(): Promise<Entry[]> {
         priceIn: num(pricing.prompt) * 1e6,
         priceOut: num(pricing.completion) * 1e6,
         priceCacheRead: num(pricing.input_cache_read) * 1e6,
-        priceCacheWrite: num(pricing.input_cache_write) * 1e6
+        priceCacheInput: num(pricing.input_cache_input) * 1e6
       }
       if (entry.priceIn || entry.priceOut) list.push(entry)
     }
@@ -133,7 +133,7 @@ async function fetchCatalog(): Promise<OfficialEntry[]> {
           priceIn,
           priceOut,
           priceCacheRead: num(cost.cache_read),
-          priceCacheWrite: num(cost.cache_write)
+          priceCacheInput: num(cost.cache_input)
         })
       }
     }
@@ -174,7 +174,7 @@ async function lookupOfficial(wanted: string): Promise<PriceLookup | null> {
     priceIn: round(hit.priceIn),
     priceOut: round(hit.priceOut),
     priceCacheRead: round(hit.priceCacheRead),
-    priceCacheWrite: round(hit.priceCacheWrite),
+    priceCacheInput: round(hit.priceCacheInput),
     note: hit.id
   }
 }
@@ -213,7 +213,7 @@ async function cheapestEndpoint(id: string): Promise<Entry | null> {
         priceIn,
         priceOut,
         priceCacheRead: num(p.input_cache_read) * 1e6,
-        priceCacheWrite: num(p.input_cache_write) * 1e6
+        priceCacheInput: num(p.input_cache_input) * 1e6
       }
       if (!best || entry.priceIn < best.priceIn) best = entry
     }
@@ -267,7 +267,7 @@ export async function lookup(modelId: string): Promise<PriceLookup> {
     priceIn: round(price.priceIn),
     priceOut: round(price.priceOut),
     priceCacheRead: round(price.priceCacheRead),
-    priceCacheWrite: round(price.priceCacheWrite),
+    priceCacheInput: round(price.priceCacheInput),
     note: hit.id
   }
 }

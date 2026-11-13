@@ -29,7 +29,7 @@ interface ModelDraft {
   priceIn: string
   priceOut: string
   priceCacheRead: string
-  priceCacheWrite: string
+  priceCacheInput: string
   currency: string
   watch: boolean
 }
@@ -42,7 +42,7 @@ function emptyModel(providerId: string): ModelDraft {
     priceIn: '0',
     priceOut: '0',
     priceCacheRead: '0',
-    priceCacheWrite: '0',
+    priceCacheInput: '0',
     currency: 'CNY',
     watch: true
   }
@@ -86,7 +86,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       priceIn: (Math.round(m.priceIn * 10) / 10).toFixed(1),
       priceOut: (Math.round(m.priceOut * 10) / 10).toFixed(1),
       priceCacheRead: (Math.round(m.priceCacheRead * 10) / 10).toFixed(1),
-      priceCacheWrite: (Math.round(m.priceCacheWrite * 10) / 10).toFixed(1),
+      priceCacheInput: (Math.round(m.priceCacheInput * 10) / 10).toFixed(1),
       currency: m.currency,
       watch: m.watch
     })
@@ -137,7 +137,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
             priceIn: String(Math.round((data.priceIn ?? 0) * 100) / 100),
             priceOut: String(Math.round((data.priceOut ?? 0) * 100) / 100),
             priceCacheRead: String(Math.round((data.priceCacheRead ?? 0) * 100) / 100),
-            priceCacheWrite: String(Math.round((data.priceCacheWrite ?? 0) * 100) / 100),
+            priceCacheInput: String(Math.round((data.priceCacheInput ?? 0) * 100) / 100),
             currency: 'CNY'
           }
         : m
@@ -189,7 +189,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       r1(current.priceIn) !== r1(Number(draft.priceIn) || 0) ||
       r1(current.priceOut) !== r1(Number(draft.priceOut) || 0) ||
       r1(current.priceCacheRead) !== r1(Number(draft.priceCacheRead) || 0) ||
-      r1(current.priceCacheWrite) !== r1(Number(draft.priceCacheWrite) || 0)
+      r1(current.priceCacheInput) !== r1(Number(draft.priceCacheInput) || 0)
     return changed ? 'manual' : current.priceSource
   }
 
@@ -214,7 +214,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       priceIn: Number(model.priceIn) || 0,
       priceOut: Number(model.priceOut) || 0,
       priceCacheRead: Number(model.priceCacheRead) || 0,
-      priceCacheWrite: Number(model.priceCacheWrite) || 0,
+      priceCacheInput: Number(model.priceCacheInput) || 0,
       currency: model.currency,
       priceSource: priceSourceFor(model),
       autoProbe: current?.autoProbe ?? false
@@ -354,7 +354,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                 <th title="每百万 token 单价">输入价格{cols.resizer(2)}</th>
                 <th title="每百万 token 单价">输出价格{cols.resizer(3)}</th>
                 <th title="每百万 token 单价">缓存读取{cols.resizer(4)}</th>
-                <th title="每百万 token 单价">缓存写入{cols.resizer(5)}</th>
+                <th title="每百万 token 单价">缓存输入{cols.resizer(5)}</th>
                 <th className="c-center">悬浮窗{cols.resizer(6)}</th>
                 <th className="c-center">自动探针{cols.resizer(7)}</th>
                 <th className="c-drag">{cols.resizer(8)}</th>
@@ -395,7 +395,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                     <td className="mono">{fmtMoney(m.priceIn, m.currency)}</td>
                     <td className="mono">{fmtMoney(m.priceOut, m.currency)}</td>
                     <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
-                    <td className="mono">{fmtMoney(m.priceCacheWrite, m.currency)}</td>
+                    <td className="mono">{fmtMoney(m.priceCacheInput, m.currency)}</td>
                     <td className="c-center">
                       <button
                         className={config.settings.overlay.modelId === m.id ? 'pick on' : 'pick'}
@@ -628,12 +628,12 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                   />
                 </label>
                 <label className="field">
-                  <span>缓存写入单价 / 百万 token / ¥</span>
+                  <span>缓存输入单价 / 百万 token / ¥</span>
                   <input
                     type="number"
                     step="0.01"
-                    value={model.priceCacheWrite}
-                    onChange={(e) => setModel({ ...model, priceCacheWrite: e.target.value })}
+                    value={model.priceCacheInput}
+                    onChange={(e) => setModel({ ...model, priceCacheInput: e.target.value })}
                   />
                 </label>
               </div>

@@ -52,7 +52,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
   const [data, setData] = useState<LogPage<RequestLog> | LogPage<AppLog> | null>(null)
   const [loading, setLoading] = useState(false)
   const seq = useRef(0)
-  const requestCols = useColumnWidths('log-requests', [90, 120, 110, 60, 60, 70, 70, 70, 70, 80, 200])
+  const requestCols = useColumnWidths('log-requests', [90, 120, 110, 60, 60, 70, 70, 70, 70, 70, 70, 80, 200])
   const appCols = useColumnWidths('log-apps', [90, 60, 90, 600])
 
   useEffect(() => {
