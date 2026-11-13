@@ -205,12 +205,21 @@ function recentAfter(db: Db, since: number): RequestEvent[] {
 
 /* ------------------------------- 分析查询 ------------------------------- */
 
-export type Metric = 'requests' | 'errors' | 'input' | 'output' | 'cache_read' | 'cache_write' | 'cost' | 'tps'
+export type Metric =
+  | 'requests'
+  | 'errors'
+  | 'input'
+  | 'output'
+  | 'total'
+  | 'cache_read'
+  | 'cache_write'
+  | 'cost'
+  | 'tps'
 export type Granularity = 'minute' | 'hour' | 'day'
 export type GroupBy = 'model' | 'provider'
 export type SourceFilter = 'all' | 'proxy' | 'probe'
 
-const METRIC_COL: Record<Exclude<Metric, 'tps'>, string> = {
+const METRIC_COL: Record<Exclude<Metric, 'tps' | 'total'>, string> = {
   requests: 'requests',
   errors: 'errors',
   input: 'input',
@@ -239,7 +248,12 @@ export function series(
         ? `(minute / ${HOUR}) * ${HOUR}`
         : 'minute'
   const timeCol = granularity === 'day' ? 'day' : 'minute'
-  const valueExpr = metric === 'tps' ? 'sum(output) * 1.0' : `sum(${METRIC_COL[metric]})`
+  const valueExpr =
+    metric === 'tps'
+      ? 'sum(output) * 1.0'
+      : metric === 'total'
+        ? 'sum(input + output)'
+        : `sum(${METRIC_COL[metric]})`
 
   const params: SqlValue[] = []
   const where: string[] = []
@@ -291,6 +305,7 @@ export interface GroupTotals {
   errors: number
   input: number
   output: number
+  total: number
   cache_read: number
   cache_write: number
   cost: number
@@ -324,6 +339,7 @@ export function totals(
             sum(case when ok = 0 then 1 else 0 end) as errors,
             coalesce(sum(input_tokens),0) as input,
             coalesce(sum(output_tokens),0) as output,
+            coalesce(sum(input_tokens + output_tokens),0) as total,
             coalesce(sum(cache_read_tokens),0) as cache_read,
             coalesce(sum(cache_write_tokens),0) as cache_write,
             coalesce(sum(cost),0) as cost,

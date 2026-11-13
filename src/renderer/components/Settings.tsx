@@ -12,7 +12,7 @@ interface Props {
 export function SettingsView({ config, snapshot, notify, onChanged }: Props): JSX.Element {
   const [showToken, setShowToken] = useState(false)
   const [port, setPort] = useState(String(config.settings.port))
-  const [opacity, setOpacity] = useState(config.settings.overlayOpacity)
+  const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
   const [rate, setRate] = useState(String(config.settings.usdCny))
   const tokenRef = useRef<HTMLInputElement>(null)
@@ -32,6 +32,12 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
       document.execCommand('copy')
       notify('已复制（回退方式）', 'ok')
     }
+  }
+
+  const applyOpacity = async (): Promise<void> => {
+    const value = Math.min(100, Math.max(10, Math.round(Number(opacity) || 100)))
+    setOpacity(String(value))
+    await patch({ overlayOpacity: value })
   }
 
   const overlayModel = config.models.find((m) => m.id === config.settings.overlay.modelId)
@@ -286,19 +292,23 @@ export function SettingsView({ config, snapshot, notify, onChanged }: Props): JS
           </label>
         </div>
         <div className="field mt">
-          <span className="row">
-            <span>不透明度</span>
-            <span className="muted" style={{ marginLeft: 'auto' }}>{opacity}%</span>
-          </span>
-          <input
-            type="range"
-            min={10}
-            max={100}
-            value={opacity}
-            onChange={(e) => setOpacity(Number(e.target.value))}
-            onMouseUp={() => void patch({ overlayOpacity: opacity })}
-            onKeyUp={() => void patch({ overlayOpacity: opacity })}
-          />
+          <span>不透明度（10–100）</span>
+          <div className="row nowrap">
+            <input
+              className="mono w-sm"
+              type="number"
+              min={10}
+              max={100}
+              value={opacity}
+              onChange={(e) => setOpacity(e.target.value)}
+              onKeyUp={(e) => {
+                if (e.key === 'Enter') void applyOpacity()
+              }}
+            />
+            <button className="btn" onClick={() => void applyOpacity()}>
+              应用
+            </button>
+          </div>
         </div>
       </div>
 

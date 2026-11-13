@@ -274,6 +274,16 @@ try {
   check('模型页列出供应商', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check('供应商显示掩码 Key', /••••/.test(await s.eval("document.body.innerText")))
   check('文案已改为 OpenAI', !(await s.eval('document.body.innerText')).includes('OpenAI 兼容'))
+  check(
+    '悬浮窗与状态是无框文字按钮',
+    (await s.eval("document.querySelectorAll('.pick').length")) > 0 &&
+      (await s.eval("document.querySelectorAll('.state').length")) > 0 &&
+      (await s.eval("document.querySelectorAll('.pick.btn, .state .pill').length")) === 0
+  )
+  const aligns = await s.eval(
+    "[...document.querySelectorAll('.tbl-left thead th')].filter((th) => ['悬浮窗', '状态'].includes(th.innerText)).map((th) => getComputedStyle(th).textAlign).join(',')"
+  )
+  check('悬浮窗与状态列居中', aligns.split(',').slice(-2).join(',') === 'center,center', aligns)
 
   // 状态一致：点另一行「选中」，胶囊立刻跟上；随后切回 m1 保持后续断言的环境
   const ovSync = await session(await waitTarget('overlay.html'))
@@ -299,6 +309,15 @@ try {
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) >= 3)
   check('分析页有明细表', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
   check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
+  check(
+    '0 值不画柱',
+    await s.eval("[...document.querySelectorAll('rect.series-bar')].every((r) => Number(r.getAttribute('height')) > 1)")
+  )
+  check(
+    '指标里有总 token，明细有对应列',
+    (await s.eval("document.querySelector('.card select') ? [...document.querySelectorAll('select')].some((x) => x.innerText.includes('总 token')) : false")) &&
+      (await s.eval("document.querySelector('thead')?.innerText.includes('总 token')"))
+  )
   // 读数气泡要贴着悬停的柱子，不再固定右上；切到近 24 小时保证有多个桶
   await s.eval(
     "(() => { const sel = [...document.querySelectorAll('.card select')][0]; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(sel, '24h'); sel.dispatchEvent(new Event('change', { bubbles: true })) })()"
@@ -313,10 +332,16 @@ try {
   await hoverAt(40)
   await sleep(150)
   const tipLeft1 = await s.eval("document.querySelector('.series-tip')?.style.left ?? ''")
+  const cross1 = await s.eval("document.querySelector('.series-svg .crosshair')?.getAttribute('x1') ?? ''")
   await hoverAt(Math.max(60, svgW - 40))
   await sleep(150)
   const tipLeft2 = await s.eval("document.querySelector('.series-tip')?.style.left ?? ''")
-  check('读数气泡跟随柱子', Boolean(tipLeft1) && Boolean(tipLeft2) && tipLeft1 !== tipLeft2, `${tipLeft1} → ${tipLeft2}`)
+  const cross2 = await s.eval("document.querySelector('.series-svg .crosshair')?.getAttribute('x1') ?? ''")
+  check(
+    '读数气泡跟随柱子',
+    Boolean(tipLeft1) && Boolean(tipLeft2) && tipLeft1 !== tipLeft2,
+    `${tipLeft1} → ${tipLeft2} (w=${svgW}, x=${cross1}/${cross2})`
+  )
   await s.eval("document.querySelector('.series-svg')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))")
   await s.eval("document.querySelector('.series-svg')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))")
   // 等首次查询结束，再跨过至少一个 5 秒轮询，按钮不应回到「查询中」
@@ -342,6 +367,25 @@ try {
     await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('暂停测速'))")
   )
   check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
+  check(
+    '透明度是数字输入',
+    (await s.eval(
+      "(() => { const f = [...document.querySelectorAll('.field')].find((n) => n.innerText.includes('不透明度')); const i = f?.querySelector('input[type=number]'); return i ? i.value : '' })()"
+    )) === '92'
+  )
+  check(
+    '透明度越界被钳到 100',
+    await s.eval(`(async () => {
+      const f = [...document.querySelectorAll('.field')].find((n) => n.innerText.includes('不透明度'))
+      const i = f.querySelector('input[type=number]')
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      setter.call(i, '150')
+      i.dispatchEvent(new Event('input', { bubbles: true }))
+      f.querySelector('button').click()
+      await new Promise((r) => setTimeout(r, 500))
+      return i.value
+    })()`, true) === '100'
+  )
   check(
     '本地 token 是 sk- 签名票',
     /^sk-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
@@ -462,7 +506,7 @@ try {
   await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true}))()")
   await sleep(800)
   check('锁定状态有标记', (await o.eval("document.querySelector('.capsule')?.classList.contains('locked')")) === true)
-  check('锁定时显示锁标', (await o.eval("!!document.querySelector('.capsule-lock')")) === true)
+  check('锁定后胶囊不显示锁字', (await o.eval("!!document.querySelector('.capsule-lock')")) === false)
   check('不再有调节模式标记', (await o.eval("!!document.querySelector('.capsule.adjusting')")) === false)
 
   // 有请求应出彩虹边框，结束恢复（依赖测试中继，不通就跳过）

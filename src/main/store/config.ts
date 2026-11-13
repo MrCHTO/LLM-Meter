@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: Settings = {
     locked: false,
     theme: 'dark'
   },
-  overlayOpacity: 92,
+  overlayOpacity: 100,
   pauseProbe: false,
   startMinimized: false
 }

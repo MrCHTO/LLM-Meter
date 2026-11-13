@@ -99,16 +99,20 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
           </g>
         ))}
 
-        {buckets.map((b, i) =>
-          i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
+        {buckets.map((b, i) => {
+          const allZero = visible.every((s) => (s.points[i] ?? 0) === 0)
+          if (allZero) return null
+          return i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
             <text key={b} x={center(i)} y={H - 6} textAnchor="middle" className="axis">
               {timeFormat(b)}
             </text>
           ) : null
-        )}
+        })}
 
         {visible.map((s, si) =>
           s.points.map((v, i) => {
+            // 0 值不画柱，连底线也不留
+            if (v === 0) return null
             const h = Math.max(1, base - y(v))
             const gx = center(i) - (barW * visible.length) / 2 + si * barW
             return (

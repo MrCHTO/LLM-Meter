@@ -79,8 +79,6 @@ function Capsule(): JSX.Element {
       ) : (
         <span className="capsule-empty">未选择模型 · 右键选择</span>
       )}
-
-      {locked ? <span className="capsule-lock mono">锁</span> : null}
     </div>
   )
 }

@@ -625,11 +625,6 @@ body.overlay-body {
   color: var(--muted);
 }
 
-.capsule-lock {
-  color: #93a1b1;
-  font-size: 11px;
-}
-
 /* ---------- 按模型表 ---------- */
 .tbl {
   table-layout: fixed;
@@ -720,6 +715,27 @@ tr.open > td {
 
 .tbl-left tbody td:nth-child(2) {
   text-align: left;
+}
+
+/* 无框文字开关：悬浮窗与状态共用一套 */
+.tbl-left .c-center {
+  width: 88px;
+  text-align: center;
+}
+
+.pick,
+.state {
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pick.on,
+.state.on {
+  color: var(--ok);
+  font-weight: 600;
 }
 
 .ellipsis {

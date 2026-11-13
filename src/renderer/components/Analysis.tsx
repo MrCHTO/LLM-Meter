@@ -15,6 +15,7 @@ const METRICS: { id: StatsMetric; label: string; unit: string; digits: number }[
   { id: 'tps', label: 'tok/s', unit: 'tok/s', digits: 1 },
   { id: 'input', label: '输入 token', unit: '个', digits: 0 },
   { id: 'output', label: '输出 token', unit: '个', digits: 0 },
+  { id: 'total', label: '总 token', unit: '个', digits: 0 },
   { id: 'cache_read', label: '缓存读 token', unit: '个', digits: 0 },
   { id: 'cost', label: '成本', unit: '¥', digits: 2 },
   { id: 'errors', label: '错误数', unit: '次', digits: 0 }
@@ -214,7 +215,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
             {preset !== 'custom' ? ' · 每 5 秒刷新' : ''}
           </span>
           <span className="muted" style={{ marginLeft: 'auto' }}>
-            区间合计 {fmt(totalOf((r) => (metric === 'cost' ? r.cost : metric === 'tps' ? (r.tps ?? 0) : (r[metric === 'cache_read' ? 'cacheRead' : metric] as number))))} {meta.unit}
+            区间合计 {fmt(totalOf((r) => (metric === 'cost' ? r.cost : metric === 'tps' ? (r.tps ?? 0) : metric === 'total' ? r.total : (r[metric === 'cache_read' ? 'cacheRead' : metric] as number))))} {meta.unit}
           </span>
         </div>
         <SeriesChart
@@ -237,6 +238,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
               <th>错误</th>
               <th>输入</th>
               <th>输出</th>
+              <th>总 token</th>
               <th>缓存读</th>
               <th>TTFT P50</th>
               <th>TTFT P95</th>
@@ -253,6 +255,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
                 <td className="mono">{r.errors || '—'}</td>
                 <td className="mono">{fmtTokens(r.input)}</td>
                 <td className="mono">{fmtTokens(r.output)}</td>
+                <td className="mono">{fmtTokens(r.total)}</td>
                 <td className="mono">{fmtTokens(r.cacheRead)}</td>
                 <td className="mono">{fmtMs(r.ttftP50)}</td>
                 <td className="mono">{fmtMs(r.ttftP95)}</td>
@@ -263,7 +266,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
             ))}
             {totals.length === 0 ? (
               <tr>
-                <td colSpan={11} className="empty">
+                <td colSpan={12} className="empty">
                   {range ? '这个区间没有数据' : '选一个合法区间'}
                 </td>
               </tr>

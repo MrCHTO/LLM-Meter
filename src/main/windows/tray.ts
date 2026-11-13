@@ -35,9 +35,7 @@ export function rebuild(): void {
       }
     },
     {
-      label: '局域网访问',
-      type: 'checkbox',
-      checked: s.allowLan,
+      label: s.allowLan ? '关闭局域网' : '开启局域网',
       // 开关后由 index.ts 的 cfg.onChange 统一重启代理
       click: () => {
         cfg.mutate((c) => {

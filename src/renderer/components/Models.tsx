@@ -252,8 +252,8 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                 <th title="每百万 token 单价">缓存读取</th>
                 <th title="每百万 token 单价">缓存写入</th>
                 <th>日预算</th>
-                <th>悬浮窗</th>
-                <th>状态</th>
+                <th className="c-center">悬浮窗</th>
+                <th className="c-center">状态</th>
                 <th />
               </tr>
             </thead>
@@ -269,9 +269,9 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                   <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
                   <td className="mono">{fmtMoney(m.priceCacheWrite, m.currency)}</td>
                   <td className="mono">{m.dailyBudget ? fmtMoney(m.dailyBudget, m.currency) : '—'}</td>
-                  <td>
+                  <td className="c-center">
                     <button
-                      className="btn sm ghost"
+                      className={config.settings.overlay.modelId === m.id ? 'pick on' : 'pick'}
                       onClick={async () => {
                         const picked = config.settings.overlay.modelId === m.id
                         const res = await window.api.updateSettings({ overlayModelId: picked ? null : m.id })
@@ -282,16 +282,16 @@ export function Models({ config, notify, onChanged }: Props): JSX.Element {
                       {config.settings.overlay.modelId === m.id ? '● 已选' : '○ 选中'}
                     </button>
                   </td>
-                  <td>
+                  <td className="c-center">
                     <button
-                      className="btn sm ghost"
+                      className={m.enabled ? 'state on' : 'state'}
                       onClick={async () => {
                         const res = await window.api.updateModel(m.id, { enabled: !m.enabled })
                         if (!res.ok) notify(res.error ?? '切换失败')
                         else await onChanged()
                       }}
                     >
-                      {m.enabled ? <span className="pill ok">启用</span> : <span className="pill">停用</span>}
+                      {m.enabled ? '启用' : '停用'}
                     </button>
                   </td>
                   <td>

@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import type { Rectangle } from 'electron'
 import * as cfg from '../store/config'
 import { getOverlay, send, setOverlay } from './registry'
-import * as opacitySlider from './opacity-slider'
 
 const MIN_WIDTH = 220
 const MIN_HEIGHT = 36
@@ -192,45 +191,54 @@ export function showMenu(): void {
   const win = getOverlay()
   if (!win) return
   const settings = cfg.get().settings
-  const menu = Menu.buildFromTemplate([
-    { label: '选择模型', submenu: modelSubmenu() },
-    {
-      label: '锁定位置',
-      type: 'checkbox',
-      checked: settings.overlay.locked,
-      click: () => {
-        cfg.mutate((c) => {
-          c.settings.overlay.locked = !c.settings.overlay.locked
-        })
-      }
-    },
-    {
-      label: '外观',
-      submenu: [
+  const unlock: Electron.MenuItemConstructorOptions = {
+    label: '解锁位置',
+    click: () => {
+      cfg.mutate((c) => {
+        c.settings.overlay.locked = false
+      })
+    }
+  }
+  // 锁定时只给「解锁位置」，其余项都收起来
+  const template: Electron.MenuItemConstructorOptions[] = settings.overlay.locked
+    ? [unlock]
+    : [
+        { label: '选择模型', submenu: modelSubmenu() },
         {
-          label: '黑色',
-          type: 'radio',
-          checked: settings.overlay.theme !== 'light',
+          label: '锁定位置',
           click: () => {
             cfg.mutate((c) => {
-              c.settings.overlay.theme = 'dark'
+              c.settings.overlay.locked = true
             })
           }
         },
         {
-          label: '白色',
-          type: 'radio',
-          checked: settings.overlay.theme === 'light',
-          click: () => {
-            cfg.mutate((c) => {
-              c.settings.overlay.theme = 'light'
-            })
-          }
+          label: '外观',
+          submenu: [
+            {
+              label: '黑色',
+              type: 'radio',
+              checked: settings.overlay.theme !== 'light',
+              click: () => {
+                cfg.mutate((c) => {
+                  c.settings.overlay.theme = 'dark'
+                })
+              }
+            },
+            {
+              label: '白色',
+              type: 'radio',
+              checked: settings.overlay.theme === 'light',
+              click: () => {
+                cfg.mutate((c) => {
+                  c.settings.overlay.theme = 'light'
+                })
+              }
+            }
+          ]
         }
       ]
-    },
-    { label: '调节透明度', click: () => opacitySlider.open() }
-  ])
+  const menu = Menu.buildFromTemplate(template)
   menu.popup({ window: win })
 }
 
