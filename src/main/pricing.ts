@@ -94,11 +94,21 @@ interface OfficialEntry extends Entry {
 
 let catalog: { at: number; list: OfficialEntry[] } | null = null
 
-/** models.dev 官方条目的目录，30 分钟缓存 */
+let catalogInflight: Promise<OfficialEntry[]> | null = null
+
+/** models.dev 官方条目的目录，30 分钟缓存；并发调用共用一次请求 */
 async function loadCatalog(): Promise<OfficialEntry[]> {
   if (catalog && Date.now() - catalog.at < 30 * 60_000) return catalog.list
+  catalogInflight ??= fetchCatalog().finally(() => {
+    catalogInflight = null
+  })
+  return catalogInflight
+}
+
+async function fetchCatalog(): Promise<OfficialEntry[]> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 8000)
+  // api.json 有 6MB，启动忙时容易超 8 秒，给足 15 秒
+  const timer = setTimeout(() => controller.abort(), 15_000)
   try {
     const res = await fetch(CATALOG, { signal: controller.signal, headers: { accept: 'application/json' } })
     if (!res.ok) return []

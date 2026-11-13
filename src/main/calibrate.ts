@@ -3,6 +3,9 @@ import * as cfg from './store/config'
 import * as pricing from './pricing'
 import * as rate from './rate'
 import { send } from './windows/registry'
+import { appendFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { dataDir } from './store/paths'
 
 /**
  * 启动与每天 00:00 的自动校准：拉当天汇率，再把所有「自动价」模型按
@@ -21,7 +24,17 @@ export async function run(): Promise<void> {
     let missed = 0
     for (const m of targets) {
       const hit = await pricing.lookup(m.upstreamModel)
-      if (hit.found && hit.exact && (hit.priceIn || hit.priceOut)) {
+      try {
+        appendFileSync(
+          join(dataDir(), 'calibrate.log'),
+          `${new Date().toISOString()} ${m.alias} found=${hit.found} source=${hit.source ?? '-'} exact=${hit.exact ?? '-'} in=${hit.priceIn ?? '-'} matched=${hit.matchedId ?? '-'}\n`
+        )
+      } catch {
+        /* 日志失败不影响 */
+      }
+      // 官方目录的命中靠名称归一化，通常是近似；官方源可信，近似也应用
+      const trust = hit.found && (hit.exact || hit.source === 'official')
+      if (trust && (hit.priceIn || hit.priceOut)) {
         updates.push({
           id: m.id,
           in: (hit.priceIn ?? 0) * r.rate,
