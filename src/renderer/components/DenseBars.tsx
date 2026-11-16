@@ -12,46 +12,60 @@ interface Series {
 }
 
 interface Props {
-  /** 每条曲线一组；每秒同一槽位内各系列并排细柱，不叠加 */
+  /** 每条曲线一组；每秒一根无缝柱，柱内按各系列数值分段堆叠上色 */
   series: Series[]
-  /** 柱子的 class 名（rate-bar / req-bar），供样式与用例取用 */
+  /** 柱段的 class 名（rate-bar / req-bar），供样式与用例取用 */
   barClass: string
 }
 
 const W = 600
 const H = 100
-/** 固定针宽（与系列数无关，上下两张图同宽同密度）；柱间距与柱宽相同 */
-const BAR = 1.2
-const STEP = BAR * 2
 
-/** 最近 60 秒的密集柱状图：一柱一秒，多模型并排、颜色与表格别名底纹同源 */
+/** 最近 60 秒的柱状波形：一秒一柱、相邻无缝，多模型在柱内分段堆叠（总高=合计） */
 export function DenseBars({ series, barClass }: Props): JSX.Element {
   const count = Math.max(1, ...series.map((s) => s.buckets.length))
-  const peak = Math.max(1, ...series.flatMap((s) => s.buckets))
   const slot = W / count
-  const lanes = Math.max(1, series.length)
-  // 一槽要放 lanes 根柱 + (lanes-1) 个等宽间隙
-  const barWidth = Math.max(0.5, Math.min(BAR, slot / (2 * lanes - 1)))
+  // 归一化用「每秒合计」的峰值，保证堆叠后总高度可比
+  const totalAt = (i: number): number => series.reduce((a, s) => a + (s.buckets[i] ?? 0), 0)
+  const peak = Math.max(1, ...Array.from({ length: count }, (_, i) => totalAt(i)))
+  const fallback = series[0]?.color ?? 'var(--bar-track)'
 
   return (
     <svg className="bars" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" shapeRendering="crispEdges" aria-hidden>
-      {series.map((s, si) =>
-        s.buckets.map((value, i) => {
-          const height = value > 0 ? Math.max(0.6, (value / peak) * (H - 1)) : 0.6
-          const x = i * slot + si * STEP + 0.3
+      {Array.from({ length: count }, (_, i) => {
+        const total = totalAt(i)
+        if (total <= 0) {
+          // 空闲秒：每条系列留一条 0.6 的细底线，保持多色与密集观感
+          const lanes = Math.max(1, series.length)
+          const sliver = 0.6 / lanes
           return (
-            <rect
-              key={`${si}-${i}`}
-              className={barClass}
-              x={x.toFixed(2)}
-              y={(H - height).toFixed(2)}
-              width={barWidth.toFixed(2)}
-              height={height.toFixed(2)}
-              fill={s.color}
-            />
+            <g key={`z-${i}`}>
+              {series.map((s, si) => (
+                <rect
+                  key={si}
+                  className={barClass}
+                  x={(i * slot).toFixed(2)}
+                  y={(H - sliver * (si + 1)).toFixed(2)}
+                  width={slot.toFixed(2)}
+                  height={sliver.toFixed(2)}
+                  fill={s.color ?? fallback}
+                />
+              ))}
+            </g>
           )
+        }
+        const barHeight = Math.max(0.6, (total / peak) * (H - 1))
+        const unit = barHeight / total
+        let cursor = H
+        const segments = series.map((s, si) => {
+          const value = s.buckets[i] ?? 0
+          if (value <= 0) return null
+          const height = value * unit
+          cursor -= height
+          return <rect key={`${si}-${i}`} className={barClass} x={(i * slot).toFixed(2)} y={cursor.toFixed(2)} width={slot.toFixed(2)} height={height.toFixed(2)} fill={s.color} />
         })
-      )}
+        return <g key={i}>{segments}</g>
+      })}
     </svg>
   )
 }
