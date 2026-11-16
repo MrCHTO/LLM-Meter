@@ -12,7 +12,8 @@ import { tps } from '../metrics/cost'
 import * as repo from './db/repo'
 import { dayKey } from './paths'
 
-const BUCKETS = 60
+/** 曲线窗口秒数：每格 1 秒，3 分钟 */
+export const BUCKETS = 180
 const RECENT_MAX = 200
 /** tok/s 按 1 秒窗口：最近 1 秒桶里的输出 token 数 */
 const TPS_WINDOW = 1
@@ -192,7 +193,7 @@ export function init(): void {
         cacheReadReported: t.cache_read_reported,
         cost: t.cost
       }
-      // 今天的 TTFT 样本从明细回灌，重启后分位数不空；replay 不再补，避免最近 60 秒被算两遍
+      // 今天的 TTFT 样本从明细回灌，重启后分位数不空；replay 不再补，避免最近窗口被算两遍
       s.ttftSamples = repo.ttftSamplesSince(db.get(), m.id, dayStart.getTime())
       rollBuckets(s, now)
     }

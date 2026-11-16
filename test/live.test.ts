@@ -82,10 +82,10 @@ describe('启动回放', () => {
     expect(buckets.filter((b) => b > 0).length).toBe(3)
   })
 
-  it('超过 60 秒的事件丢弃', async () => {
+  it('超过窗口的事件丢弃', async () => {
     const live = await load()
     const now = 1_700_000_000_000
-    live.replay([ev(now - 61_000, 999)], now)
+    live.replay([ev(now - 181_000, 999)], now)
     const snap = live.snapshot(false, null, '', now)
     expect(snap.totals.buckets.reduce((a, b) => a + b, 0)).toBe(0)
   })

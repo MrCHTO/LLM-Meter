@@ -40,8 +40,8 @@ if (!gotLock) {
 
     db.init()
     live.init()
-    // 曲线只画最近 60 秒，回放范围跟着收窄
-    live.replay(repo.replaySince(db.get(), Date.now() - 65_000))
+    // 曲线只画最近窗口（BUCKETS 秒），回放范围跟着走，多留 5 秒余量
+    live.replay(repo.replaySince(db.get(), Date.now() - (live.BUCKETS * 1000 + 5000)))
 
     proxy.bindDeps({ record: () => undefined })
     const state = await proxy.start(settings.port)
