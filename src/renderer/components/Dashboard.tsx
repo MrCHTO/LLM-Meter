@@ -217,12 +217,12 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     <td className="c-ttft mono">{fmtMs(m.ttftP99)}</td>
                     <td
                       className="c-hit mono"
-                      title={`缓存读取 ${fmtTokens(m.today.cacheRead)} / 输入 ${fmtTokens(m.today.input)}`}
+                      title={m.today.cacheReadReported > 0 ? `缓存读取 ${fmtTokens(m.today.cacheRead)} / 输入 ${fmtTokens(m.today.input)}` : '渠道未上报缓存读计数'}
                     >
                       {fmtPct(m.hitRate)}
                     </td>
                     <td className="c-tok mono">{fmtTokens(m.today.uncachedInput)}</td>
-                    <td className="c-tok mono">{fmtTokens(m.today.cacheRead)}</td>
+                    <td className="c-tok mono">{m.today.cacheReadReported > 0 ? fmtTokens(m.today.cacheRead) : '—'}</td>
                     <td className="c-tok mono">{m.today.cacheInputReported > 0 ? fmtTokens(m.today.cacheInput) : '—'}</td>
                     <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
                     <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>

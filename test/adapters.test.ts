@@ -36,6 +36,21 @@ describe('openai 适配器', () => {
     expect(info.usage?.cacheRead).toBe(800)
   })
 
+  it('prompt_tokens_details 为 null 时视为未上报缓存读（GLM 渠道）', () => {
+    const info = a.onFrame(
+      'data: {"usage":{"prompt_tokens":13,"completion_tokens":5,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":5}}}'
+    )
+    expect(info.usage?.cacheRead).toBe(0)
+    expect(info.reportedCacheRead).toBe(false)
+  })
+
+  it('details 带对象时视为已上报缓存读', () => {
+    const info = a.onFrame(
+      'data: {"usage":{"prompt_tokens":1200,"completion_tokens":460,"prompt_tokens_details":{"cached_tokens":1080}}}'
+    )
+    expect(info.reportedCacheRead).toBe(true)
+  })
+
   it('统计增量字符并标记首内容', () => {
     const info = a.onFrame('data: {"choices":[{"delta":{"content":"你好"}}]}')
     expect(info.chars).toBe(2)

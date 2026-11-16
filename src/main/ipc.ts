@@ -585,6 +585,7 @@ export function register(): void {
     cacheRead: r.cache_read,
     cacheInput: r.cache_input,
     cacheInputReported: r.cache_input_reported,
+    cacheReadReported: r.cache_read_reported,
     cost: r.cost,
     ttftP50: r.ttft_p50,
     ttftP95: r.ttft_p95,
@@ -668,7 +669,7 @@ export function register(): void {
             r.duration_ms,
             r.input_tokens,
             r.uncached_input_tokens,
-            r.cache_read_tokens,
+            Number(r.cache_read_reported) ? r.cache_read_tokens : '',
             r.cache_input_tokens,
             r.output_tokens,
             Number(r.input_tokens) + Number(r.output_tokens),
@@ -720,6 +721,7 @@ export function register(): void {
           cacheReadTokens: cacheRead,
           cacheInputTokens: 0,
           cacheInputReported: false,
+          cacheReadReported: cacheRead > 0,
           cost: (Math.max(0, input - cacheRead) * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) / 1e6,
           currency: model.currency
         }

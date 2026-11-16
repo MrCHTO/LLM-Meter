@@ -45,6 +45,7 @@ function ev(over: Partial<RequestEvent> = {}): RequestEvent {
     cacheReadTokens: 800,
     cacheInputTokens: 0,
     cacheInputReported: false,
+    cacheReadReported: false,
     cost: 0.002,
     currency: 'CNY',
     ...over

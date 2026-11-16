@@ -123,7 +123,7 @@ function realtimeOf(s: ModelState, now: number): number | null {
 }
 
 function blankToday(): TodayTotals {
-  return { requests: 0, errors: 0, input: 0, uncachedInput: 0, output: 0, cacheRead: 0, cacheInput: 0, cacheInputReported: 0, cost: 0 }
+  return { requests: 0, errors: 0, input: 0, uncachedInput: 0, output: 0, cacheRead: 0, cacheInput: 0, cacheInputReported: 0, cacheReadReported: 0, cost: 0 }
 }
 
 function ensure(modelId: string): ModelState {
@@ -189,6 +189,7 @@ export function init(): void {
         cacheRead: t.cache_read,
         cacheInput: t.cache_input,
         cacheInputReported: t.cache_input_reported,
+        cacheReadReported: t.cache_read_reported,
         cost: t.cost
       }
       // 今天的 TTFT 样本从明细回灌，重启后分位数不空；replay 不再补，避免最近 60 秒被算两遍
@@ -230,6 +231,7 @@ export function record(ev: RequestEvent): void {
     s.today.cacheRead += ev.cacheReadTokens
     s.today.cacheInput += ev.cacheInputTokens
     if (ev.cacheInputReported) s.today.cacheInputReported += 1
+    if (ev.cacheReadReported) s.today.cacheReadReported += 1
     s.today.cost += ev.cost
     if (ev.ttftMs !== null) {
       s.lastTtftMs = ev.ttftMs
@@ -352,7 +354,8 @@ export function snapshot(
     const provider = providers.get(m.providerId)
     const tps = tpsOf(s)
     const realtimeTps = realtimeOf(s, now)
-    const hitRate = s.today.input > 0 ? s.today.cacheRead / s.today.input : null
+    // 渠道把 details 置空（如 GLM 渠道）时视为未上报，命中率显示 — 而非误导性的 0.00%
+    const hitRate = s.today.cacheReadReported > 0 && s.today.input > 0 ? s.today.cacheRead / s.today.input : null
     models.push({
       modelId: m.id,
       alias: m.alias,
@@ -399,7 +402,8 @@ export function snapshot(
 
   const inputTotal = models.reduce((a, x) => a + x.today.input, 0)
   const cacheTotal = models.reduce((a, x) => a + x.today.cacheRead, 0)
-  totals.hitRate = inputTotal > 0 ? cacheTotal / inputTotal : null
+  const readReportedTotal = models.reduce((a, x) => a + x.today.cacheReadReported, 0)
+  totals.hitRate = readReportedTotal > 0 && inputTotal > 0 ? cacheTotal / inputTotal : null
 
   return {
     ts: now,

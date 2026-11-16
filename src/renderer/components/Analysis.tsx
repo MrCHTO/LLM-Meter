@@ -245,7 +245,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
                 <td className="mono">{fmtTokens(r.requests)}</td>
                 <td className="mono">{r.errors || '—'}</td>
                 <td className="mono">{fmtTokens(r.uncached)}</td>
-                <td className="mono">{fmtTokens(r.cacheRead)}</td>
+                <td className="mono">{r.cacheReadReported > 0 ? fmtTokens(r.cacheRead) : '—'}</td>
                 <td className="mono">{r.cacheInputReported > 0 ? fmtTokens(r.cacheInput) : '—'}</td>
                 <td className="mono">{fmtTokens(r.output)}</td>
                 <td className="mono">{fmtTokens(r.input)}</td>

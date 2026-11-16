@@ -151,6 +151,8 @@ export interface RequestEvent {
   cacheInputTokens: number
   /** 上游是否上报了缓存输入字段；false 时界面显示 — */
   cacheInputReported: boolean
+  /** 上游是否上报了缓存读计数；false 时命中率与缓存读列显示 — */
+  cacheReadReported: boolean
   cost: number
   currency: string
   /** 仅内存，给明细列表用；不落盘 */
@@ -203,6 +205,8 @@ export interface TodayTotals {
   cacheInput: number
   /** 本周期内上报过缓存输入字段的请求数；为 0 时显示 — */
   cacheInputReported: number
+  /** 本周期内上报过缓存读计数的请求数；为 0 时命中率显示 — */
+  cacheReadReported: number
   cost: number
 }
 
@@ -385,6 +389,7 @@ export interface StatsRow {
   cacheRead: number
   cacheInput: number
   cacheInputReported: number
+  cacheReadReported: number
   cost: number
   ttftP50: number | null
   ttftP95: number | null

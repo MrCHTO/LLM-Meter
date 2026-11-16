@@ -18,6 +18,8 @@ export interface FrameInfo {
   error: string | null
   /** 本帧 usage 是否带缓存输入字段 */
   reportedCacheInput: boolean
+  /** 本帧 usage 是否带缓存读计数（prompt_tokens_details 有对象） */
+  reportedCacheRead: boolean
 }
 
 export interface Prepared {
@@ -35,12 +37,12 @@ export interface Adapter {
   prepare(raw: Record<string, unknown>, upstreamModel: string): Prepared
   onFrame(frame: string): FrameInfo
   /** 非流式响应体里的 usage */
-  parseUsage(body: string): { usage: Partial<Usage>; reportedCacheInput: boolean } | null
+  parseUsage(body: string): { usage: Partial<Usage>; reportedCacheInput: boolean; reportedCacheRead: boolean } | null
   /** 从错误响应里取可读信息 */
   errorOf(body: string): string | null
 }
 
-const EMPTY_FRAME: FrameInfo = { chars: 0, cjk: 0, other: 0, firstContent: false, usage: null, error: null, reportedCacheInput: false }
+const EMPTY_FRAME: FrameInfo = { chars: 0, cjk: 0, other: 0, firstContent: false, usage: null, error: null, reportedCacheInput: false, reportedCacheRead: false }
 
 const CJK_CHAR = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/
 
@@ -129,6 +131,8 @@ const openai: Adapter = {
           num(details?.cache_creation_tokens) ||
           num(details?.cache_write_tokens)
         info.reportedCacheInput = reported
+        // 渠道把 details 置空（GLM 渠道恒 null）时视为未上报缓存读，界面显示 — 而不是误导性的 0.00%
+        info.reportedCacheRead = details !== null || num(usage.prompt_cache_hit_tokens) > 0
         info.usage = {
           input: num(usage.prompt_tokens),
           output: num(usage.completion_tokens),
@@ -161,6 +165,7 @@ const openai: Adapter = {
         'cache_write_tokens' in usage ||
         'cache_creation_tokens' in (details ?? {}) ||
         'cache_write_tokens' in (details ?? {}),
+      reportedCacheRead: details !== null || num(usage.prompt_cache_hit_tokens) > 0,
       usage: {
         input: num(usage.prompt_tokens),
         output: num(usage.completion_tokens),
@@ -208,6 +213,7 @@ const anthropic: Adapter = {
         const read = num(startUsage.cache_read_input_tokens)
         const write = num(startUsage.cache_creation_input_tokens)
         info.reportedCacheInput = 'cache_creation_input_tokens' in startUsage
+        info.reportedCacheRead = 'cache_read_input_tokens' in startUsage
         info.usage = {
           // Anthropic 的 input_tokens 不含缓存部分，统一补成总量
           input: num(startUsage.input_tokens) + read + write,
@@ -241,6 +247,7 @@ const anthropic: Adapter = {
     const write = num(usage.cache_creation_input_tokens)
     return {
       reportedCacheInput: 'cache_creation_input_tokens' in usage,
+      reportedCacheRead: 'cache_read_input_tokens' in usage,
       usage: {
         input: num(usage.input_tokens) + read + write,
         output: num(usage.output_tokens),

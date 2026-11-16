@@ -313,7 +313,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                     {row.ok ? <span className="pill ok">ok</span> : <span className="pill bad">{row.status || 'err'}</span>}
                   </td>
                   <td className="mono">{fmtTokens(row.uncachedInputTokens)}</td>
-                  <td className="mono">{fmtTokens(row.cacheReadTokens)}</td>
+                  <td className="mono">{row.cacheReadReported ? fmtTokens(row.cacheReadTokens) : '—'}</td>
                   <td className="mono">{row.cacheInputReported ? fmtTokens(row.cacheInputTokens) : '—'}</td>
                   <td className="mono">{fmtTokens(row.outputTokens)}</td>
                   <td className="mono">{fmtMs(row.ttftMs)}</td>

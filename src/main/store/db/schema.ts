@@ -171,6 +171,14 @@ const MIGRATIONS: string[] = [
   alter table rollup_day add column cache_input_reported integer not null default 0;
   alter table rollup_token_minute add column cache_input_reported integer not null default 0;
   alter table rollup_token_day add column cache_input_reported integer not null default 0;
+  `,
+  // v8：记录上游是否上报缓存读计数；渠道（如 GLM）把 details 置空时显示 — 而非误导性的 0.00%
+  `
+  alter table requests add column cache_read_reported integer not null default 0;
+  alter table rollup_minute add column cache_read_reported integer not null default 0;
+  alter table rollup_day add column cache_read_reported integer not null default 0;
+  alter table rollup_token_minute add column cache_read_reported integer not null default 0;
+  alter table rollup_token_day add column cache_read_reported integer not null default 0;
   `
 ]
 
