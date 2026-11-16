@@ -46,6 +46,9 @@ export function applySettings(): void {
   const win = getOverlay()
   if (!win) return
   const s = cfg.get().settings
+  // 锁定后鼠标事件完全穿透到下层窗口，解锁只能在托盘
+  if (s.overlay.locked) hovered = false
+  win.setIgnoreMouseEvents(s.overlay.locked)
   win.setOpacity(hovered ? 1 : s.overlayOpacity / 100)
 }
 
@@ -80,6 +83,7 @@ export function create(): BrowserWindow {
   win.setAlwaysOnTop(true, 'floating')
   win.setMenuBarVisibility(false)
   win.setOpacity(hovered ? 1 : cfg.get().settings.overlayOpacity / 100)
+  win.setIgnoreMouseEvents(stored.locked)
 
   win.on('ready-to-show', () => {
     const fresh = clampBounds(win.getBounds())

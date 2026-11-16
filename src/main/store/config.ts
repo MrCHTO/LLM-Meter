@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: Settings = {
   overlayOpacity: 100,
   startMinimized: false,
   startAtLogin: false,
+  theme: 'system',
   autoCalibrate: true,
   autoProbeIntervalSec: 300,
   lastCalibrate: null
@@ -155,6 +156,7 @@ function normalize(raw: unknown): ConfigFile {
     overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 10, 100),
     startMinimized: os.startMinimized === true,
     startAtLogin: os.startAtLogin === true,
+    theme: os.theme === 'light' || os.theme === 'dark' ? os.theme : 'system',
     autoCalibrate: os.autoCalibrate !== false,
     autoProbeIntervalSec: clamp(Math.round(num(os.autoProbeIntervalSec, 300)), 60, 3600),
     lastCalibrate:

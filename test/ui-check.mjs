@@ -248,15 +248,18 @@ try {
     (await s.eval("[...document.querySelectorAll('.chart-title')].map((n) => n.innerText).join(',')")) === '速率,请求量'
   )
   check('两张曲线图都没有图例和峰值', (await s.eval("document.querySelectorAll('.multi-legend, .chart-foot').length")) === 0)
+  check(
+    '两张图上下排列、同宽',
+    (await s.eval("(() => { const cards = [...document.querySelectorAll('.chart-card')]; const a = cards[0].getBoundingClientRect(); const b = cards[1].getBoundingClientRect(); return b.top > a.bottom && Math.abs(a.width - b.width) < 2 })()")) === true
+  )
   const chartSizes = await s.eval("JSON.stringify([...document.querySelectorAll('.chart-card')].map((c) => ({ h: c.offsetHeight, body: c.querySelector('.chart-body')?.offsetHeight ?? 0, gap: c.getBoundingClientRect().bottom - (c.querySelector('.chart-body')?.getBoundingClientRect().bottom ?? 0) })))")
   const sizes = JSON.parse(chartSizes)
   check('两张曲线同高同版式', sizes.length === 2 && sizes[0].h === sizes[1].h && sizes[0].body === sizes[1].body && sizes[0].body >= 100, chartSizes)
   check('曲线贴近卡片底边', sizes.every((s) => s.gap <= 8), chartSizes)
   check(
-    '增量曲线是折线加面积且颜色不同',
-    (await s.eval("document.querySelectorAll('.multi-svg .multi-line').length")) >= 2 &&
-      (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) >= 2 &&
-      (await s.eval("[...document.querySelectorAll('.multi-line')].map((l) => l.getAttribute('stroke')).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
+    '速率图是密集柱状且颜色不同',
+    (await s.eval("document.querySelectorAll('svg.bars rect.rate-bar').length")) >= 2 &&
+      (await s.eval("[...document.querySelectorAll('rect.rate-bar')].map((l) => l.getAttribute('fill')).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
   )
   check(
     '仪表盘模型名前有探活点',
@@ -264,7 +267,7 @@ try {
   )
   check(
     '模型名底纹与曲线同色且为斜纹',
-    (await s.eval("document.querySelector('.multi-line')?.getAttribute('stroke') ?? ''")).includes(
+    (await s.eval("document.querySelector('rect.rate-bar')?.getAttribute('fill') ?? ''")).includes(
       await s.eval("document.querySelector('td.c-model .model-name')?.style.getPropertyValue('--mc') ?? 'x'")
     ) &&
       /repeating-linear-gradient/.test(await s.eval("getComputedStyle(document.querySelector('td.c-model .model-name')).backgroundImage"))
@@ -274,15 +277,16 @@ try {
   await sleep(300)
   const dashMenu = await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")
   check('仪表盘右键菜单含曲线开关', /^(测速),(隐藏|显示)曲线图,查看日志$/.test(dashMenu), dashMenu)
-  const curvesBefore = await s.eval("document.querySelectorAll('.multi-line').length")
+  const barSeriesBefore = await s.eval("[...document.querySelectorAll('rect.rate-bar')].map((r) => r.getAttribute('fill')).join()")
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText.includes('曲线图'))?.click()")
   await sleep(700)
-  check('隐藏后曲线少一条', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore - 1)
+  const barSeriesAfter = await s.eval("[...document.querySelectorAll('rect.rate-bar')].map((r) => r.getAttribute('fill')).join()")
+  check('隐藏后曲线少一条', barSeriesAfter.length < barSeriesBefore.length, `${barSeriesBefore.length} -> ${barSeriesAfter.length}`)
   await s.eval("(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); return true })()")
   await sleep(300)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '显示曲线图')?.click()")
   await sleep(700)
-  check('再显示后曲线恢复', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore, `${curvesBefore} | ${await s.eval("document.querySelector('.content')?.innerText.slice(0,120)")}`)
+  check('再显示后曲线恢复', (await s.eval("[...document.querySelectorAll('rect.rate-bar')].map((r) => r.getAttribute('fill')).join()")) === barSeriesBefore)
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
@@ -365,7 +369,7 @@ try {
     (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'auto' &&
       (await s.eval("localStorage.getItem('cols:dashboard')")) === null
   )
-  check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark path.spark-line').length")) > 0)
+  check('柱状图已渲染', (await s.eval("document.querySelectorAll('svg.bars rect').length")) > 0)
   check('金额用人民币', /¥/.test(await s.eval("document.querySelector('td.c-cost')?.innerText ?? ''")))
   check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('td.c-hit')?.innerText ?? ''")))
   check('不再有预算条', (await s.eval("document.querySelectorAll('.meter').length")) === 0)
@@ -405,7 +409,8 @@ try {
   check(
     '模型名一行是灰色小字',
     (await s.eval("document.querySelector('tbody .cell-model small')?.className")) === 'mono' &&
-      (await s.eval("getComputedStyle(document.querySelector('tbody .cell-model small')).color")) === 'rgb(140, 150, 163)'
+      (await s.eval("getComputedStyle(document.querySelector('tbody .cell-model small')).color")) ===
+        (await s.eval("(() => { const probe = document.createElement('span'); probe.style.color = 'var(--dim)'; document.body.appendChild(probe); const c = getComputedStyle(probe).color; probe.remove(); return c })()"))
   )
   const modelHeads = await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")
   check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|输入价格|输出价格|缓存读取|缓存输入|悬浮窗|自动探针'))
@@ -541,7 +546,7 @@ try {
   await sleep(200)
   await s.eval("document.querySelector('.modal .btn.primary')?.click()")
   await sleep(800)
-  check('备注修改成功', /测试备注2/.test(await s.eval("document.querySelector('.tbl-access tbody')?.innerText ?? ''")))
+  check('备注修改成功', /测试备注2/.test(await s.eval("document.querySelector('.tbl-access tbody')?.innerText ?? ''")), `toasts=${await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join('|')")} modal=${await s.eval("document.querySelector('.modal') ? 'open' : 'closed'")}`)
   await s.eval("(() => { const tr = [...document.querySelectorAll('.tbl-access tbody tr')].find((r) => r.innerText.includes('测试备注2')); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 80, clientY: 80 })); return true })()")
   await sleep(300)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '删除')?.click()")
@@ -673,7 +678,15 @@ try {
     await sleep(300)
   }
   await sleep(300)
-  check('设置页按职责分成四张卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) === '悬浮窗,启动,探针与校准,数据')
+  check('设置页按职责分成五张卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) === '外观,悬浮窗,启动,探针与校准,数据')
+  // 主题：切成深色后 html 带 data-theme=dark，背景变量变深；切回跟随系统
+  await s.eval("(async()=>await window.api.updateSettings({theme:'dark'}))()")
+  await sleep(500)
+  check('切深色后页面变深色', (await s.eval("document.documentElement.dataset.theme")) === 'dark' &&
+    (await s.eval("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()")) === '#14171c')
+  await s.eval("(async()=>await window.api.updateSettings({theme:'system'}))()")
+  await sleep(300)
+  check('切回跟随系统', (await s.eval("['dark','light'].includes(document.documentElement.dataset.theme ?? '')")) === true)
   check('设置页不再有左导航', (await s.eval("document.querySelectorAll('.settings-nav').length")) === 0)
   check(
     '设置卡片随窗口撑满',
@@ -681,7 +694,7 @@ try {
   )
   check(
     '应用按钮留在卡片内',
-    await s.eval("(() => { const card = document.querySelector('.settings-cards .card'); const btn = [...card.querySelectorAll('.btn')].find((b) => b.innerText === '应用'); return btn && btn.getBoundingClientRect().right <= card.getBoundingClientRect().right - 8 && btn.getBoundingClientRect().width > 30 })()")
+    await s.eval("(() => { const card = [...document.querySelectorAll('.settings-cards .card')].find((c) => c.innerText.includes('不透明度')); const btn = [...card.querySelectorAll('.btn')].find((b) => b.innerText === '应用'); return btn && btn.getBoundingClientRect().right <= card.getBoundingClientRect().right - 8 && btn.getBoundingClientRect().width > 30 })()")
   )
   check('设置项按行排布', (await s.eval("document.querySelectorAll('.setting-row').length")) >= 7)
   check('端口与局域网已不在设置页', !(await s.eval("document.body.innerText")).includes('监听端口') && !(await s.eval("document.body.innerText")).includes('允许局域网访问'))
@@ -897,6 +910,8 @@ try {
   check('锁定状态有标记', (await o.eval("document.querySelector('.capsule')?.classList.contains('locked')")) === true)
   check('锁定后胶囊不显示锁字', (await o.eval("!!document.querySelector('.capsule-lock')")) === false)
   check('不再有调节模式标记', (await o.eval("!!document.querySelector('.capsule.adjusting')")) === false)
+  check('锁定状态已持久化', (await o.eval("(async()=> (await window.api.config()).data?.settings.overlay.locked)()", true)) === true)
+  check('锁定后光标为默认箭头', (await o.eval("getComputedStyle(document.querySelector('.capsule')).cursor")) === 'default')
 
   // 有请求应出彩虹边框，结束恢复（依赖测试中继，不通就跳过）
   await o.eval("window.api.runProbe('m1')")

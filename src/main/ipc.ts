@@ -36,6 +36,7 @@ import * as rate from './rate'
 import * as calibrate from './calibrate'
 import { lanIp } from './net'
 import * as overlayWin from './windows/overlay'
+import * as mainWindow from './windows/main-window'
 import { showMain } from './windows/registry'
 
 function ok<T>(data?: T): IpcResult<T> {
@@ -98,6 +99,7 @@ function view(): ConfigView {
       overlayOpacity: c.settings.overlayOpacity,
       startMinimized: c.settings.startMinimized,
       startAtLogin: c.settings.startAtLogin,
+      theme: c.settings.theme,
       autoCalibrate: c.settings.autoCalibrate,
       autoProbeIntervalSec: c.settings.autoProbeIntervalSec,
       lastCalibrate: c.settings.lastCalibrate,
@@ -391,6 +393,7 @@ export function register(): void {
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
         startAtLogin?: boolean
+        theme?: 'light' | 'dark' | 'system'
         autoCalibrate?: boolean
         autoProbeIntervalSec?: number
       }) => {
@@ -412,6 +415,7 @@ export function register(): void {
           if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
           if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
           if (patch.startAtLogin !== undefined) c.settings.startAtLogin = patch.startAtLogin
+          if (patch.theme !== undefined) c.settings.theme = patch.theme
           if (patch.autoCalibrate !== undefined) c.settings.autoCalibrate = patch.autoCalibrate
           if (patch.autoProbeIntervalSec !== undefined) {
             c.settings.autoProbeIntervalSec = Math.min(3600, Math.max(60, Math.round(patch.autoProbeIntervalSec)))
@@ -419,6 +423,7 @@ export function register(): void {
         })
         overlayWin.applySettings()
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
+        if (patch.theme !== undefined) mainWindow.applyTheme()
         // 端口 / 局域网开关变化后的代理重启统一由 index.ts 的 cfg.onChange 处理
         return true
       }

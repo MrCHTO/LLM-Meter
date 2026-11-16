@@ -75,6 +75,9 @@ export interface AccessToken {
   createdAt: number
 }
 
+/** 主窗口主题；system 跟随系统 */
+export type ThemeMode = 'light' | 'dark' | 'system'
+
 export interface Settings {
   port: number
   /** 是否允许局域网访问（绑 0.0.0.0） */
@@ -101,6 +104,8 @@ export interface Settings {
   autoProbeIntervalSec: number
   /** 开机自启 */
   startAtLogin: boolean
+  /** 主窗口主题 */
+  theme: ThemeMode
   /** 启动与每天 00:00 自动校准汇率和自动价（手动价不动） */
   autoCalibrate: boolean
   /** 最近一次自动校准的结果 */

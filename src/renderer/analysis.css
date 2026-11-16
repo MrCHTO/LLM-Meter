@@ -10,7 +10,7 @@
 }
 
 .series-svg .grid {
-  stroke: #eef1f5;
+  stroke: var(--line-soft);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -21,7 +21,7 @@
 }
 
 .series-svg .crosshair {
-  stroke: #c9d3df;
+  stroke: var(--dim);
   stroke-width: 1;
   stroke-dasharray: 3 3;
   vector-effect: non-scaling-stroke;
@@ -31,10 +31,10 @@
   position: absolute;
   min-width: 150px;
   padding: 8px 10px;
-  background: rgb(255 255 255 / 96%);
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  box-shadow: 0 8px 20px rgb(15 23 42 / 12%);
+  box-shadow: 0 8px 20px var(--shadow);
   font-size: 11px;
   pointer-events: none;
 }

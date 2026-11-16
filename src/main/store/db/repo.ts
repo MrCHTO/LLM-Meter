@@ -666,21 +666,21 @@ export function rebuildTokenRollups(db: Db): void {
   db.run('delete from rollup_token_day')
   db.run(`
     insert into rollup_token_minute (minute, token_remark, source, requests, errors, input, uncached, output, cache_read, cache_input, cache_input_reported, cache_read_reported, cost)
-    select (ts / 60000) * 60000, token_remark, source,
+    select (ts / 60000) * 60000, coalesce(token_remark, '默认'), source,
            count(*), sum(case when ok = 0 then 1 else 0 end),
            ifnull(sum(input_tokens),0), ifnull(sum(uncached_input_tokens),0), ifnull(sum(output_tokens),0),
            ifnull(sum(cache_read_tokens),0), ifnull(sum(cache_input_tokens),0), ifnull(sum(cache_input_reported),0), ifnull(sum(cache_read_reported),0),
            ifnull(sum(cost),0)
-    from requests group by (ts / 60000) * 60000, source, token_remark
+    from requests group by (ts / 60000) * 60000, source, coalesce(token_remark, '默认')
   `)
   db.run(`
     insert into rollup_token_day (day, token_remark, source, requests, errors, input, uncached, output, cache_read, cache_input, cache_input_reported, cache_read_reported, cost)
-    select day, token_remark, source,
+    select day, coalesce(token_remark, '默认'), source,
            count(*), sum(case when ok = 0 then 1 else 0 end),
            ifnull(sum(input_tokens),0), ifnull(sum(uncached_input_tokens),0), ifnull(sum(output_tokens),0),
            ifnull(sum(cache_read_tokens),0), ifnull(sum(cache_input_tokens),0), ifnull(sum(cache_input_reported),0), ifnull(sum(cache_read_reported),0),
            ifnull(sum(cost),0)
-    from requests group by day, source, token_remark
+    from requests group by day, source, coalesce(token_remark, '默认')
   `)
 }
 

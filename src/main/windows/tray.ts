@@ -49,6 +49,16 @@ export function rebuild(): void {
         void proxy.start(cfg.get().settings.port)
       }
     },
+    {
+      label: s.overlay.locked ? '解锁位置' : '锁定位置',
+      click: () => {
+        cfg.mutate((c) => {
+          c.settings.overlay.locked = !c.settings.overlay.locked
+        })
+        overlay.applySettings()
+        rebuild()
+      }
+    },
     { type: 'separator' },
     {
       label: '退出',

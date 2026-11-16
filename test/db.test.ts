@@ -145,6 +145,16 @@ describe('写入', () => {
     expect(zero).toBe(1)
   })
 
+  it('重建 token 聚合时 NULL 备注兜底为默认', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    // 旧导入行没有 token_remark
+    repo.recordRequest(conn, ev(), { ...extra, tokenId: null, tokenRemark: null })
+    conn.run("update requests set token_remark = null")
+    expect(() => repo.rebuildTokenRollups(conn)).not.toThrow()
+    expect(conn.get<{ v: string }>('select token_remark v from rollup_token_minute')?.v).toBe('默认')
+  })
+
   it('主键冲突时整条事务回滚', async () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>

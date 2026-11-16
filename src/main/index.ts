@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, nativeTheme, BrowserWindow } from 'electron'
 import { CH } from '../shared/types'
 import * as cfg from './store/config'
 import * as live from './store/live'
@@ -63,6 +63,13 @@ if (!gotLock) {
     // 端口或局域网开关变了会自动重启代理，登录项变了同步注册表（托盘、设置页共用这一条出口）
     let lastNet = { port: settings.port, allowLan: settings.allowLan }
     let lastLogin = settings.startAtLogin
+    let lastTheme = settings.theme
+    // 跟随系统时，系统深浅色一变就刷新窗口底色与页面
+    nativeTheme.on('updated', () => {
+      if (cfg.get().settings.theme !== 'system') return
+      mainWindow.applyTheme()
+      send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
+    })
     const applyLogin = (on: boolean): void => {
       try {
         app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: [] })
@@ -89,6 +96,10 @@ if (!gotLock) {
         lastLogin = s.startAtLogin
         applog.info('settings', `开机自启${s.startAtLogin ? '开' : '关'}`)
         applyLogin(lastLogin)
+      }
+      if (s.theme !== lastTheme) {
+        lastTheme = s.theme
+        mainWindow.applyTheme()
       }
     })
 

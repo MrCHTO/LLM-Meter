@@ -29,6 +29,21 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
   return (
     <div className="section settings-cards">
       <div className="card">
+        <h2>外观</h2>
+        <label className="setting-row">
+          <span>主题</span>
+          <select
+            value={config.settings.theme}
+            onChange={(e) => void patch({ theme: e.target.value as 'light' | 'dark' | 'system' })}
+          >
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
+            <option value="system">跟随系统</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="card">
         <h2>悬浮窗</h2>
         <div className="setting-row">
           <span>当前模型</span>

@@ -76,6 +76,7 @@ declare global {
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
         startAtLogin?: boolean
+        theme?: 'light' | 'dark' | 'system'
         autoCalibrate?: boolean
         autoProbeIntervalSec?: number
       }) => Promise<IpcResult<boolean>>

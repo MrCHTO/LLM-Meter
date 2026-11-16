@@ -58,6 +58,20 @@ export default function App(): JSX.Element {
     if (config) document.title = `LLM Meter ${config.version}`
   }, [config])
 
+  // 主题：system 跟随系统深浅色，变化时即时切换
+  useEffect(() => {
+    const theme = config?.settings.theme ?? 'system'
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = (): void => {
+      const dark = theme === 'dark' || (theme === 'system' && mq.matches)
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    }
+    apply()
+    if (theme !== 'system') return
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [config?.settings.theme])
+
   if (!config) {
     return <div className="empty">加载中…</div>
   }

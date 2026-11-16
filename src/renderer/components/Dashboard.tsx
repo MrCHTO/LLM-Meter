@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import type { ConfigView, LiveSnapshot, ModelLive } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
 import { useColumnWidths } from '../columns'
-import { MultiRate, rateColor } from './MultiRate'
-import { Sparkline } from './Sparkline'
+import { DenseBars, rateColor, rateSeries } from './DenseBars'
 
 interface Props {
   snapshot: LiveSnapshot | null
@@ -29,7 +28,7 @@ function ChartPanel(props: { title: string; buckets: number[]; reqPerSec?: strin
         {reqPerSec !== undefined ? <span className="chart-now">{reqPerSec}</span> : null}
       </div>
       <div className="chart-body">
-        <Sparkline buckets={view} tail={view.length} />
+        <DenseBars series={[{ color: 'var(--accent)', buckets: view }]} barClass="req-bar" />
       </div>
     </div>
   )
@@ -133,7 +132,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             <span className="chart-now">{realtimeText}</span>
           </div>
           <div className="chart-body">
-            <MultiRate models={rateModels} colors={colors} />
+            <DenseBars series={rateSeries(rateModels, colors)} barClass="rate-bar" />
           </div>
         </div>
         <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} reqPerSec={reqPerSecText} />
