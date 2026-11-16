@@ -185,7 +185,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
               <option value="model">按模型</option>
               <option value="provider">按供应商</option>
-              <option value="token">按 Token 备注</option>
+              <option value="token">按Token</option>
             </select>
           </label>
           <div className="row nowrap" style={{ marginLeft: 'auto', gap: 8 }}>
@@ -222,7 +222,7 @@ export function Analysis({ config, notify }: Props): JSX.Element {
           {cols.colgroup}
           <thead>
             <tr>
-              <th className="c-model">{groupBy === 'model' ? '模型' : groupBy === 'provider' ? '供应商' : 'Token 备注'}{cols.resizer(0)}</th>
+              <th className="c-model">{groupBy === 'model' ? '模型' : groupBy === 'provider' ? '供应商' : 'Token'}{cols.resizer(0)}</th>
               <th>请求{cols.resizer(1)}</th>
               <th>错误{cols.resizer(2)}</th>
               <th>未缓存输入{cols.resizer(3)}</th>

@@ -284,7 +284,7 @@ try {
   await sleep(700)
   check('再显示后曲线恢复', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore, `${curvesBefore} | ${await s.eval("document.querySelector('.content')?.innerText.slice(0,120)")}`)
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
-  check('曲线标题右侧不再有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 0)
+  check('曲线标题右侧有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
   check('表头是十三列', (await s.eval("document.querySelectorAll('thead th').length")) === 13)
   check(
@@ -600,7 +600,7 @@ try {
     return true
   })()`)
   await sleep(1200)
-  check('按 Token 备注分组生效', (await s.eval("document.querySelector('.tbl-detail thead th')?.innerText ?? ''")) === 'Token 备注')
+  check('按Token分组生效', (await s.eval("document.querySelector('.tbl-detail thead th')?.innerText ?? ''")) === 'Token')
   await s.eval(`(() => {
     const sel = [...document.querySelectorAll('.card select')][2]
     const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set

@@ -474,10 +474,13 @@ export function register(): void {
       const target = list.find((t) => t.id === id)
       if (!target) throw new Error('token 不存在')
       if (list.some((t) => t.id !== id && t.remark === remark)) throw new Error(`备注 ${remark} 已存在`)
+      const from = target.remark
       cfg.mutate((c) => {
         const t = c.settings.tokens.find((x) => x.id === id)
         if (t) t.remark = remark
       })
+      // 备注变了，历史明细与 token 聚合跟着归到新名字下
+      if (from !== remark) repo.renameTokenRemark(db.get(), id, from, remark)
       return true
     })
   )

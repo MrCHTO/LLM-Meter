@@ -84,7 +84,7 @@ function bumpToken(
   const keyCol = table === 'rollup_token_minute' ? 'minute' : 'day'
   db.run(
     `insert into ${table} (${keyCol}, token_remark, source, requests, errors, input, uncached, output, cache_read, cache_input, cache_input_reported, cost)
-     values (?,?,?,?,1,?,?,?,?,?,?,?)
+     values (?,?,?,1,?,?,?,?,?,?,?,?)
      on conflict (${keyCol}, token_remark, source) do update set
        requests = requests + 1,
        errors = errors + excluded.errors,
@@ -638,6 +638,40 @@ export function prune(db: Db, now: number, detailDays: number, minuteDays: numbe
 
 export function backupTo(db: Db, file: string): void {
   db.exec(`vacuum into '${file.replace(/'/g, "''")}'`)
+}
+
+/** 备注改名后回写历史：按 token_id 把明细与 token 聚合的旧备注改成新名字，同一事务。 */
+export function renameTokenRemark(db: Db, tokenId: string, from: string, to: string): void {
+  db.tx(() => {
+    db.run('update requests set token_remark = ? where token_id = ?', to, tokenId)
+    for (const table of ['rollup_token_minute', 'rollup_token_day'] as const) {
+      const key = table === 'rollup_token_minute' ? 'minute' : 'day'
+      // 同一 token 的新旧备注行可能在同一桶并存：旧备注先改名（若与已有新备注行冲突会整行失败），所以
+      // 分两步 —— 先把无冲突的旧行直接改名，再把冲突桶的旧值并进新备注行后删除旧行
+      db.run(
+        `update or ignore ${table} set token_remark = ? where token_remark = ?`,
+        to,
+        from
+      )
+      db.run(
+        `update ${table} set
+           requests = requests + (select r.requests from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           errors = errors + (select r.errors from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           input = input + (select r.input from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           uncached = uncached + (select r.uncached from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           output = output + (select r.output from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           cache_read = cache_read + (select r.cache_read from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           cache_input = cache_input + (select r.cache_input from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           cache_input_reported = cache_input_reported + (select r.cache_input_reported from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
+           cost = cost + (select r.cost from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source)
+         where token_remark = ? and exists (
+           select 1 from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source
+         )`,
+        from, from, from, from, from, from, from, from, from, to, from
+      )
+      db.run(`delete from ${table} where token_remark = ?`, from)
+    }
+  })
 }
 
 function dayKeyOf(ts: number): string {

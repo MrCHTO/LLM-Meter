@@ -1095,6 +1095,12 @@ tr.dragging .grip {
 }
 
 .chart-now {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.chart-now {
   margin-left: auto;
   font-size: 18px;
   font-weight: 650;

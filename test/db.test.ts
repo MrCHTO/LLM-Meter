@@ -108,6 +108,27 @@ describe('写入', () => {
     expect(conn.get<{ c: number }>('select count(*) c from rollup_token_minute')?.c).toBe(1)
   })
 
+  it('备注改名把历史明细与聚合并到新名字（含同桶并存）', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    // 旧名字一条 + 新名字一条，同一分钟桶并存
+    repo.recordRequest(conn, ev({ inputTokens: 100, outputTokens: 10, cost: 0.001 }), { ...extra, tokenId: 't1', tokenRemark: '旧名' })
+    repo.recordRequest(conn, ev({ inputTokens: 300, outputTokens: 30, cost: 0.003 }), { ...extra, tokenId: 't1', tokenRemark: '新名' })
+    repo.renameTokenRemark(conn, 't1', '旧名', '新名')
+
+    // 明细两条都归到新名字下
+    expect(conn.get<{ c: number }>("select count(*) c from requests where token_remark = '新名'")?.c).toBe(2)
+    expect(conn.get<{ c: number }>("select count(*) c from requests where token_remark = '旧名'")?.c).toBe(0)
+    // 分钟桶合并成一行，数值相加
+    expect(conn.get<{ c: number }>('select count(*) c from rollup_token_minute')?.c).toBe(1)
+    const minute = conn.get<{ input: number; output: number; requests: number; cost: number }>(
+      'select input, output, requests, cost from rollup_token_minute'
+    )
+    expect(minute).toEqual({ input: 400, output: 40, requests: 2, cost: 0.004 })
+    // 日聚合同样合并
+    expect(conn.get<{ input: number }>('select input from rollup_token_day')?.input).toBe(400)
+  })
+
   it('主键冲突时整条事务回滚', async () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>

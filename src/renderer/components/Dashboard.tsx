@@ -19,13 +19,14 @@ interface MenuState {
   y: number
 }
 
-function ChartPanel(props: { title: string; buckets: number[] }): JSX.Element {
-  const { title, buckets } = props
+function ChartPanel(props: { title: string; buckets: number[]; reqPerSec?: string }): JSX.Element {
+  const { title, buckets, reqPerSec } = props
   const view = buckets.length ? buckets : [0]
   return (
     <div className="chart-card">
       <div className="chart-head">
         <span className="chart-title">{title}</span>
+        {reqPerSec !== undefined ? <span className="chart-now">{reqPerSec}</span> : null}
       </div>
       <div className="chart-body">
         <Sparkline buckets={view} tail={view.length} />
@@ -87,6 +88,10 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   // 请求速率取最近 10 秒均值，避免空闲时恒为 0
   const tailReq = (snapshot?.totals.reqBuckets ?? []).slice(-10)
   const reqPerSec = tailReq.reduce((a, b) => a + b, 0) / 10
+  // 标题旁的实时值：速率=各模型实时估算之和，请求量=每秒请求数（<0.1 显 <0.1，为零显 0）
+  const realtimeTps = models.reduce((a, m) => a + (m.realtimeTps ?? 0), 0)
+  const realtimeText = realtimeTps > 0 ? `${Math.round(realtimeTps)} tok/s` : '0 tok/s'
+  const reqPerSecText = reqPerSec > 0 && reqPerSec < 0.1 ? '<0.1 次/秒' : `${Math.round(reqPerSec * 10) / 10} 次/秒`
 
   const dropOn = async (targetId: string, sourceId: string | null): Promise<void> => {
     if (!sourceId || sourceId === targetId) return
@@ -125,12 +130,13 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
         <div className="chart-card">
           <div className="chart-head">
             <span className="chart-title">速率</span>
+            <span className="chart-now">{realtimeText}</span>
           </div>
           <div className="chart-body">
             <MultiRate models={rateModels} colors={colors} />
           </div>
         </div>
-        <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} />
+        <ChartPanel title="请求量" buckets={snapshot?.totals.reqBuckets ?? []} reqPerSec={reqPerSecText} />
       </div>
 
       <div className="card">
