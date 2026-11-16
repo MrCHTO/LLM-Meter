@@ -20,22 +20,25 @@ interface Props {
 
 const W = 600
 const H = 100
-const GAP = 1
+/** 固定针宽（与系列数无关，上下两张图同宽同密度）；柱间距与柱宽相同 */
+const BAR = 1.2
+const STEP = BAR * 2
 
-/** 最近 60 秒的密集柱状图：一柱一秒，多模型并排、颜色区分 */
+/** 最近 60 秒的密集柱状图：一柱一秒，多模型并排、颜色与表格别名底纹同源 */
 export function DenseBars({ series, barClass }: Props): JSX.Element {
   const count = Math.max(1, ...series.map((s) => s.buckets.length))
   const peak = Math.max(1, ...series.flatMap((s) => s.buckets))
   const slot = W / count
   const lanes = Math.max(1, series.length)
-  const barWidth = Math.max(0.5, slot / lanes - GAP)
+  // 一槽要放 lanes 根柱 + (lanes-1) 个等宽间隙
+  const barWidth = Math.max(0.5, Math.min(BAR, slot / (2 * lanes - 1)))
 
   return (
     <svg className="bars" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" shapeRendering="crispEdges" aria-hidden>
       {series.map((s, si) =>
         s.buckets.map((value, i) => {
           const height = value > 0 ? Math.max(0.6, (value / peak) * (H - 1)) : 0.6
-          const x = i * slot + si * (slot / lanes) + GAP / 2
+          const x = i * slot + si * STEP + 0.3
           return (
             <rect
               key={`${si}-${i}`}

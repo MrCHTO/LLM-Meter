@@ -275,6 +275,12 @@ button {
   font-size: 12px;
 }
 
+/* 设置行内的下拉用固定窄宽，避免 100% 宽把标签挤成竖排 */
+.setting-row select {
+  flex: none;
+  width: 132px;
+}
+
 .setting-row .row,
 .setting-row .btn {
   flex: none;

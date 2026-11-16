@@ -272,6 +272,11 @@ try {
     ) &&
       /repeating-linear-gradient/.test(await s.eval("getComputedStyle(document.querySelector('td.c-model .model-name')).backgroundImage"))
   )
+  check(
+    '全部柱子颜色都来自别名底纹色',
+    (await s.eval("(() => { const hues = [...document.querySelectorAll('td.c-model .model-name')].map((n) => n.style.getPropertyValue('--mc').trim()); return [...document.querySelectorAll('rect.rate-bar')].every((r) => hues.includes((r.getAttribute('fill') || '').slice(4, -1))) })()")) === true,
+    `fills=${await s.eval("[...new Set([...document.querySelectorAll('rect.rate-bar')].map((r) => r.getAttribute('fill')))].join('|')")} hues=${await s.eval("[...document.querySelectorAll('td.c-model .model-name')].map((n) => n.style.getPropertyValue('--mc')).join('|')")}`
+  )
   // 仪表盘右键菜单的曲线开关
   await s.eval("(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); return true })()")
   await sleep(300)
