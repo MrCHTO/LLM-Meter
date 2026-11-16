@@ -119,14 +119,16 @@ describe('写入', () => {
     // 明细两条都归到新名字下
     expect(conn.get<{ c: number }>("select count(*) c from requests where token_remark = '新名'")?.c).toBe(2)
     expect(conn.get<{ c: number }>("select count(*) c from requests where token_remark = '旧名'")?.c).toBe(0)
-    // 分钟桶合并成一行，数值相加
+    // 聚合按明细整表重建：值合并、且与明细严格一致
     expect(conn.get<{ c: number }>('select count(*) c from rollup_token_minute')?.c).toBe(1)
     const minute = conn.get<{ input: number; output: number; requests: number; cost: number }>(
       'select input, output, requests, cost from rollup_token_minute'
     )
     expect(minute).toEqual({ input: 400, output: 40, requests: 2, cost: 0.004 })
-    // 日聚合同样合并
     expect(conn.get<{ input: number }>('select input from rollup_token_day')?.input).toBe(400)
+    // 无 token_id 的其他明细不被动
+    repo.recordRequest(conn, ev({ inputTokens: 500, outputTokens: 50 }), { ...extra, tokenId: null, tokenRemark: '默认' })
+    expect(conn.get<{ c: number }>("select count(*) c from requests where token_remark = '默认'")?.c).toBe(1)
   })
 
   it('主键冲突时整条事务回滚', async () => {

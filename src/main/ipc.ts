@@ -23,6 +23,7 @@ import * as cfg from './store/config'
 import * as live from './store/live'
 import * as db from './store/db'
 import * as repo from './store/db/repo'
+import * as applog from './applog'
 import { dataDir, dayKey } from './store/paths'
 import { mask, open as openKey, seal } from './security/keys'
 import * as token from './security/token'
@@ -479,8 +480,11 @@ export function register(): void {
         const t = c.settings.tokens.find((x) => x.id === id)
         if (t) t.remark = remark
       })
-      // 备注变了，历史明细与 token 聚合跟着归到新名字下
-      if (from !== remark) repo.renameTokenRemark(db.get(), id, from, remark)
+      // 备注变了，历史明细按 token_id 改名，聚合从明细整表重建
+      if (from !== remark) {
+        repo.renameTokenRemark(db.get(), id, from, remark)
+        applog.info('access', `Token 备注改名 ${from} → ${remark}，历史与聚合已跟随`)
+      }
       return true
     })
   )

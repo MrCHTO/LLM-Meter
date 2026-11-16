@@ -640,38 +640,36 @@ export function backupTo(db: Db, file: string): void {
   db.exec(`vacuum into '${file.replace(/'/g, "''")}'`)
 }
 
-/** 备注改名后回写历史：按 token_id 把明细与 token 聚合的旧备注改成新名字，同一事务。 */
+/** 备注改名后回写历史：明细按 token_id 改名，两张 token 聚合从明细整表重建（聚合键无 token_id，整表重建才与明细严格一致），同一事务。 */
 export function renameTokenRemark(db: Db, tokenId: string, from: string, to: string): void {
   db.tx(() => {
     db.run('update requests set token_remark = ? where token_id = ?', to, tokenId)
-    for (const table of ['rollup_token_minute', 'rollup_token_day'] as const) {
-      const key = table === 'rollup_token_minute' ? 'minute' : 'day'
-      // 同一 token 的新旧备注行可能在同一桶并存：旧备注先改名（若与已有新备注行冲突会整行失败），所以
-      // 分两步 —— 先把无冲突的旧行直接改名，再把冲突桶的旧值并进新备注行后删除旧行
-      db.run(
-        `update or ignore ${table} set token_remark = ? where token_remark = ?`,
-        to,
-        from
-      )
-      db.run(
-        `update ${table} set
-           requests = requests + (select r.requests from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           errors = errors + (select r.errors from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           input = input + (select r.input from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           uncached = uncached + (select r.uncached from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           output = output + (select r.output from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           cache_read = cache_read + (select r.cache_read from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           cache_input = cache_input + (select r.cache_input from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           cache_input_reported = cache_input_reported + (select r.cache_input_reported from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source),
-           cost = cost + (select r.cost from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source)
-         where token_remark = ? and exists (
-           select 1 from ${table} r where r.${key} = ${table}.${key} and r.token_remark = ? and r.source = ${table}.source
-         )`,
-        from, from, from, from, from, from, from, from, from, to, from
-      )
-      db.run(`delete from ${table} where token_remark = ?`, from)
-    }
+    rebuildTokenRollups(db)
   })
+}
+
+/** 从 requests 明细全量重建两张 token 聚合（幂等；回填与改名共用）。 */
+export function rebuildTokenRollups(db: Db): void {
+  db.run('delete from rollup_token_minute')
+  db.run('delete from rollup_token_day')
+  db.run(`
+    insert into rollup_token_minute (minute, token_remark, source, requests, errors, input, uncached, output, cache_read, cache_input, cache_input_reported, cost)
+    select (ts / 60000) * 60000, token_remark, source,
+           count(*), sum(case when ok = 0 then 1 else 0 end),
+           ifnull(sum(input_tokens),0), ifnull(sum(uncached_input_tokens),0), ifnull(sum(output_tokens),0),
+           ifnull(sum(cache_read_tokens),0), ifnull(sum(cache_input_tokens),0), ifnull(sum(cache_input_reported),0),
+           ifnull(sum(cost),0)
+    from requests group by (ts / 60000) * 60000, source, token_remark
+  `)
+  db.run(`
+    insert into rollup_token_day (day, token_remark, source, requests, errors, input, uncached, output, cache_read, cache_input, cache_input_reported, cost)
+    select day, token_remark, source,
+           count(*), sum(case when ok = 0 then 1 else 0 end),
+           ifnull(sum(input_tokens),0), ifnull(sum(uncached_input_tokens),0), ifnull(sum(output_tokens),0),
+           ifnull(sum(cache_read_tokens),0), ifnull(sum(cache_input_tokens),0), ifnull(sum(cache_input_reported),0),
+           ifnull(sum(cost),0)
+    from requests group by day, source, token_remark
+  `)
 }
 
 function dayKeyOf(ts: number): string {
