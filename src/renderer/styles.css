@@ -258,6 +258,7 @@ button {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 14px 16px;
+  overflow-x: auto;
 }
 
 .card h2 {
@@ -833,6 +834,19 @@ body.overlay-body {
 .tbl th.c-cost,
 .tbl td.c-cost {
   text-align: center;
+}
+
+/* 窄窗口下缩短表头，降低 13 列的最小总宽 */
+.hd-ttft,
+.hd-cache {
+  display: inline;
+}
+
+@media (max-width: 1100px) {
+  .hd-ttft,
+  .hd-cache {
+    display: none;
+  }
 }
 
 tr.clickable {

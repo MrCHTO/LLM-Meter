@@ -141,10 +141,10 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               <th className="c-model">模型{cols.resizer(0)}</th>
               <th className="c-url">供应商{cols.resizer(1)}</th>
               <th className="c-rate">TPS{cols.resizer(2)}</th>
-              <th className="c-ttft">TTFT P50{cols.resizer(3)}</th>
-              <th className="c-ttft">TTFT P95{cols.resizer(4)}</th>
-              <th className="c-ttft">TTFT P99{cols.resizer(5)}</th>
-              <th className="c-hit">缓存命中率{cols.resizer(6)}</th>
+              <th className="c-ttft"><span className="hd-ttft">TTFT </span>P50{cols.resizer(3)}</th>
+              <th className="c-ttft"><span className="hd-ttft">TTFT </span>P95{cols.resizer(4)}</th>
+              <th className="c-ttft"><span className="hd-ttft">TTFT </span>P99{cols.resizer(5)}</th>
+              <th className="c-hit"><span className="hd-cache">缓存</span>命中率{cols.resizer(6)}</th>
               <th className="c-tok">未缓存输入{cols.resizer(7)}</th>
               <th className="c-tok">缓存读取{cols.resizer(8)}</th>
               <th className="c-tok">缓存输入{cols.resizer(9)}</th>
