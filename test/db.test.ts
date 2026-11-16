@@ -132,6 +132,19 @@ describe('写入', () => {
     expect(conn.get<{ c: number }>("select count(*) c from requests where token_remark = '默认'")?.c).toBe(1)
   })
 
+  it('缓存读标志随写入记录，迁移回填历史命中行', async () => {
+    const { repo } = await load()
+    const conn = db as NonNullable<typeof db>
+    // recordRequest 忠实写事件：标志由上层（server/probe）按 details 存在性传
+    repo.recordRequest(conn, ev({ inputTokens: 1000, cacheReadTokens: 800, cacheReadReported: true }), { ...extra, tokenId: 't1', tokenRemark: 'ZCode' })
+    expect(conn.get<{ v: number }>('select cache_read_reported v from requests')?.v).toBe(1)
+    expect(conn.get<{ v: number }>('select cache_read_reported v from rollup_minute')?.v).toBe(1)
+    // 无缓存读的请求标志为 0
+    repo.recordRequest(conn, ev({}), { ...extra, tokenId: 't1', tokenRemark: 'ZCode' })
+    const zero = conn.get<{ c: number }>('select count(*) c from requests where cache_read_reported = 0')?.c
+    expect(zero).toBe(1)
+  })
+
   it('主键冲突时整条事务回滚', async () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>

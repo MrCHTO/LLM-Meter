@@ -179,6 +179,14 @@ const MIGRATIONS: string[] = [
   alter table rollup_day add column cache_read_reported integer not null default 0;
   alter table rollup_token_minute add column cache_read_reported integer not null default 0;
   alter table rollup_token_day add column cache_read_reported integer not null default 0;
+  `,
+  // v9：历史行曾上报过缓存读计数（cache_read_tokens>0 必然来自真实 details 对象）回填标志，日志/分析的旧行恢复显示
+  `
+  update requests set cache_read_reported = 1 where cache_read_tokens > 0;
+  update rollup_minute set cache_read_reported = 1 where cache_read > 0;
+  update rollup_day set cache_read_reported = 1 where cache_read > 0;
+  update rollup_token_minute set cache_read_reported = 1 where cache_read > 0;
+  update rollup_token_day set cache_read_reported = 1 where cache_read > 0;
   `
 ]
 

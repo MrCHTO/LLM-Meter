@@ -354,8 +354,8 @@ export function snapshot(
     const provider = providers.get(m.providerId)
     const tps = tpsOf(s)
     const realtimeTps = realtimeOf(s, now)
-    // 渠道把 details 置空（如 GLM 渠道）时视为未上报，命中率显示 — 而非误导性的 0.00%
-    const hitRate = s.today.cacheReadReported > 0 && s.today.input > 0 ? s.today.cacheRead / s.today.input : null
+    // 渠道具备缓存读计数（有过上报或曾命中过）才显示数值；否则显示 — 而非误导性的 0.00%
+    const hitRate = (s.today.cacheReadReported > 0 || s.today.cacheRead > 0) && s.today.input > 0 ? s.today.cacheRead / s.today.input : null
     models.push({
       modelId: m.id,
       alias: m.alias,
@@ -402,8 +402,8 @@ export function snapshot(
 
   const inputTotal = models.reduce((a, x) => a + x.today.input, 0)
   const cacheTotal = models.reduce((a, x) => a + x.today.cacheRead, 0)
-  const readReportedTotal = models.reduce((a, x) => a + x.today.cacheReadReported, 0)
-  totals.hitRate = readReportedTotal > 0 && inputTotal > 0 ? cacheTotal / inputTotal : null
+  const readKnown = models.some((x) => x.today.cacheReadReported > 0 || x.today.cacheRead > 0)
+  totals.hitRate = readKnown && inputTotal > 0 ? cacheTotal / inputTotal : null
 
   return {
     ts: now,
