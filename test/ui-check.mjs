@@ -257,9 +257,10 @@ try {
   check('两张曲线同高同版式', sizes.length === 2 && sizes[0].h === sizes[1].h && sizes[0].body === sizes[1].body && sizes[0].body >= 100, chartSizes)
   check('曲线贴近卡片底边', sizes.every((s) => s.gap <= 8), chartSizes)
   check(
-    '速率图是密集柱状且颜色不同',
-    (await s.eval("document.querySelectorAll('svg.bars rect.rate-bar').length")) >= 2 &&
-      (await s.eval("[...document.querySelectorAll('rect.rate-bar')].map((l) => l.getAttribute('fill')).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
+    '增量曲线是折线加面积且颜色不同',
+    (await s.eval("document.querySelectorAll('.multi-svg .multi-line').length")) >= 2 &&
+      (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) >= 2 &&
+      (await s.eval("[...document.querySelectorAll('.multi-line')].map((l) => l.getAttribute('stroke')).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
   )
   check(
     '仪表盘模型名前有探活点',
@@ -267,31 +268,29 @@ try {
   )
   check(
     '模型名底纹与曲线同色且为斜纹',
-    (await s.eval("document.querySelector('rect.rate-bar')?.getAttribute('fill') ?? ''")).includes(
+    (await s.eval("document.querySelector('.multi-line')?.getAttribute('stroke') ?? ''")).includes(
       await s.eval("document.querySelector('td.c-model .model-name')?.style.getPropertyValue('--mc') ?? 'x'")
     ) &&
       /repeating-linear-gradient/.test(await s.eval("getComputedStyle(document.querySelector('td.c-model .model-name')).backgroundImage"))
   )
   check(
-    '全部柱子颜色都来自别名底纹色',
-    (await s.eval("(() => { const hues = [...document.querySelectorAll('td.c-model .model-name')].map((n) => n.style.getPropertyValue('--mc').trim()); return [...document.querySelectorAll('rect.rate-bar')].every((r) => hues.includes((r.getAttribute('fill') || '').slice(4, -1))) })()")) === true,
-    `fills=${await s.eval("[...new Set([...document.querySelectorAll('rect.rate-bar')].map((r) => r.getAttribute('fill')))].join('|')")} hues=${await s.eval("[...document.querySelectorAll('td.c-model .model-name')].map((n) => n.style.getPropertyValue('--mc')).join('|')")}`
+    '全部曲线颜色都来自别名底纹色',
+    (await s.eval("(() => { const hues = [...document.querySelectorAll('td.c-model .model-name')].map((n) => n.style.getPropertyValue('--mc').trim()); return [...document.querySelectorAll('.multi-line')].every((r) => hues.includes((r.getAttribute('stroke') || '').slice(4, -1))) })()")) === true
   )
   // 仪表盘右键菜单的曲线开关
   await s.eval("(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); return true })()")
   await sleep(300)
   const dashMenu = await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")
   check('仪表盘右键菜单含曲线开关', /^(测速),(隐藏|显示)曲线图,查看日志$/.test(dashMenu), dashMenu)
-  const barsBefore = await s.eval("document.querySelectorAll('rect.rate-bar').length")
+  const curvesBefore = await s.eval("document.querySelectorAll('.multi-line').length")
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText.includes('曲线图'))?.click()")
   await sleep(700)
-  const barsAfter = await s.eval("document.querySelectorAll('rect.rate-bar').length")
-  check('隐藏后曲线少一条', barsAfter < barsBefore, `${barsBefore} -> ${barsAfter}`)
+  check('隐藏后曲线少一条', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore - 1)
   await s.eval("(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); return true })()")
   await sleep(300)
   await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '显示曲线图')?.click()")
   await sleep(700)
-  check('再显示后曲线恢复', (await s.eval("document.querySelectorAll('rect.rate-bar').length")) === barsBefore)
+  check('再显示后曲线恢复', (await s.eval("document.querySelectorAll('.multi-line').length")) === curvesBefore)
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
@@ -374,7 +373,7 @@ try {
     (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'auto' &&
       (await s.eval("localStorage.getItem('cols:dashboard')")) === null
   )
-  check('柱状图已渲染', (await s.eval("document.querySelectorAll('svg.bars rect').length")) > 0)
+  check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark path.spark-line').length")) > 0)
   check('金额用人民币', /¥/.test(await s.eval("document.querySelector('td.c-cost')?.innerText ?? ''")))
   check('命中率显示为百分比', /%/.test(await s.eval("document.querySelector('td.c-hit')?.innerText ?? ''")))
   check('不再有预算条', (await s.eval("document.querySelectorAll('.meter').length")) === 0)
