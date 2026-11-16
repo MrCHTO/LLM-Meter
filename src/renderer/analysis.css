@@ -95,3 +95,21 @@
   text-align: center;
   color: var(--dim);
 }
+
+/* 图表卡头：标题与控件同一行，控件贴右 */
+.ana-head {
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ana-controls {
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.ana-sum {
+  margin-left: auto;
+  white-space: nowrap;
+  padding-bottom: 8px;
+}

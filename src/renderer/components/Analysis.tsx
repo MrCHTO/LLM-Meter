@@ -148,47 +148,50 @@ export function Analysis({ config, notify }: Props): JSX.Element {
   return (
     <div className="section">
       <div className="card">
-        <div className="row nowrap" style={{ gap: 10 }}>
-          <label className="field">
-            <span>时间范围</span>
-            <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
-              <option value="today">今天</option>
-              <option value="24h">近 24 小时</option>
-              <option value="7d">近 7 天</option>
-              <option value="custom">自定义</option>
-            </select>
-          </label>
-          {preset === 'custom' ? (
-            <>
-              <label className="field">
-                <span>从</span>
-                <input type="datetime-local" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-              </label>
-              <label className="field">
-                <span>到</span>
-                <input type="datetime-local" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
-              </label>
-            </>
-          ) : null}
-          <label className="field">
-            <span>指标</span>
-            <select value={metric} onChange={(e) => setMetric(e.target.value as StatsMetric)}>
-              {METRICS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>分组</span>
-            <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
-              <option value="model">按模型</option>
-              <option value="provider">按供应商</option>
-              <option value="token">按Token</option>
-            </select>
-          </label>
-          <div className="row nowrap" style={{ marginLeft: 'auto', gap: 8 }}>
+        <div className="row nowrap ana-head">
+          <div className="row nowrap ana-controls">
+            <label className="field">
+              <span>时间范围</span>
+              <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
+                <option value="today">今天</option>
+                <option value="24h">近 24 小时</option>
+                <option value="7d">近 7 天</option>
+                <option value="custom">自定义</option>
+              </select>
+            </label>
+            {preset === 'custom' ? (
+              <>
+                <label className="field">
+                  <span>从</span>
+                  <input type="datetime-local" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                </label>
+                <label className="field">
+                  <span>到</span>
+                  <input type="datetime-local" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                </label>
+              </>
+            ) : null}
+            <label className="field">
+              <span>指标</span>
+              <select value={metric} onChange={(e) => setMetric(e.target.value as StatsMetric)}>
+                {METRICS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>分组</span>
+              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
+                <option value="model">按模型</option>
+                <option value="provider">按供应商</option>
+                <option value="token">按Token</option>
+              </select>
+            </label>
+            <span className="muted ana-sum">
+              区间合计 {fmt(totalOf((r) => (metric === 'cost' ? r.cost : metric === 'tps' ? (r.tps ?? 0) : metric === 'total' ? r.total : (r[metric === 'cache_read' ? 'cacheRead' : metric] as number))))} {meta.unit}
+            </span>
             <button className="btn" disabled={busy} onClick={() => void load()}>
               {busy ? '查询中' : '刷新'}
             </button>
@@ -196,15 +199,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
               导出 CSV
             </button>
           </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="row">
-          <h2 style={{ margin: 0 }}>{meta.label}</h2>
-          <span className="muted" style={{ marginLeft: 'auto' }}>
-            区间合计 {fmt(totalOf((r) => (metric === 'cost' ? r.cost : metric === 'tps' ? (r.tps ?? 0) : metric === 'total' ? r.total : (r[metric === 'cache_read' ? 'cacheRead' : metric] as number))))} {meta.unit}
-          </span>
         </div>
         <SeriesChart
           buckets={series?.buckets ?? []}
@@ -217,7 +211,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       </div>
 
       <div className="card">
-        <h2>分组明细</h2>
         <table className={`tbl tbl-detail${cols.fixed ? ' col-fixed' : ''}`} {...cols.tableProps}>
           {cols.colgroup}
           <thead>

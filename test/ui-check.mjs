@@ -578,8 +578,9 @@ try {
   await sleep(1500)
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) === 3)
   check(
-    '请求数卡片标题后没有说明文字',
-    (await s.eval("(() => { const h = [...document.querySelectorAll('.card h2')].find((x) => x.innerText === '请求数'); return h?.parentElement?.innerText ?? '' })()")).startsWith('请求数')
+    '图表卡头无标题、控件顶在左上',
+    (await s.eval("[...document.querySelectorAll('.card h2')].every((x) => x.innerText !== '请求数')")) === true &&
+      (await s.eval("(() => { const card = document.querySelector('.ana-head')?.closest('.card'); const sel = document.querySelector('.ana-head select'); if (!card || !sel) return false; const c = card.getBoundingClientRect(); const r = sel.getBoundingClientRect(); return r.top - c.top < 90 && r.left - c.left < 130 })()")) === true
   )
   check(
     '明细只有模型列左对齐',
