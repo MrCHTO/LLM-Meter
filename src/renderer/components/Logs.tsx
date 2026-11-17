@@ -52,7 +52,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
   const [data, setData] = useState<LogPage<RequestLog> | LogPage<AppLog> | null>(null)
   const [loading, setLoading] = useState(false)
   const seq = useRef(0)
-  const requestCols = useColumnWidths('log-requests', [90, 120, 110, 60, 60, 70, 70, 70, 70, 70, 70, 80, 200])
+  const requestCols = useColumnWidths('log-requests', [90, 120, 110, 60, 60, 70, 70, 70, 70, 70, 70, 80])
   const appCols = useColumnWidths('log-apps', [90, 60, 90, 600])
 
   useEffect(() => {
@@ -299,7 +299,6 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                 <th>TTFT{requestCols.resizer(9)}</th>
                 <th>tok/s{requestCols.resizer(10)}</th>
                 <th>成本{requestCols.resizer(11)}</th>
-                <th>备注{requestCols.resizer(12)}</th>
               </tr>
             </thead>
             <tbody>
@@ -319,9 +318,6 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                   <td className="mono">{fmtMs(row.ttftMs)}</td>
                   <td className="mono">{tpsOf(row)}</td>
                   <td className="mono">{fmtMoney(row.cost, row.currency)}</td>
-                  <td className="log-note" title={row.note ?? ''}>
-                    {row.note ?? ''}
-                  </td>
                 </tr>
               ))}
             </tbody>

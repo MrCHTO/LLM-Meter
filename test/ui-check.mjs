@@ -320,6 +320,10 @@ try {
   )
   check('模型列只有别名一行', (await s.eval("document.querySelector('td.c-model')?.querySelectorAll('small').length")) === 0)
   check('行尾是专用拖拽列', (await s.eval("document.querySelector('thead th:last-child')?.className")) === 'c-drag')
+  check(
+    '表头列之间有分隔线',
+    (await s.eval("(() => { const th = document.querySelectorAll('thead th')[1]; return th ? getComputedStyle(th).borderLeftWidth : '0px' })()")) === '1px'
+  )
   check('整行不再 draggable', (await s.eval("document.querySelector('tbody tr.clickable')?.getAttribute('draggable')")) === null)
   // 默认自动列宽；拖动后才固定并记住
   check(
@@ -574,6 +578,10 @@ try {
   await sleep(500)
   // 端口与局域网同一行分两半
   check(
+    '端口与局域网上下排布',
+    (await s.eval("(() => { const hs = document.querySelectorAll('.access-cols-right .access-half'); if (hs.length !== 2) return false; const a = hs[0].getBoundingClientRect(); const b = hs[1].getBoundingClientRect(); return b.top > a.bottom - 2 && Math.abs(a.left - b.left) < 2 })()")) === true
+  )
+  check(
     '端口与局域网已并入地址卡右侧',
     (await s.eval("document.querySelectorAll('.access-split .access-half').length")) === 2 &&
       (await s.eval("document.querySelector('.access-cols-right .access-split .access-half:first-child input[type=number]') ? 1 : 0")) === 1 &&
@@ -827,6 +835,7 @@ try {
   check('点行跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(5)')?.getAttribute('aria-selected')")) === 'true')
   const logModel = await s.eval("[...document.querySelectorAll('.log-filters select')].find((x) => x.options[0]?.value === '')?.value ?? ''")
   check('日志页按所点模型过滤', logModel !== '', clickedAlias)
+  check('请求日志表没有备注列', !(await s.eval("document.querySelector('.tbl-log thead')?.innerText ?? ''")).includes('备注'))
   const requestRows = await s.eval("document.querySelectorAll('.tbl-log tbody tr').length")
   const alignInfo = await s.eval("(() => { const th = [...document.querySelectorAll('.tbl-request thead th')].map((x) => getComputedStyle(x).textAlign).join(','); const td = [...document.querySelectorAll('.tbl-request tbody td')].map((x) => getComputedStyle(x).textAlign).join(','); return th + ' | ' + td })()")
   check(

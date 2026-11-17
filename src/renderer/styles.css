@@ -320,7 +320,12 @@ button {
 }
 
 .access-cols-right .access-half {
-  padding: 0 8px;
+  padding: 0;
+}
+
+.access-cols-right .access-split {
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .access-half {
@@ -548,6 +553,11 @@ thead th {
 thead th:first-child,
 tbody td:first-child {
   text-align: left;
+}
+
+/* 列与列之间画分隔线，拖动调宽的边界一眼可见 */
+thead th + th {
+  border-left: 1px solid var(--line-soft);
 }
 
 tbody td {
@@ -1276,6 +1286,8 @@ tr.dragging .grip {
 }
 
 .analysis-card .series-svg {
+  display: block;
+  width: 100%;
   height: 100%;
 }
 

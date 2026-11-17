@@ -20,9 +20,9 @@ try {
   const send = (method, params) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })) })
   const evalJs = async (expr, awaitPromise = false) => (await send('Runtime.evaluate', { expression: expr, awaitPromise, returnByValue: true })).result?.result?.value
   await sleep(2500)
-  await evalJs("document.querySelector('.tab:nth-child(2)')?.click()")
+  await evalJs("document.querySelector('.tab:nth-child(4)')?.click()")
   await sleep(1500)
   const r = await send('Page.captureScreenshot', { format: 'png' })
-  writeFileSync('test/shots/analysis-head.png', Buffer.from(r.result.data, 'base64'))
+  writeFileSync('test/shots/access-check.png', Buffer.from(r.result.data, 'base64'))
   console.log('shot')
 } finally { ws?.close(); child.kill() }
