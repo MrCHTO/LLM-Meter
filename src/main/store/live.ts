@@ -208,13 +208,20 @@ export function replay(events: RequestEvent[], now = Date.now()): void {
   for (const ev of events) {
     // 失败的请求也要计入请求曲线，只是 token 为 0
     if (ev.ts > now) continue
-    const age = Math.floor((now - ev.ts) / 1000)
-    if (age >= BUCKETS) continue
+    // 输出 token 按完成秒；请求量按「请求开始秒」，与速率的打点口径对齐
+    const ageTokens = Math.floor((now - ev.ts) / 1000)
+    const ageReq = Math.floor((now - (ev.ts - Math.max(0, ev.durationMs))) / 1000)
+    if (ageTokens >= BUCKETS && ageReq >= BUCKETS) continue
     const s = ensure(ev.modelId)
     s.bucketSecond = Math.floor(now / 1000)
-    const idx = BUCKETS - 1 - age
-    s.buckets[idx] = (s.buckets[idx] ?? 0) + ev.outputTokens
-    s.reqBuckets[idx] = (s.reqBuckets[idx] ?? 0) + 1
+    if (ageTokens >= 0 && ageTokens < BUCKETS) {
+      const idxTokens = BUCKETS - 1 - ageTokens
+      s.buckets[idxTokens] = (s.buckets[idxTokens] ?? 0) + ev.outputTokens
+    }
+    if (ageReq >= 0 && ageReq < BUCKETS) {
+      const idxReq = BUCKETS - 1 - ageReq
+      s.reqBuckets[idxReq] = (s.reqBuckets[idxReq] ?? 0) + 1
+    }
     if (ev.ttftMs !== null) s.lastTtftMs = ev.ttftMs
   }
 }
@@ -222,7 +229,8 @@ export function replay(events: RequestEvent[], now = Date.now()): void {
 export function record(ev: RequestEvent): void {
   const s = ensure(ev.modelId)
   rollBuckets(s, ev.ts)
-  const idx = BUCKETS - 1
+  // 请求量按「请求开始秒」打点：速率增量在流式期间逐秒到达，按完成秒打点会整体迟到一段请求耗时
+  const idx = BUCKETS - 1 - Math.min(BUCKETS - 1, Math.floor(Math.max(0, ev.durationMs) / 1000))
   s.reqBuckets[idx] = (s.reqBuckets[idx] ?? 0) + 1
   if (ev.ok) {
     s.today.requests += 1

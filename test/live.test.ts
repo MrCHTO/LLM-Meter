@@ -82,6 +82,19 @@ describe('启动回放', () => {
     expect(buckets.filter((b) => b > 0).length).toBe(3)
   })
 
+  it('请求量按请求开始秒落桶而非完成秒', async () => {
+    const live = await load()
+    const t0 = Math.floor(Date.now() / 1000) * 1000
+    // 5 秒的请求在 t0+5s 完成：请求量应落在 t0 那一秒（倒数第 6 格），最后一格为空
+    live.record({ ...ev(t0 + 5_000, 10), durationMs: 5_000 })
+    const snap = live.snapshot(false, null, '', t0 + 5_000)
+    const buckets = snap.totals.reqBuckets
+    const len = buckets.length
+    expect(buckets[len - 6]).toBe(1)
+    expect(buckets[len - 1]).toBe(0)
+    expect(buckets.reduce((a, b) => a + b, 0)).toBe(1)
+  })
+
   it('超过窗口的事件丢弃', async () => {
     const live = await load()
     const now = 1_700_000_000_000
