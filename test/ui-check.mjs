@@ -305,7 +305,7 @@ try {
     '监控卡有标题与区间下拉',
     (await s.eval("[...document.querySelectorAll('.card h2')].some((h) => h.innerText === '监控')")) === true &&
       (await s.eval("document.querySelector('.range-select') ? [...document.querySelector('.range-select').options].map((o) => o.value).join(',') : ''")) ===
-        'today,1h,3h'
+        'today,24h,week,month'
   )
   check('速率列叫 TPS', headText.includes('|TPS|'))
   check('TPS 行内没有小曲线', (await s.eval("document.querySelectorAll('td.c-rate svg').length")) === 0)
@@ -320,6 +320,10 @@ try {
   )
   check('模型列只有别名一行', (await s.eval("document.querySelector('td.c-model')?.querySelectorAll('small').length")) === 0)
   check('行尾是专用拖拽列', (await s.eval("document.querySelector('thead th:last-child')?.className")) === 'c-drag')
+  check(
+    '拖拽列不会被挤到最小',
+    (await s.eval("document.querySelector('thead th.c-drag')?.getBoundingClientRect().width ?? 0")) >= 28
+  )
   check(
     '表头列之间有分隔线',
     (await s.eval("(() => { const th = document.querySelectorAll('thead th')[1]; return th ? getComputedStyle(th).borderLeftWidth : '0px' })()")) === '1px'
@@ -431,6 +435,10 @@ try {
   )
   check('模型行内没有编辑删除按钮', (await s.eval("[...document.querySelectorAll('.tbl-models tbody button')].some((b) => ['编辑', '删除'].includes(b.innerText))")) === false)
   check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 11)
+  check(
+    '模型表拖拽列不会被挤到最小',
+    (await s.eval("document.querySelector('.tbl-models thead th.c-drag')?.getBoundingClientRect().width ?? 0")) >= 28
+  )
   check('供应商表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.card:first-child thead .col-resize').length")) === 5)
   // 右键菜单：关闭该行后整行变灰，再开启恢复
   const rowsBeforeMenu = await s.eval("document.querySelectorAll('.tbl-models tbody tr').length")
@@ -603,6 +611,7 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
   await sleep(1500)
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) === 3)
+  check('分析筛选没有文字标签', (await s.eval("document.querySelectorAll('.ana-head .field > span').length")) === 0)
   check(
     '图表卡头无标题、控件顶在左上',
     (await s.eval("[...document.querySelectorAll('.card h2')].every((x) => x.innerText !== '请求数')")) === true &&
@@ -835,6 +844,7 @@ try {
   check('点行跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(5)')?.getAttribute('aria-selected')")) === 'true')
   const logModel = await s.eval("[...document.querySelectorAll('.log-filters select')].find((x) => x.options[0]?.value === '')?.value ?? ''")
   check('日志页按所点模型过滤', logModel !== '', clickedAlias)
+  check('日志筛选没有文字标签', (await s.eval("[...document.querySelectorAll('.field > span')].filter((x) => ['时间范围','模型','来源','结果','级别','关键字'].includes(x.innerText)).length")) === 0)
   check('请求日志表没有备注列', !(await s.eval("document.querySelector('.tbl-log thead')?.innerText ?? ''")).includes('备注'))
   const requestRows = await s.eval("document.querySelectorAll('.tbl-log tbody tr').length")
   const alignInfo = await s.eval("(() => { const th = [...document.querySelectorAll('.tbl-request thead th')].map((x) => getComputedStyle(x).textAlign).join(','); const td = [...document.querySelectorAll('.tbl-request tbody td')].map((x) => getComputedStyle(x).textAlign).join(','); return th + ' | ' + td })()")

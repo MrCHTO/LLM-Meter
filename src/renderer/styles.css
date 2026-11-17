@@ -316,7 +316,7 @@ button {
   min-width: 0;
   border-left: 1px solid var(--line);
   padding-left: 16px;
-  padding-top: 12px;
+  align-self: center;
 }
 
 .access-cols-right .access-half {
@@ -1102,7 +1102,13 @@ tr[draggable='true'] {
   padding-right: 2px;
 }
 
+.c-drag {
+  width: 30px;
+  min-width: 30px;
+}
+
 .grip {
+  padding: 0 5px;
   display: inline-block;
   color: var(--dim);
   cursor: grab;

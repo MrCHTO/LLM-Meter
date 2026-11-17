@@ -163,7 +163,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
         <div className="row nowrap ana-head">
           <div className="row nowrap ana-controls">
             <label className="field">
-              <span>时间范围</span>
               <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
                 <option value="today">今天</option>
                 <option value="24h">近 24 小时</option>
@@ -184,7 +183,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
               </>
             ) : null}
             <label className="field">
-              <span>指标</span>
               <select value={metric} onChange={(e) => setMetric(e.target.value as StatsMetric)}>
                 {METRICS.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -194,7 +192,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
               </select>
             </label>
             <label className="field">
-              <span>分组</span>
               <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
                 <option value="model">按模型</option>
                 <option value="provider">按供应商</option>

@@ -145,8 +145,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
 
         <div className="row log-filters">
           <label className="field w-sm">
-            <span>时间范围</span>
-            <select
+                        <select
               value={preset}
               onChange={(e) => {
                 setPreset(e.target.value as Preset)
@@ -188,8 +187,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
           {kind === 'request' ? (
             <>
               <label className="field">
-                <span>模型</span>
-                <select
+                                <select
                   value={modelId}
                   onChange={(e) => {
                     setModelId(e.target.value)
@@ -205,8 +203,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                 </select>
               </label>
               <label className="field w-sm">
-                <span>来源</span>
-                <select
+                                <select
                   value={source}
                   onChange={(e) => {
                     setSource(e.target.value as typeof source)
@@ -219,8 +216,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                 </select>
               </label>
               <label className="field w-sm">
-                <span>结果</span>
-                <select
+                                <select
                   value={result}
                   onChange={(e) => {
                     setResult(e.target.value as typeof result)
@@ -235,8 +231,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
             </>
           ) : (
             <label className="field w-sm">
-              <span>级别</span>
-              <select
+                            <select
                 value={level}
                 onChange={(e) => {
                   setLevel(e.target.value as typeof level)
@@ -251,8 +246,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
             </label>
           )}
           <label className="field grow">
-            <span>关键字</span>
-            <div className="row nowrap">
+                        <div className="row nowrap">
               <input
                 type="text"
                 className="grow"

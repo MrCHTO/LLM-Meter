@@ -35,7 +35,7 @@ function ChartPanel(props: { title: string; buckets: number[]; reqPerSec?: strin
   )
 }
 
-type Range = 'today' | '1h' | '3h'
+type Range = 'today' | '24h' | 'week' | 'month'
 
 export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: Props): JSX.Element {
   const [probing, setProbing] = useState<Record<string, boolean>>({})
@@ -53,9 +53,24 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
       return
     }
     let stopped = false
+    const fromOf = (to: number): number => {
+      if (range === '24h') return to - 86_400_000
+      if (range === 'week') {
+        const d = new Date(to)
+        const day = (d.getDay() + 6) % 7 // 周一为 0
+        d.setDate(d.getDate() - day)
+        d.setHours(0, 0, 0, 0)
+        return d.getTime()
+      }
+      // month
+      const d = new Date(to)
+      d.setDate(1)
+      d.setHours(0, 0, 0, 0)
+      return d.getTime()
+    }
     const load = async (): Promise<void> => {
       const to = Date.now()
-      const from = range === '1h' ? to - 3_600_000 : to - 10_800_000
+      const from = fromOf(to)
       const res = await window.api.statsTotals({ from, to, source: 'proxy', groupBy: 'model' })
       if (!stopped && res.ok && res.data) setRangeRows(new Map(res.data.map((r) => [r.key, r])))
     }
@@ -221,8 +236,9 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             title="监控统计区间"
           >
             <option value="today">今天</option>
-            <option value="1h">近 1 小时</option>
-            <option value="3h">近 3 小时</option>
+            <option value="24h">近 24 小时</option>
+            <option value="week">本周</option>
+            <option value="month">本月</option>
           </select>
         </div>
         <table className={`tbl tbl-flush${cols.fixed ? ' col-fixed' : ''}`} {...cols.tableProps}>
