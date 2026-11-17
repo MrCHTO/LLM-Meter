@@ -1102,9 +1102,20 @@ tr[draggable='true'] {
   padding-right: 2px;
 }
 
-.c-drag {
-  width: 30px;
-  min-width: 30px;
+.row-drag {
+  position: relative;
+}
+
+.row-drag > td:last-of-type,
+.th-drag-pad {
+  padding-right: 34px;
+}
+
+.row-grip {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .grip {

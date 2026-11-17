@@ -44,7 +44,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   /** 监控卡统计区间；非今天走库内区间查询 */
   const [range, setRange] = useState<Range>('today')
   const [rangeRows, setRangeRows] = useState<Map<string, StatsRow> | null>(null)
-  const cols = useColumnWidths('dashboard', [200, 120, 60, 100, 80, 80, 80, 80, 90, 34])
+  const cols = useColumnWidths('dashboard', [200, 120, 60, 100, 80, 80, 80, 80, 90])
 
   // 非「今天」的区间：每 5 秒拉一次按模型的区间合计
   useEffect(() => {
@@ -253,8 +253,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               <th className="c-tok">缓存读取{cols.resizer(5)}</th>
               <th className="c-tok">缓存输入{cols.resizer(6)}</th>
               <th className="c-tok">输出{cols.resizer(7)}</th>
-              <th className="c-cost">费用{cols.resizer(8)}</th>
-              <th className="c-drag">{cols.resizer(9)}</th>
+              <th className="c-cost th-drag-pad">费用{cols.resizer(8)}</th>
             </tr>
           </thead>
           <tbody>
@@ -263,14 +262,6 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               return (
                 <tr
                     key={m.modelId}
-                    className={[
-                      'clickable',
-                      running && 'probing',
-                      flash[m.modelId] && 'bad-flash',
-                      dragId === m.modelId && 'dragging'
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
                     onClick={() => onOpenLogs(m.modelId)}
                     onDragStart={(e) => {
                       e.dataTransfer?.setData('text/plain', m.modelId)
@@ -282,6 +273,15 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                       const sourceId = e.dataTransfer?.getData('text/plain') || dragId
                       void dropOn(m.modelId, sourceId)
                     }}
+                    className={[
+                      'clickable',
+                      running && 'probing',
+                      flash[m.modelId] && 'bad-flash',
+                      dragId === m.modelId && 'dragging',
+                      'row-drag'
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     onContextMenu={(event) => {
                       event.preventDefault()
                       setMenu({ modelId: m.modelId, x: event.clientX, y: event.clientY })
@@ -324,10 +324,10 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     <td className="c-tok mono">{tokOf(m).readReported ? fmtTokens(tokOf(m).read) : '—'}</td>
                     <td className="c-tok mono">{tokOf(m).inputReported ? fmtTokens(tokOf(m).cacheInput) : '—'}</td>
                     <td className="c-tok mono">{fmtTokens(tokOf(m).output)}</td>
-                    <td className="c-cost mono">{fmtMoney(tokOf(m).cost, m.currency)}</td>
-                    <td className="c-drag">
+                    <td className="c-cost mono">
+                      {fmtMoney(tokOf(m).cost, m.currency)}
                       <span
-                        className="grip"
+                        className="grip row-grip"
                         draggable
                         title="拖动排序"
                         onClick={(e) => e.stopPropagation()}
@@ -345,7 +345,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             })}
             {models.length === 0 ? (
               <tr>
-                      <td colSpan={10} className="empty">
+                      <td colSpan={9} className="empty">
                   还没有启用的模型
                 </td>
               </tr>

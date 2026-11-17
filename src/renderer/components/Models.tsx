@@ -61,7 +61,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [pmenu, setPmenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
-  const cols = useColumnWidths('models', [210, 130, 70, 70, 70, 85, 85, 85, 85, 80, 34])
+  const cols = useColumnWidths('models', [210, 130, 70, 70, 70, 85, 85, 85, 85, 80])
   const providerCols = useColumnWidths('providers', [150, 220, 110, 140, 80])
 
   useEffect(() => {
@@ -360,8 +360,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                 <th title="每百万 token 单价">输出价格{cols.resizer(6)}</th>
                 <th title="每百万 token 单价">缓存读取{cols.resizer(7)}</th>
                 <th title="每百万 token 单价">缓存输入{cols.resizer(8)}</th>
-                <th className="c-center">状态{cols.resizer(9)}</th>
-                <th className="c-drag">{cols.resizer(10)}</th>
+                <th className="c-center th-drag-pad">状态{cols.resizer(9)}</th>
               </tr>
             </thead>
             <tbody>
@@ -371,6 +370,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                   <tr
                     key={m.id}
                     className={[
+                      'row-drag',
                       m.enabled ? '' : 'row-off',
                       m.autoProbe && (live?.probeFails ?? 0) >= 3 && 'bad-flash',
                       dragId === m.id && 'dragging'
@@ -414,10 +414,8 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                       >
                         {m.enabled ? '启用' : '停用'}
                       </button>
-                    </td>
-                    <td className="c-drag">
                       <span
-                        className="grip"
+                        className="grip row-grip"
                         draggable
                         title="拖动排序"
                         onDragStart={(e) => {

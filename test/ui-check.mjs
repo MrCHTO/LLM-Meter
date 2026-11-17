@@ -294,7 +294,7 @@ try {
   check('曲线标题不再带错误数', (await s.eval("document.querySelector('.chart-head')?.querySelector('.pill')")) === null)
   check('曲线标题右侧有当前值', (await s.eval("document.querySelectorAll('.chart-now').length")) === 2)
   check('模型行内没有测速中胶囊', (await s.eval("document.querySelectorAll('td.c-model .pill').length")) === 0)
-  check('表头是十列', (await s.eval("document.querySelectorAll('thead th').length")) === 10)
+  check('表头是九列', (await s.eval("document.querySelectorAll('thead th').length")) === 9)
   check(
     '未上报缓存输入显示破折号',
     (await s.eval("[...document.querySelectorAll('tbody tr.clickable')].every((tr) => tr.children[6]?.innerText === '—')")) === true
@@ -319,10 +319,10 @@ try {
       (await s.eval("getComputedStyle(document.querySelector('td.c-url')).textAlign")) === 'center'
   )
   check('模型列只有别名一行', (await s.eval("document.querySelector('td.c-model')?.querySelectorAll('small').length")) === 0)
-  check('行尾是专用拖拽列', (await s.eval("document.querySelector('thead th:last-child')?.className")) === 'c-drag')
   check(
-    '拖拽列不会被挤到最小',
-    (await s.eval("document.querySelector('thead th.c-drag')?.getBoundingClientRect().width ?? 0")) >= 28
+    '行尾有悬浮拖拽手柄',
+    (await s.eval("document.querySelector('tbody tr .row-grip') ? 1 : 0")) === 1 &&
+      (await s.eval("getComputedStyle(document.querySelector('tbody tr .row-grip')).position")) === 'absolute'
   )
   check(
     '表头列之间有分隔线',
@@ -333,7 +333,6 @@ try {
   check(
     '默认列宽自动',
     (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'auto' &&
-      (await s.eval("document.querySelectorAll('thead').length")) > 0 &&
       (await s.eval("document.querySelectorAll('table colgroup').length")) === 0
   )
   const widthBefore = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
@@ -355,11 +354,12 @@ try {
   // 双击分隔条恢复该列自动
   await s.eval("document.querySelector('.col-resize').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))")
   await sleep(200)
+  const resetStyle = await s.eval("document.querySelector('table colgroup col')?.getAttribute('style') ?? 'none'")
   check(
     '双击恢复单列自动',
-    ['', 'none', 'width: auto;'].includes(await s.eval("document.querySelector('table colgroup col')?.getAttribute('style') ?? 'none'")) &&
+    ['', 'none', 'width: auto;'].includes(String(resetStyle)) &&
       (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'fixed',
-    await s.eval("document.querySelector('table colgroup col')?.getAttribute('style') ?? 'none'")
+    String(resetStyle)
   )
   // 再拖一次供重载验证
   await dragCol(70)
@@ -404,8 +404,8 @@ try {
   )
   check(
     '模型状态是最后一列文字按钮',
-    (await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")) .includes('|状态|') &&
-      (await s.eval("document.querySelector('.tbl-models thead th:nth-last-child(2)').innerText")) === '状态' &&
+    (await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")).endsWith('|状态') &&
+      (await s.eval("document.querySelector('.tbl-models thead th:last-child').innerText")) === '状态' &&
       (await s.eval("document.querySelector('.tbl-models tbody .state')?.innerText ?? ''")) === '启用'
   )
   // 自动探针走右键菜单
@@ -427,17 +427,18 @@ try {
         (await s.eval("(() => { const probe = document.createElement('span'); probe.style.color = 'var(--dim)'; document.body.appendChild(probe); const c = getComputedStyle(probe).color; probe.remove(); return c })()"))
   )
   const modelHeads = await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")
-  check('模型表列序正确', modelHeads.startsWith('别名/模型|供应商|TTFT P50|TTFT P95|TTFT P99|输入价格|输出价格|缓存读取|缓存输入|状态'))
+  check('模型表列序正确', modelHeads === '别名/模型|供应商|TTFT P50|TTFT P95|TTFT P99|输入价格|输出价格|缓存读取|缓存输入|状态')
   check('模型表有 TTFT 三列', modelHeads.includes('TTFT P50|TTFT P95|TTFT P99'))
   check(
     '不支持缓存输入的模型价显示破折号',
     (await s.eval("[...document.querySelectorAll('.tbl-models tbody tr')].find((tr) => tr.innerText.includes('claude-x'))?.children[8]?.innerText")) === '—'
   )
   check('模型行内没有编辑删除按钮', (await s.eval("[...document.querySelectorAll('.tbl-models tbody button')].some((b) => ['编辑', '删除'].includes(b.innerText))")) === false)
-  check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 11)
+  check('模型表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.tbl-models thead .col-resize').length")) === 10)
+  check('模型行尾有悬浮拖拽手柄', (await s.eval("document.querySelector('.tbl-models tbody tr .row-grip') ? 1 : 0")) === 1)
   check(
-    '模型表拖拽列不会被挤到最小',
-    (await s.eval("document.querySelector('.tbl-models thead th.c-drag')?.getBoundingClientRect().width ?? 0")) >= 28
+    '模型表拖拽手柄可见且不占列',
+    (await s.eval("document.querySelector('.tbl-models tbody tr .row-grip')?.getBoundingClientRect().width ?? 0")) >= 10
   )
   check('供应商表每列都有调宽手柄', (await s.eval("document.querySelectorAll('.card:first-child thead .col-resize').length")) === 5)
   // 右键菜单：关闭该行后整行变灰，再开启恢复
