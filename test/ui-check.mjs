@@ -257,6 +257,10 @@ try {
   check('两张曲线同高同版式', sizes.length === 2 && sizes[0].h === sizes[1].h && sizes[0].body === sizes[1].body && sizes[0].body >= 100, chartSizes)
   check('曲线贴近卡片底边', sizes.every((s) => s.gap <= 8), chartSizes)
   check(
+    '速率图 viewBox 宽度等于桶数',
+    (await s.eval("document.querySelector('.multi-svg')?.getAttribute('viewBox')?.split(' ')[2]")) === '180'
+  )
+  check(
     '增量曲线是折线加面积且颜色不同',
     (await s.eval("document.querySelectorAll('.multi-svg .multi-line').length")) >= 2 &&
       (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) >= 2 &&

@@ -32,12 +32,13 @@ function smoothPath(points: { x: number; y: number }[]): string {
   return d
 }
 
-const width = 60
 const height = 20
 
 /** 多模型增量速率叠加图：同轴、各自配色，圆滑折线 + 半透明面积 */
 export function MultiRate({ models, colors }: Props): JSX.Element {
   const peak = Math.max(1, ...models.flatMap((m) => m.deltaBuckets))
+  // 画布宽度跟桶数走（窗口可调，写死会把后面的桶画到可视区外）
+  const width = Math.max(1, ...models.map((m) => m.deltaBuckets.length), 1)
 
   return (
     <div className="multi-rate">
