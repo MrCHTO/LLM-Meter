@@ -74,29 +74,30 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
   return (
     <div className="section">
       <div className="card">
-        <h2>客户端接入</h2>
-        <dl className="kv kv-wide">
-          <dt>本机地址</dt>
-          <dd>
-            <span className="copy-text mono" onClick={() => void copy(local)}>
-              {local}
-            </span>
-          </dd>
-          {config.settings.allowLan ? (
-            <>
-              <dt>局域网地址</dt>
+        <div className="access-cols">
+          <div className="access-cols-left">
+            <h2>客户端接入</h2>
+            <dl className="kv kv-wide">
+              <dt>本机地址</dt>
               <dd>
-                <span className="copy-text mono" onClick={() => void copy(lan)}>
-                  {lan}
+                <span className="copy-text mono" onClick={() => void copy(local)}>
+                  {local}
                 </span>
               </dd>
-            </>
-          ) : null}
-        </dl>
-      </div>
-
-      <div className="card">
-        <div className="access-split">
+              {config.settings.allowLan ? (
+                <>
+                  <dt>局域网地址</dt>
+                  <dd>
+                    <span className="copy-text mono" onClick={() => void copy(lan)}>
+                      {lan}
+                    </span>
+                  </dd>
+                </>
+              ) : null}
+            </dl>
+          </div>
+          <div className="access-cols-right">
+            <div className="access-split">
           <div className="access-half">
             <span className="muted">监听端口</span>
             <div className="row nowrap" style={{ gap: 8 }}>
@@ -131,6 +132,8 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
               checked={config.settings.allowLan}
               onChange={(e) => void patch({ allowLan: e.target.checked })}
             />
+              </div>
+            </div>
           </div>
         </div>
       </div>

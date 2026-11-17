@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsRow, StatsSeries } from '../../shared/types'
-import { fmtMoney, fmtMs, fmtTokens } from '../format'
-import { useColumnWidths } from '../columns'
+import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsSeries } from '../../shared/types'
+import { fmtMoney, fmtTokens } from '../format'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
 
 interface Props {
@@ -45,7 +44,6 @@ function granularityOf(span: number): StatsGranularity {
 }
 
 export function Analysis({ config, notify }: Props): JSX.Element {
-  const cols = useColumnWidths('analysis-detail', [160, 70, 60, 85, 85, 85, 80, 90, 90, 80, 80, 80, 70, 80])
   const [preset, setPreset] = useState<Preset>('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -53,8 +51,8 @@ export function Analysis({ config, notify }: Props): JSX.Element {
   const [groupBy, setGroupBy] = useState<StatsGroup>('model')
   const [hidden, setHidden] = useState<Record<string, boolean>>({})
   const [series, setSeries] = useState<StatsSeries | null>(null)
-  const [totals, setTotals] = useState<StatsRow[]>([])
   const [busy, setBusy] = useState(false)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const inFlight = useRef(false)
 
   const range = rangeOf(preset, customFrom, customTo)
@@ -86,7 +84,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       const r = rangeOf(preset, customFrom, customTo)
       if (!r) {
         setSeries(null)
-        setTotals([])
         return
       }
       if (inFlight.current) return
@@ -95,13 +92,9 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       if (!silent) setBusy(true)
       try {
         const q = { from: r.from, to: r.to, source: 'proxy' as const }
-        const [s, t] = await Promise.all([
-          window.api.statsSeries({ ...q, granularity: granularityOf(r.to - r.from), metric, groupBy }),
-          window.api.statsTotals({ ...q, groupBy })
-        ])
+        const s = await window.api.statsSeries({ ...q, granularity: granularityOf(r.to - r.from), metric, groupBy })
         if (s.ok && s.data) setSeries(s.data)
         else if (!silent) notify(s.error ?? '查询失败')
-        if (t.ok && t.data) setTotals(t.data)
       } finally {
         inFlight.current = false
         if (!silent) setBusy(false)
@@ -120,6 +113,22 @@ export function Analysis({ config, notify }: Props): JSX.Element {
     return () => clearInterval(timer)
   }, [load, preset])
 
+  useEffect(() => {
+    if (!menu) return
+    const close = (): void => setMenu(null)
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenu(null)
+    }
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [menu])
+
   const items: SeriesItem[] = useMemo(
     () =>
       (series?.series ?? []).map((s, i) => ({
@@ -132,9 +141,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
     [series, hidden]
   )
 
-  const totalOf = (pick: (r: StatsRow) => number): number => totals.reduce((a, r) => a + pick(r), 0)
-  const top = useMemo(() => [...totals].sort((a, b) => b.cost - a.cost).slice(0, 10), [totals])
-
   const exportCsv = async (): Promise<void> => {
     if (!range) {
       notify('先选有效区间')
@@ -146,8 +152,14 @@ export function Analysis({ config, notify }: Props): JSX.Element {
   }
 
   return (
-    <div className="section">
-      <div className="card">
+    <div
+      className="section analysis-page"
+      onContextMenu={(e) => {
+        if (!(e.target as HTMLElement).closest('.ana-head')) setMenu({ x: e.clientX, y: e.clientY })
+      }}
+    >
+      <div className="analysis-body">
+      <div className="card analysis-card">
         <div className="row nowrap ana-head">
           <div className="row nowrap ana-controls">
             <label className="field">
@@ -189,15 +201,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
                 <option value="token">按Token</option>
               </select>
             </label>
-            <span className="muted ana-sum">
-              区间合计 {fmt(totalOf((r) => (metric === 'cost' ? r.cost : metric === 'tps' ? (r.tps ?? 0) : metric === 'total' ? r.total : (r[metric === 'cache_read' ? 'cacheRead' : metric] as number))))} {meta.unit}
-            </span>
-            <button className="btn" disabled={busy} onClick={() => void load()}>
-              {busy ? '查询中' : '刷新'}
-            </button>
-            <button className="btn" onClick={() => void exportCsv()}>
-              导出 CSV
-            </button>
           </div>
         </div>
         <SeriesChart
@@ -210,56 +213,30 @@ export function Analysis({ config, notify }: Props): JSX.Element {
         />
       </div>
 
-      <div className="card">
-        <table className={`tbl tbl-detail${cols.fixed ? ' col-fixed' : ''}`} {...cols.tableProps}>
-          {cols.colgroup}
-          <thead>
-            <tr>
-              <th className="c-model">{groupBy === 'model' ? '模型' : groupBy === 'provider' ? '供应商' : 'Token'}{cols.resizer(0)}</th>
-              <th>请求{cols.resizer(1)}</th>
-              <th>错误{cols.resizer(2)}</th>
-              <th>未缓存输入{cols.resizer(3)}</th>
-              <th>缓存读取{cols.resizer(4)}</th>
-              <th>缓存输入{cols.resizer(5)}</th>
-              <th>输出{cols.resizer(6)}</th>
-              <th>总输入{cols.resizer(7)}</th>
-              <th>总 token{cols.resizer(8)}</th>
-              <th>TTFT P50{cols.resizer(9)}</th>
-              <th>TTFT P95{cols.resizer(10)}</th>
-              <th>TTFT P99{cols.resizer(11)}</th>
-              <th>tok/s{cols.resizer(12)}</th>
-              <th>成本{cols.resizer(13)}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {top.map((r) => (
-              <tr key={r.key}>
-                <td className="c-model">{r.label}</td>
-                <td className="mono">{fmtTokens(r.requests)}</td>
-                <td className="mono">{r.errors || '—'}</td>
-                <td className="mono">{fmtTokens(r.uncached)}</td>
-                <td className="mono">{r.cacheReadReported > 0 ? fmtTokens(r.cacheRead) : '—'}</td>
-                <td className="mono">{r.cacheInputReported > 0 ? fmtTokens(r.cacheInput) : '—'}</td>
-                <td className="mono">{fmtTokens(r.output)}</td>
-                <td className="mono">{fmtTokens(r.input)}</td>
-                <td className="mono">{fmtTokens(r.total)}</td>
-                <td className="mono">{fmtMs(r.ttftP50)}</td>
-                <td className="mono">{fmtMs(r.ttftP95)}</td>
-                <td className="mono">{fmtMs(r.ttftP99)}</td>
-                <td className="mono">{r.tps === null ? '—' : r.tps.toFixed(1)}</td>
-                <td className="mono">{fmtMoney(r.cost)}</td>
-              </tr>
-            ))}
-            {totals.length === 0 ? (
-              <tr>
-                <td colSpan={14} className="empty">
-                  {range ? '这个区间没有数据' : '选一个合法区间'}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-        <span className="muted">按成本取前 10；共 {totals.length} 组</span>
+      {menu ? (
+        <div
+          className="ctxmenu"
+          style={{ left: Math.min(menu.x, window.innerWidth - 130), top: Math.min(menu.y, window.innerHeight - 100) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              setMenu(null)
+              void load()
+            }}
+          >
+            刷新
+          </button>
+          <button
+            onClick={() => {
+              setMenu(null)
+              void exportCsv()
+            }}
+          >
+            导出 CSV
+          </button>
+        </div>
+      ) : null}
       </div>
     </div>
   )

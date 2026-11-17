@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import type { ConfigView, LiveSnapshot, ModelLive } from '../../shared/types'
-import { fmtMoney, fmtMs, fmtPct, fmtTokens } from '../format'
+import type { ConfigView, LiveSnapshot, ModelLive, StatsRow } from '../../shared/types'
+import { fmtMoney, fmtPct, fmtTokens } from '../format'
 import { useColumnWidths } from '../columns'
 import { MultiRate, rateColor } from './MultiRate'
 import { Sparkline } from './Sparkline'
@@ -35,11 +35,37 @@ function ChartPanel(props: { title: string; buckets: number[]; reqPerSec?: strin
   )
 }
 
+type Range = 'today' | '1h' | '3h'
+
 export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: Props): JSX.Element {
   const [probing, setProbing] = useState<Record<string, boolean>>({})
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
-  const cols = useColumnWidths('dashboard', [200, 120, 95, 70, 70, 70, 100, 80, 80, 80, 80, 90, 34])
+  /** 监控卡统计区间；非今天走库内区间查询 */
+  const [range, setRange] = useState<Range>('today')
+  const [rangeRows, setRangeRows] = useState<Map<string, StatsRow> | null>(null)
+  const cols = useColumnWidths('dashboard', [200, 120, 60, 100, 80, 80, 80, 80, 90, 34])
+
+  // 非「今天」的区间：每 5 秒拉一次按模型的区间合计
+  useEffect(() => {
+    if (range === 'today') {
+      setRangeRows(null)
+      return
+    }
+    let stopped = false
+    const load = async (): Promise<void> => {
+      const to = Date.now()
+      const from = range === '1h' ? to - 3_600_000 : to - 10_800_000
+      const res = await window.api.statsTotals({ from, to, source: 'proxy', groupBy: 'model' })
+      if (!stopped && res.ok && res.data) setRangeRows(new Map(res.data.map((r) => [r.key, r])))
+    }
+    void load()
+    const timer = setInterval(() => void load(), 5000)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [range])
 
   useEffect(() => {
     if (!menu) return
@@ -93,6 +119,52 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   const realtimeText = realtimeTps > 0 ? `${Math.round(realtimeTps)} tok/s` : '0 tok/s'
   const reqPerSecText = reqPerSec > 0 && reqPerSec < 0.1 ? '<0.1 次/秒' : `${Math.round(reqPerSec * 10) / 10} 次/秒`
 
+  const rowOf = (modelId: string): StatsRow | undefined => rangeRows?.get(modelId)
+  const tokOf = (
+    m: ModelLive
+  ): {
+    uncached: number
+    read: number
+    readReported: boolean
+    inputReported: boolean
+    cacheInput: number
+    output: number
+    cost: number
+  } => {
+    const r = range === 'today' ? undefined : rowOf(m.modelId)
+    if (!r) {
+      return {
+        uncached: m.today.uncachedInput,
+        read: m.today.cacheRead,
+        readReported: m.today.cacheReadReported > 0,
+        inputReported: m.today.cacheInputReported > 0,
+        cacheInput: m.today.cacheInput,
+        output: m.today.output,
+        cost: m.today.cost
+      }
+    }
+    return {
+      uncached: r.uncached,
+      read: r.cacheRead,
+      readReported: r.cacheReadReported > 0,
+      inputReported: r.cacheInputReported > 0,
+      cacheInput: r.cacheInput,
+      output: r.output,
+      cost: r.cost
+    }
+  }
+  const hitOf = (m: ModelLive): { read: number; input: number; reported: boolean } | null => {
+    const r = range === 'today' ? undefined : rowOf(m.modelId)
+    if (!r) {
+      if (m.hitRate === null) return null
+      return { read: m.today.cacheRead, input: m.today.input, reported: true }
+    }
+    if (r.cacheReadReported > 0 || r.cacheRead > 0) {
+      return { read: r.cacheRead, input: r.input, reported: true }
+    }
+    return null
+  }
+
   const dropOn = async (targetId: string, sourceId: string | null): Promise<void> => {
     if (!sourceId || sourceId === targetId) return
     const all = config.models.map((m) => m.id)
@@ -140,6 +212,19 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
       </div>
 
       <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+          <h2 style={{ margin: 0 }}>监控</h2>
+          <select
+            className="range-select"
+            value={range}
+            onChange={(e) => setRange(e.target.value as Range)}
+            title="监控统计区间"
+          >
+            <option value="today">今天</option>
+            <option value="1h">近 1 小时</option>
+            <option value="3h">近 3 小时</option>
+          </select>
+        </div>
         <table className={`tbl tbl-flush${cols.fixed ? ' col-fixed' : ''}`} {...cols.tableProps}>
           {cols.colgroup}
           <thead>
@@ -147,16 +232,13 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               <th className="c-model">模型{cols.resizer(0)}</th>
               <th className="c-url">供应商{cols.resizer(1)}</th>
               <th className="c-rate">TPS{cols.resizer(2)}</th>
-              <th className="c-ttft"><span className="hd-ttft">TTFT </span>P50{cols.resizer(3)}</th>
-              <th className="c-ttft"><span className="hd-ttft">TTFT </span>P95{cols.resizer(4)}</th>
-              <th className="c-ttft"><span className="hd-ttft">TTFT </span>P99{cols.resizer(5)}</th>
-              <th className="c-hit"><span className="hd-cache">缓存</span>命中率{cols.resizer(6)}</th>
-              <th className="c-tok">未缓存输入{cols.resizer(7)}</th>
-              <th className="c-tok">缓存读取{cols.resizer(8)}</th>
-              <th className="c-tok">缓存输入{cols.resizer(9)}</th>
-              <th className="c-tok">输出{cols.resizer(10)}</th>
-              <th className="c-cost">费用{cols.resizer(11)}</th>
-              <th className="c-drag">{cols.resizer(12)}</th>
+              <th className="c-hit"><span className="hd-cache">缓存</span>命中率{cols.resizer(3)}</th>
+              <th className="c-tok">未缓存输入{cols.resizer(4)}</th>
+              <th className="c-tok">缓存读取{cols.resizer(5)}</th>
+              <th className="c-tok">缓存输入{cols.resizer(6)}</th>
+              <th className="c-tok">输出{cols.resizer(7)}</th>
+              <th className="c-cost">费用{cols.resizer(8)}</th>
+              <th className="c-drag">{cols.resizer(9)}</th>
             </tr>
           </thead>
           <tbody>
@@ -211,21 +293,22 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
                     <td className="c-url" title={`${m.providerName} ${m.baseUrl}`}>
                       {m.providerName}
                     </td>
-                    <td className="c-rate mono">{m.lastTps === null ? '—' : Math.round(m.lastTps)}</td>
-                    <td className="c-ttft mono">{fmtMs(m.ttftP50)}</td>
-                    <td className="c-ttft mono">{fmtMs(m.ttftP95)}</td>
-                    <td className="c-ttft mono">{fmtMs(m.ttftP99)}</td>
+                    <td className="c-rate mono">
+                      {range === 'today'
+                        ? m.lastTps === null ? '—' : Math.round(m.lastTps)
+                        : (rowOf(m.modelId)?.tps ?? null) === null ? '—' : Math.round(rowOf(m.modelId)!.tps as number)}
+                    </td>
                     <td
                       className="c-hit mono"
-                      title={m.today.cacheReadReported > 0 ? `缓存读取 ${fmtTokens(m.today.cacheRead)} / 输入 ${fmtTokens(m.today.input)}` : '渠道未上报缓存读计数'}
+                      title={hitOf(m)?.reported ? `缓存读取 ${fmtTokens(hitOf(m)!.read)} / 输入 ${fmtTokens(hitOf(m)!.input)}` : '渠道未上报缓存读计数'}
                     >
-                      {fmtPct(m.hitRate)}
+                      {hitOf(m)?.reported ? fmtPct(hitOf(m)!.read / hitOf(m)!.input) : '—'}
                     </td>
-                    <td className="c-tok mono">{fmtTokens(m.today.uncachedInput)}</td>
-                    <td className="c-tok mono">{m.today.cacheReadReported > 0 ? fmtTokens(m.today.cacheRead) : '—'}</td>
-                    <td className="c-tok mono">{m.today.cacheInputReported > 0 ? fmtTokens(m.today.cacheInput) : '—'}</td>
-                    <td className="c-tok mono">{fmtTokens(m.today.output)}</td>
-                    <td className="c-cost mono">{fmtMoney(m.today.cost, m.currency)}</td>
+                    <td className="c-tok mono">{fmtTokens(tokOf(m).uncached)}</td>
+                    <td className="c-tok mono">{tokOf(m).readReported ? fmtTokens(tokOf(m).read) : '—'}</td>
+                    <td className="c-tok mono">{tokOf(m).inputReported ? fmtTokens(tokOf(m).cacheInput) : '—'}</td>
+                    <td className="c-tok mono">{fmtTokens(tokOf(m).output)}</td>
+                    <td className="c-cost mono">{fmtMoney(tokOf(m).cost, m.currency)}</td>
                     <td className="c-drag">
                       <span
                         className="grip"
@@ -246,7 +329,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
             })}
             {models.length === 0 ? (
               <tr>
-                      <td colSpan={13} className="empty">
+                      <td colSpan={10} className="empty">
                   还没有启用的模型
                 </td>
               </tr>

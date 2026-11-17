@@ -300,6 +300,29 @@ button {
   grid-template-columns: 1fr 1fr;
 }
 
+.access-cols {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.access-cols-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.access-cols-right {
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+  padding-left: 16px;
+  padding-top: 12px;
+}
+
+.access-cols-right .access-half {
+  padding: 0 8px;
+}
+
 .access-half {
   display: flex;
   align-items: center;
@@ -1153,6 +1176,11 @@ tr.dragging .grip {
   padding: 12px 14px 6px;
 }
 
+.range-select {
+  flex: none;
+  width: 120px;
+}
+
 .chart-head {
   display: flex;
   align-items: baseline;
@@ -1161,20 +1189,17 @@ tr.dragging .grip {
 }
 
 .chart-title {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.chart-now {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text);
-  white-space: nowrap;
 }
 
 .chart-now {
   margin-left: auto;
-  font-size: 18px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
 }
 
 .chart-now small {
@@ -1222,6 +1247,37 @@ tr.dragging .grip {
 }
 
 
+
+.analysis-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.analysis-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.analysis-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.analysis-card .series-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.analysis-card .series-svg {
+  height: 100%;
+}
 
 .divider {
   height: 1px;
