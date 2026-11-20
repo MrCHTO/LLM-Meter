@@ -64,6 +64,12 @@ export interface OverlayState {
   /** 锁定后拖不动，防误碰 */
   locked: boolean
   theme: 'dark' | 'light'
+  /** 胶囊上是否显示供应商名称 */
+  showProvider: boolean
+  /** 胶囊上是否显示模型名称 */
+  showModel: boolean
+  /** 胶囊上是否显示今日费用 */
+  showCost: boolean
 }
 
 export interface AccessToken {

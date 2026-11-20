@@ -789,6 +789,29 @@ try {
   check('右上角不再显示 IP 地址', (await s.eval("document.querySelectorAll('.status .mono').length")) === 0)
   check('悬浮窗卡片有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
   check(
+    '悬浮窗卡片有显示内容开关',
+    await s.eval(
+      "['显示供应商名称', '显示模型名称', '显示费用'].every((t) => [...document.querySelectorAll('.setting-row')].some((r) => r.innerText.includes(t)))"
+    )
+  )
+  check(
+    '设置页可关费用并持久化',
+    (await s.eval(
+      `(async () => {
+        const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('显示费用'))
+        const i = f.querySelector('input[type=checkbox]')
+        i.click()
+        await new Promise((r) => setTimeout(r, 600))
+        const off = (await window.api.config()).data?.settings.overlay.showCost
+        i.click()
+        await new Promise((r) => setTimeout(r, 400))
+        const on = (await window.api.config()).data?.settings.overlay.showCost
+        return off === false && on === true
+      })()`,
+      true
+    )) === true
+  )
+  check(
     '透明度是数字输入',
     (await s.eval(
       "(() => { const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('不透明度')); const i = f?.querySelector('input[type=number]'); return i ? i.value : '' })()"
@@ -993,6 +1016,42 @@ try {
   await sleep(800)
   check('可切白色外观', (await o.eval("document.querySelector('.capsule')?.classList.contains('theme-light')")) === true)
   await o.shot('overlay-light.png')
+
+  // 显示内容三项各自可关：关掉立即消失，再开恢复
+  const capText = () => o.eval("document.querySelector('.capsule')?.innerText ?? ''")
+  await o.eval("(async()=>await window.api.updateSettings({overlayShowProvider:false}))()")
+  await sleep(800)
+  check(
+    '可关供应商名称',
+    !(await capText()).includes('我的中转站') &&
+      (await o.eval("document.querySelectorAll('.capsule-sep').length")) === 0 &&
+      (await capText()).includes('my-claude')
+  )
+  await o.eval("(async()=>await window.api.updateSettings({overlayShowModel:false}))()")
+  await sleep(800)
+  check(
+    '可关模型名称',
+    !(await capText()).includes('my-claude') && (await o.eval("document.querySelectorAll('.capsule-name').length")) === 0
+  )
+  await o.eval("(async()=>await window.api.updateSettings({overlayShowCost:false}))()")
+  await sleep(800)
+  check('可关费用', (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 0)
+  check('三项全关只剩状态点', (await o.eval("document.querySelectorAll('.capsule-dot').length")) === 1)
+  check(
+    '三项全关后胶囊收窄贴合内容',
+    parseFloat(await o.eval("document.querySelector('.capsule')?.getBoundingClientRect().width ?? 999")) < 140
+  )
+  await o.shot('overlay-minimal.png')
+  await o.eval(
+    "(async()=>await window.api.updateSettings({overlayShowProvider:true,overlayShowModel:true,overlayShowCost:true}))()"
+  )
+  await sleep(800)
+  check(
+    '显示内容三项可恢复',
+    (await capText()).includes('我的中转站') &&
+      (await capText()).includes('my-claude') &&
+      (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1
+  )
 
   // 锁定
   await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true}))()")

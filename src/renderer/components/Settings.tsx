@@ -70,6 +70,30 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
             onChange={(e) => void patch({ overlayLocked: e.target.checked })}
           />
         </div>
+        <label className="setting-row">
+          <span>显示供应商名称</span>
+          <input
+            type="checkbox"
+            checked={config.settings.overlay.showProvider}
+            onChange={(e) => void patch({ overlayShowProvider: e.target.checked })}
+          />
+        </label>
+        <label className="setting-row">
+          <span>显示模型名称</span>
+          <input
+            type="checkbox"
+            checked={config.settings.overlay.showModel}
+            onChange={(e) => void patch({ overlayShowModel: e.target.checked })}
+          />
+        </label>
+        <label className="setting-row">
+          <span>显示费用</span>
+          <input
+            type="checkbox"
+            checked={config.settings.overlay.showCost}
+            onChange={(e) => void patch({ overlayShowCost: e.target.checked })}
+          />
+        </label>
         <div className="setting-row">
           <span>不透明度（10–100）</span>
           <div className="row nowrap">

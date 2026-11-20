@@ -75,6 +75,9 @@ declare global {
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
+        overlayShowProvider?: boolean
+        overlayShowModel?: boolean
+        overlayShowCost?: boolean
         startAtLogin?: boolean
         theme?: 'light' | 'dark' | 'system'
         autoCalibrate?: boolean

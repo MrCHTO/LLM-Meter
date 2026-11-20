@@ -21,7 +21,10 @@ const DEFAULT_SETTINGS: Settings = {
     visible: true,
     modelId: null,
     locked: false,
-    theme: 'dark'
+    theme: 'dark',
+    showProvider: true,
+    showModel: true,
+    showCost: true
   },
   overlayOpacity: 100,
   startMinimized: false,
@@ -151,7 +154,10 @@ function normalize(raw: unknown): ConfigFile {
       visible: ov.visible !== false,
       modelId: typeof ov.modelId === 'string' && ov.modelId ? ov.modelId : null,
       locked: ov.locked === true,
-      theme: ov.theme === 'light' ? 'light' : 'dark'
+      theme: ov.theme === 'light' ? 'light' : 'dark',
+      showProvider: ov.showProvider !== false,
+      showModel: ov.showModel !== false,
+      showCost: ov.showCost !== false
     },
     overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 10, 100),
     startMinimized: os.startMinimized === true,

@@ -392,6 +392,9 @@ export function register(): void {
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
+        overlayShowProvider?: boolean
+        overlayShowModel?: boolean
+        overlayShowCost?: boolean
         startAtLogin?: boolean
         theme?: 'light' | 'dark' | 'system'
         autoCalibrate?: boolean
@@ -414,6 +417,9 @@ export function register(): void {
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
           if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
           if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
+          if (patch.overlayShowProvider !== undefined) c.settings.overlay.showProvider = patch.overlayShowProvider
+          if (patch.overlayShowModel !== undefined) c.settings.overlay.showModel = patch.overlayShowModel
+          if (patch.overlayShowCost !== undefined) c.settings.overlay.showCost = patch.overlayShowCost
           if (patch.startAtLogin !== undefined) c.settings.startAtLogin = patch.startAtLogin
           if (patch.theme !== undefined) c.settings.theme = patch.theme
           if (patch.autoCalibrate !== undefined) c.settings.autoCalibrate = patch.autoCalibrate

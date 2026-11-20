@@ -4,7 +4,8 @@ import type { Rectangle } from 'electron'
 import * as cfg from '../store/config'
 import { getOverlay, send, setOverlay } from './registry'
 
-const MIN_WIDTH = 220
+/** 只留状态点时也要能贴住内容，最小宽度按状态点圆点定 */
+const MIN_WIDTH = 56
 const MIN_HEIGHT = 36
 const DEFAULT_WIDTH = 340
 const DEFAULT_HEIGHT = 40
@@ -236,6 +237,41 @@ export function showMenu(): void {
               click: () => {
                 cfg.mutate((c) => {
                   c.settings.overlay.theme = 'light'
+                })
+              }
+            }
+          ]
+        },
+        {
+          label: '显示内容',
+          submenu: [
+            {
+              label: '供应商名称',
+              type: 'checkbox',
+              checked: settings.overlay.showProvider !== false,
+              click: () => {
+                cfg.mutate((c) => {
+                  c.settings.overlay.showProvider = !c.settings.overlay.showProvider
+                })
+              }
+            },
+            {
+              label: '模型名称',
+              type: 'checkbox',
+              checked: settings.overlay.showModel !== false,
+              click: () => {
+                cfg.mutate((c) => {
+                  c.settings.overlay.showModel = !c.settings.overlay.showModel
+                })
+              }
+            },
+            {
+              label: '费用',
+              type: 'checkbox',
+              checked: settings.overlay.showCost !== false,
+              click: () => {
+                cfg.mutate((c) => {
+                  c.settings.overlay.showCost = !c.settings.overlay.showCost
                 })
               }
             }

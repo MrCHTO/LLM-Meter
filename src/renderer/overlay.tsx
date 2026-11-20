@@ -48,6 +48,10 @@ function Capsule(): JSX.Element {
 
   const theme = snapshot?.overlay.theme ?? 'dark'
   const locked = snapshot?.overlay.locked === true
+  // 三个内容片段各自可关；旧配置缺字段时按显示处理
+  const showProvider = snapshot?.overlay.showProvider !== false
+  const showModel = snapshot?.overlay.showModel !== false
+  const showCost = snapshot?.overlay.showCost !== false
   const busy = model?.active === true || model?.probing === true
   // 请求进行中且有增量后显示估算速率；首字前不占位。结束后 5 分钟内灰显真实均值
   const realtime =
@@ -77,11 +81,13 @@ function Capsule(): JSX.Element {
 
       {model ? (
         <>
-          <span className="capsule-name">
-            <span className="capsule-source">{model.providerName}</span>
-            <span className="capsule-sep">·</span>
-            <b>{model.alias}</b>
-          </span>
+          {showProvider || showModel ? (
+            <span className="capsule-name">
+              {showProvider ? <span className="capsule-source">{model.providerName}</span> : null}
+              {showProvider && showModel ? <span className="capsule-sep">·</span> : null}
+              {showModel ? <b>{model.alias}</b> : null}
+            </span>
+          ) : null}
           {realtime ? (
             <span className="capsule-metric mono">
               {(model.realtimeTps ?? 0) < 0.5 ? '<1' : Math.round(model.realtimeTps ?? 0)} tok/s
@@ -91,7 +97,7 @@ function Capsule(): JSX.Element {
               {(model.lastTps ?? 0) < 0.5 ? '<1' : Math.round(model.lastTps ?? 0)} tok/s
             </span>
           ) : null}
-          <span className="capsule-cost mono">{fmtMoney(model.today.cost, model.currency)}</span>
+          {showCost ? <span className="capsule-cost mono">{fmtMoney(model.today.cost, model.currency)}</span> : null}
         </>
       ) : (
         <span className="capsule-empty">未选择模型 · 右键选择</span>
