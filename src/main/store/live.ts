@@ -127,6 +127,53 @@ function blankToday(): TodayTotals {
   return { requests: 0, errors: 0, input: 0, uncachedInput: 0, output: 0, cacheRead: 0, cacheInput: 0, cacheInputReported: 0, cacheReadReported: 0, cost: 0 }
 }
 
+/** 当前「今天」的日期键，跨日后今日合计要重新起算；首次调用时以当时的日期起算 */
+let currentDay = ''
+
+function todayOf(t: repo.TotalsRow): TodayTotals {
+  return {
+    requests: t.requests,
+    errors: t.errors,
+    input: t.input,
+    uncachedInput: t.uncached,
+    output: t.output,
+    cacheRead: t.cache_read,
+    cacheInput: t.cache_input,
+    cacheInputReported: t.cache_input_reported,
+    cacheReadReported: t.cache_read_reported,
+    cost: t.cost
+  }
+}
+
+/**
+ * 日期变化时把今日合计与今日 TTFT 样本翻到新的一天。
+ * 跨天挂着或休眠醒来后由 snapshot 触发，不依赖零点定时器。
+ * `allowBack` 为 false 时只向前翻：完成于 0 点前的请求（ev.ts 还是前一天）直接计入当前这一天。
+ */
+function rollDay(now = Date.now(), allowBack = true): void {
+  const day = dayKey(now)
+  if (!currentDay) {
+    currentDay = day
+    return
+  }
+  if (day === currentDay) return
+  if (!allowBack && day < currentDay) return
+  currentDay = day
+  const dayStart = new Date(now)
+  dayStart.setHours(0, 0, 0, 0)
+  for (const [modelId, s] of state) {
+    s.today = blankToday()
+    s.ttftSamples = []
+    // 时钟回拨或跨天休眠后，新的一天可能已有明细，按库回灌而不是从 0 起跳
+    try {
+      s.today = todayOf(repo.dayTotals(db.get(), modelId, day))
+      s.ttftSamples = repo.ttftSamplesSince(db.get(), modelId, dayStart.getTime())
+    } catch {
+      // 单测里没有初始化数据库时保持空值
+    }
+  }
+}
+
 function ensure(modelId: string): ModelState {
   const found = state.get(modelId)
   if (found) return found
@@ -175,24 +222,14 @@ function rollBuckets(s: ModelState, now = Date.now()): void {
 
 export function init(): void {
   const now = Date.now()
+  currentDay = dayKey(now)
   const dayStart = new Date()
   dayStart.setHours(0, 0, 0, 0)
   cfg.mutate((c) => {
     for (const m of c.models) {
       const s = ensure(m.id)
       const t = repo.dayTotals(db.get(), m.id, dayKey(now))
-      s.today = {
-        requests: t.requests,
-        errors: t.errors,
-        input: t.input,
-        uncachedInput: t.uncached,
-        output: t.output,
-        cacheRead: t.cache_read,
-        cacheInput: t.cache_input,
-        cacheInputReported: t.cache_input_reported,
-        cacheReadReported: t.cache_read_reported,
-        cost: t.cost
-      }
+      s.today = todayOf(t)
       // 今天的 TTFT 样本从明细回灌，重启后分位数不空；replay 不再补，避免最近窗口被算两遍
       s.ttftSamples = repo.ttftSamplesSince(db.get(), m.id, dayStart.getTime())
       rollBuckets(s, now)
@@ -227,6 +264,7 @@ export function replay(events: RequestEvent[], now = Date.now()): void {
 }
 
 export function record(ev: RequestEvent): void {
+  rollDay(ev.ts, false)
   const s = ensure(ev.modelId)
   rollBuckets(s, ev.ts)
   // 请求量按「请求开始秒」打点：速率增量在流式期间逐秒到达，按完成秒打点会整体迟到一段请求耗时
@@ -336,6 +374,7 @@ export function snapshot(
   baseUrl: string,
   now = Date.now()
 ): LiveSnapshot {
+  rollDay(now)
   const settings = cfg.get().settings
   const providers = new Map(cfg.listProviders().map((p) => [p.id, p]))
 

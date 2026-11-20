@@ -73,6 +73,27 @@ const rows = [0, 1, 2]
     cost: 0.0021,
     currency: 'USD'
   })
+  // 早 30 小时再来一条 m2 的请求：只在「本周/本月」等更长区间里出现，用来验证区间切换真的换数据
+  .concat({
+    id: 'seed-old',
+    ts: t - 30 * 3_600_000,
+    source: 'proxy',
+    modelId: 'm2',
+    alias: 'claude-x',
+    providerId: 'p2',
+    status: 200,
+    ok: true,
+    errorKind: null,
+    stream: true,
+    ttftMs: 300,
+    durationMs: 3000,
+    inputTokens: 500,
+    outputTokens: 100,
+    cacheReadTokens: 0,
+    cacheInputTokens: 0,
+    cost: 0.001,
+    currency: 'USD'
+  })
 writeFileSync(join(DATA, 'events', `${day}.jsonl`), rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8')
 // 只造明细，聚合由启动时的导入从明细派生，避免两处都写导致翻倍
 writeFileSync(
@@ -311,6 +332,23 @@ try {
       (await s.eval("document.querySelector('.range-select') ? [...document.querySelector('.range-select').options].map((o) => o.value).join(',') : ''")) ===
         'today,24h,week,month'
   )
+  // 区间选项要真的换数据：30 小时前的种子只在更长的区间里出现
+  const outCellOf = (alias) =>
+    s.eval(`(() => { const tr = [...document.querySelectorAll('tbody tr.clickable')].find((r) => r.innerText.includes('${alias}')); return tr ? tr.children[7].innerText : '' })()`)
+  const parseTok = (text) => {
+    const m = /([\d.]+)\s*([kM]?)/.exec(text ?? '')
+    return m ? Number(m[1]) * (m[2] === 'k' ? 1000 : m[2] === 'M' ? 1e6 : 1) : Number.NaN
+  }
+  const pickRange = async (value) => {
+    await s.eval(`(() => { const sel = document.querySelector('.range-select'); sel.value = '${value}'; sel.dispatchEvent(new Event('change', { bubbles: true })); })()`)
+    await sleep(1200)
+  }
+  const todayOut = parseTok(await outCellOf('claude-x'))
+  await pickRange('month')
+  const monthOut = parseTok(await outCellOf('claude-x'))
+  check('切到本月后行数据随之变大', Number.isFinite(monthOut) && monthOut > todayOut, `${todayOut} -> ${monthOut}`)
+  await pickRange('today')
+  check('切回今天恢复今日口径', parseTok(await outCellOf('claude-x')) === todayOut)
   check('速率列叫 TPS', headText.includes('|TPS|'))
   check('TPS 行内没有小曲线', (await s.eval("document.querySelectorAll('td.c-rate svg').length")) === 0)
   check('表头无错误列', !(await s.eval("document.querySelector('thead').innerText")).includes('错误'))
