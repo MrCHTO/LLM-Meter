@@ -61,6 +61,8 @@ export interface OverlayState {
   visible: boolean
   /** 胶囊盯住的模型，null 表示还没选 */
   modelId: string | null
+  /** 盯全部启用模型的合计数据，优先于 modelId */
+  global: boolean
   /** 锁定后拖不动，防误碰 */
   locked: boolean
   theme: 'dark' | 'light'

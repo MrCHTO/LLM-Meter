@@ -70,7 +70,7 @@ const rows = [0, 1, 2]
     outputTokens: 150,
     cacheReadTokens: 0,
     cacheInputTokens: 0,
-    cost: 0.0021,
+    cost: 0.5,
     currency: 'USD'
   })
   // 早 30 小时再来一条 m2 的请求：只在「本周/本月」等更长区间里出现，用来验证区间切换真的换数据
@@ -91,7 +91,7 @@ const rows = [0, 1, 2]
     outputTokens: 100,
     cacheReadTokens: 0,
     cacheInputTokens: 0,
-    cost: 0.001,
+    cost: 0.5,
     currency: 'USD'
   })
 writeFileSync(join(DATA, 'events', `${day}.jsonl`), rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8')
@@ -789,6 +789,27 @@ try {
   check('右上角不再显示 IP 地址', (await s.eval("document.querySelectorAll('.status .mono').length")) === 0)
   check('悬浮窗卡片有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
   check(
+    '设置页当前模型可显示全局',
+    (await s.eval(
+      `(async () => {
+        await window.api.updateSettings({ overlayGlobal: true })
+        // 直接调 API 不会刷新 config prop，借一次复选框点击触发 reload
+        const flag = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('显示费用'))
+        const box = flag.querySelector('input[type=checkbox]')
+        box.click()
+        await new Promise((r) => setTimeout(r, 700))
+        const row = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('当前模型'))
+        const txt = row?.innerText ?? ''
+        box.click()
+        await new Promise((r) => setTimeout(r, 400))
+        await window.api.updateSettings({ overlayGlobal: false })
+        await new Promise((r) => setTimeout(r, 300))
+        return txt.includes('全局')
+      })()`,
+      true
+    )) === true
+  )
+  check(
     '悬浮窗卡片有显示内容开关',
     await s.eval(
       "['显示供应商名称', '显示模型名称', '显示费用'].every((t) => [...document.querySelectorAll('.setting-row')].some((r) => r.innerText.includes(t)))"
@@ -1052,6 +1073,46 @@ try {
       (await capText()).includes('my-claude') &&
       (await o.eval("document.querySelectorAll('.capsule-cost').length")) === 1
   )
+
+  // 状态点跟选中模型走：未探过灰 → 探活失败红；切回探活成功的 m1 变绿
+  const dotClass = () => o.eval("document.querySelector('.capsule-dot')?.className ?? ''")
+  await o.eval("(async()=>await window.api.updateSettings({overlayModelId:'m2'}))()")
+  await sleep(900)
+  check('未探活的模型状态点为灰', !(await dotClass()).includes(' on') && !(await dotClass()).includes(' off'), await dotClass())
+  // 点跟自动探活结果走：给不可达的 m2 开自动探针，等它探失败变红（每 5 秒一轮 + 15 秒超时）
+  await o.eval("(async()=>await window.api.updateModel('m2', {autoProbe:true}))()", true)
+  for (let i = 0; i < 90; i++) {
+    if ((await dotClass()).includes(' off')) break
+    await sleep(500)
+  }
+  check('探活失败的模型状态点为红', (await dotClass()).includes(' off'), await dotClass())
+  await o.eval("(async()=>await window.api.updateModel('m2', {autoProbe:false}))()", true)
+  await o.eval("(async()=>await window.api.updateSettings({overlayModelId:'m1'}))()")
+  await sleep(900)
+  check(
+    '探活成功的模型状态点为绿',
+    relayUp ? (await dotClass()).includes(' on') : true,
+    relayUp ? await dotClass() : '跳过：测试中继不可达'
+  )
+
+  // 全局模式：名称固定「全局 · 全部模型」，费用为合计，状态点按聚合健康（m2 刚失败应为红）
+  const costText = () => o.eval("document.querySelector('.capsule-cost')?.innerText ?? '∅'")
+  const costValue = async () => Number((await costText()).replace(/[^\d.]/g, ''))
+  const singleCost = await costValue()
+  const singleCostText = await costText()
+  await o.eval("(async()=>await window.api.updateSettings({overlayGlobal:true}))()")
+  await sleep(900)
+  check('可切全局数据', (await capText()).includes('全局') && (await capText()).includes('全部模型'))
+  check(
+    '全局费用是各模型之和',
+    (await costValue()) > singleCost,
+    `${singleCostText} -> ${await costText()}`
+  )
+  check('全局状态点聚合失败为红', (await dotClass()).includes(' off'))
+  await o.shot('overlay-global.png')
+  await o.eval("(async()=>await window.api.updateSettings({overlayGlobal:false}))()")
+  await sleep(800)
+  check('可切回单模型', (await capText()).includes('my-claude') && !(await capText()).includes('全部模型'))
 
   // 锁定
   await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true}))()")

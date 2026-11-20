@@ -47,7 +47,9 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
         <h2>悬浮窗</h2>
         <div className="setting-row">
           <span>当前模型</span>
-          <span className="muted">{overlayModel ? overlayModel.alias : '未选择'}</span>
+          <span className="muted">
+            {config.settings.overlay.global ? '全局（全部模型）' : overlayModel ? overlayModel.alias : '未选择'}
+          </span>
         </div>
         <div className="setting-row">
           <span>显示状态</span>

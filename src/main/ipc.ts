@@ -389,6 +389,7 @@ export function register(): void {
         overlayWidth?: number
         overlayVisible?: boolean
         overlayModelId?: string | null
+        overlayGlobal?: boolean
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
@@ -415,6 +416,7 @@ export function register(): void {
           if (patch.overlayWidth !== undefined) c.settings.overlay.width = Math.min(720, Math.max(240, Math.round(patch.overlayWidth)))
           if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
+          if (patch.overlayGlobal !== undefined) c.settings.overlay.global = patch.overlayGlobal
           if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
           if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
           if (patch.overlayShowProvider !== undefined) c.settings.overlay.showProvider = patch.overlayShowProvider

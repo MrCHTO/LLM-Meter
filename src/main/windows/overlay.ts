@@ -179,17 +179,31 @@ export function setHover(value: boolean): void {
 function modelSubmenu(): Electron.MenuItemConstructorOptions[] {
   const current = cfg.get().settings.overlay.modelId
   const models = cfg.listModels().filter((m) => m.enabled)
-  if (models.length === 0) return [{ label: '没有启用的模型', enabled: false }]
-  return models.map((m) => ({
-    label: m.alias,
-    type: 'radio' as const,
-    checked: current === m.id,
+  const all: Electron.MenuItemConstructorOptions = {
+    label: '全局（全部模型）',
+    type: 'radio',
+    checked: cfg.get().settings.overlay.global === true,
     click: () => {
       cfg.mutate((c) => {
-        c.settings.overlay.modelId = m.id
+        c.settings.overlay.global = true
       })
     }
-  }))
+  }
+  if (models.length === 0) return [all, { label: '没有启用的模型', enabled: false }]
+  return [
+    all,
+    ...models.map((m) => ({
+      label: m.alias,
+      type: 'radio' as const,
+      checked: cfg.get().settings.overlay.global !== true && current === m.id,
+      click: () => {
+        cfg.mutate((c) => {
+          c.settings.overlay.global = false
+          c.settings.overlay.modelId = m.id
+        })
+      }
+    }))
+  ]
 }
 
 export function showMenu(): void {

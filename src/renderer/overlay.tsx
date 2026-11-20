@@ -26,10 +26,6 @@ function Capsule(): JSX.Element {
     return () => observer.disconnect()
   }, [])
 
-  const model = snapshot?.overlayModelId
-    ? snapshot.models.find((m) => m.modelId === snapshot.overlayModelId)
-    : undefined
-
   const onMouseDown = (event: React.MouseEvent): void => {
     if (event.button !== 0) return
     setDragging(true)
@@ -52,16 +48,60 @@ function Capsule(): JSX.Element {
   const showProvider = snapshot?.overlay.showProvider !== false
   const showModel = snapshot?.overlay.showModel !== false
   const showCost = snapshot?.overlay.showCost !== false
-  const busy = model?.active === true || model?.probing === true
-  // 请求进行中且有增量后显示估算速率；首字前不占位。结束后 5 分钟内灰显真实均值
-  const realtime =
-    model !== undefined && (model.inflight > 0 || model.probing) && model.realtimeTps !== null
-  const lastWithin =
-    model?.lastTps !== null &&
-    model?.lastTps !== undefined &&
-    model.lastTpsAt !== null &&
-    model.lastTpsAt !== undefined &&
-    Date.now() - model.lastTpsAt < 5 * 60_000
+
+  const watched = snapshot?.overlayModelId
+    ? snapshot.models.find((m) => m.modelId === snapshot.overlayModelId)
+    : undefined
+  const isGlobal = snapshot?.overlay.global === true && (snapshot?.models.length ?? 0) > 0
+  const models = snapshot?.models ?? []
+  const model = isGlobal ? undefined : watched
+  const busy = isGlobal ? models.some((m) => m.active) : watched?.active === true || watched?.probing === true
+
+  // 速度按「正在生成」实时求和；全部停下后 5 分钟内灰显各自上一条的和
+  const withinLast = (m: { lastTps: number | null; lastTpsAt: number | null }): boolean =>
+    m.lastTps !== null && m.lastTpsAt !== null && Date.now() - m.lastTpsAt < 5 * 60_000
+  const singleRealtime =
+    watched !== undefined && (watched.inflight > 0 || watched.probing) && watched.realtimeTps !== null
+  const globalRealtime = models.some((m) => (m.inflight > 0 || m.probing) && m.realtimeTps !== null)
+    ? models.reduce((a, m) => a + (m.inflight > 0 || m.probing ? (m.realtimeTps ?? 0) : 0), 0)
+    : null
+  const rateNow = isGlobal ? globalRealtime : singleRealtime ? (watched?.realtimeTps ?? 0) : null
+  const rateLast = isGlobal
+    ? rateNow === null && models.some(withinLast)
+      ? models.reduce((a, m) => a + (withinLast(m) ? (m.lastTps ?? 0) : 0), 0)
+      : null
+    : rateNow === null && watched !== undefined && withinLast(watched)
+      ? (watched.lastTps ?? 0)
+      : null
+
+  // 点的语义与仪表盘行首探活点一致；全局按聚合健康：任一失败红，全部成功绿，其余灰
+  const dotClass = isGlobal
+    ? models.some((m) => m.lastProbeAt !== null && m.lastProbeOk === false)
+      ? 'off'
+      : models.every((m) => m.lastProbeAt !== null && m.lastProbeOk)
+        ? 'on'
+        : 'idle'
+    : watched
+      ? watched.lastProbeAt !== null
+        ? watched.lastProbeOk
+          ? 'on'
+          : 'off'
+        : 'idle'
+      : 'idle'
+  const dotTitle = isGlobal
+    ? '全部启用模型的最近一次探活'
+    : watched
+      ? watched.lastProbeAt !== null
+        ? `上次探针：${new Date(watched.lastProbeAt).toLocaleTimeString()} · ${watched.lastProbeOk ? '成功' : '失败'}`
+        : '尚未探测'
+      : '未选择模型'
+
+  const providerName = isGlobal ? '全局' : (model?.providerName ?? '')
+  const aliasName = isGlobal ? '全部模型' : (model?.alias ?? '')
+  const cost = isGlobal ? models.reduce((a, m) => a + m.today.cost, 0) : (model?.today.cost ?? 0)
+  const currency = isGlobal ? (models[0]?.currency ?? 'CNY') : (model?.currency ?? 'CNY')
+  const hasTarget = isGlobal || model !== undefined
+  const fmtRate = (v: number): string => (v < 0.5 ? '<1' : String(Math.round(v)))
 
   return (
     <div
@@ -77,27 +117,23 @@ function Capsule(): JSX.Element {
       onMouseEnter={() => void window.api.overlayHover(true)}
       onMouseLeave={() => void window.api.overlayHover(false)}
     >
-      <span className={`capsule-dot ${snapshot?.proxyRunning ? 'on' : 'off'}`} />
+      <span className={`capsule-dot ${dotClass}`} title={dotTitle} />
 
-      {model ? (
+      {hasTarget ? (
         <>
           {showProvider || showModel ? (
             <span className="capsule-name">
-              {showProvider ? <span className="capsule-source">{model.providerName}</span> : null}
+              {showProvider ? <span className="capsule-source">{providerName}</span> : null}
               {showProvider && showModel ? <span className="capsule-sep">·</span> : null}
-              {showModel ? <b>{model.alias}</b> : null}
+              {showModel ? <b>{aliasName}</b> : null}
             </span>
           ) : null}
-          {realtime ? (
-            <span className="capsule-metric mono">
-              {(model.realtimeTps ?? 0) < 0.5 ? '<1' : Math.round(model.realtimeTps ?? 0)} tok/s
-            </span>
-          ) : lastWithin ? (
-            <span className="capsule-metric mono last">
-              {(model.lastTps ?? 0) < 0.5 ? '<1' : Math.round(model.lastTps ?? 0)} tok/s
-            </span>
+          {rateNow !== null ? (
+            <span className="capsule-metric mono">{fmtRate(rateNow)} tok/s</span>
+          ) : rateLast !== null ? (
+            <span className="capsule-metric mono last">{fmtRate(rateLast)} tok/s</span>
           ) : null}
-          {showCost ? <span className="capsule-cost mono">{fmtMoney(model.today.cost, model.currency)}</span> : null}
+          {showCost ? <span className="capsule-cost mono">{fmtMoney(cost, currency)}</span> : null}
         </>
       ) : (
         <span className="capsule-empty">未选择模型 · 右键选择</span>

@@ -72,6 +72,7 @@ declare global {
         overlayWidth?: number
         overlayVisible?: boolean
         overlayModelId?: string | null
+        overlayGlobal?: boolean
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean

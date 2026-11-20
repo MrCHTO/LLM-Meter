@@ -499,13 +499,18 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                 <button
                   onClick={async () => {
                     setMenu(null)
-                    const picked = config.settings.overlay.modelId === m.id
-                    const res = await window.api.updateSettings({ overlayModelId: picked ? null : m.id })
+                    const picked =
+                      config.settings.overlay.global !== true && config.settings.overlay.modelId === m.id
+                    const res = await window.api.updateSettings(
+                      picked ? { overlayModelId: null } : { overlayModelId: m.id, overlayGlobal: false }
+                    )
                     if (!res.ok) notify(res.error ?? '切换失败')
                     else await onChanged()
                   }}
                 >
-                  {config.settings.overlay.modelId === m.id ? '取消悬浮窗显示' : '显示在悬浮窗'}
+                  {config.settings.overlay.global !== true && config.settings.overlay.modelId === m.id
+                    ? '取消悬浮窗显示'
+                    : '显示在悬浮窗'}
                 </button>
                 <button
                   onClick={async () => {
