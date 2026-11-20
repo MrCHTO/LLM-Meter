@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { Rectangle } from 'electron'
 import * as cfg from '../store/config'
 import { getOverlay, send, setOverlay } from './registry'
+import { anchorX, snapToEdges } from './snap'
 
 /** 只留状态点时也要能贴住内容，最小宽度按状态点圆点定 */
 const MIN_WIDTH = 56
@@ -136,7 +137,11 @@ export function startDrag(): void {
     const w = getOverlay()
     if (!w) return
     const p = screen.getCursorScreenPoint()
-    const next = clampBounds({ x: p.x - dragOffset.x, y: p.y - dragOffset.y, width: w.getBounds().width, height: w.getBounds().height })
+    const size = w.getBounds()
+    let next = clampBounds({ x: p.x - dragOffset.x, y: p.y - dragOffset.y, width: size.width, height: size.height })
+    if (cfg.get().settings.overlay.snapEdges !== false) {
+      next = clampBounds(snapToEdges(next, screen.getDisplayMatching(next).workArea))
+    }
     w.setPosition(next.x, next.y)
   }, 16)
 }
@@ -145,14 +150,32 @@ export function stopDrag(): void {
   if (dragTimer) clearInterval(dragTimer)
   dragTimer = null
   saveBounds()
+}
+
+/** 按像素把窗口挪到指定位置（设置页用），落在屏幕外时钳回工作区 */
+export function moveTo(x: number, y: number): void {
+  const win = getOverlay()
+  if (!win) return
+  const b = win.getBounds()
+  const next = clampBounds({ ...b, x: Math.round(x), y: Math.round(y) })
+  win.setPosition(next.x, next.y)
+  saveBounds()
+}
+
+export function bounds(): Rectangle | null {
+  return getOverlay()?.getBounds() ?? null
 }/** 渲染层量出胶囊实际宽高后回传，窗口跟着内容走 */
 export function resize(width: number, height: number): void {
   const win = getOverlay()
   if (!win) return
   const b = win.getBounds()
+  const widthNext = Math.max(MIN_WIDTH, Math.round(width))
+  // 贴边的一侧保持不动，否则以中心点为轴左右对称伸缩
+  const area = screen.getDisplayMatching(b).workArea
   const next = clampBounds({
     ...b,
-    width: Math.max(MIN_WIDTH, Math.round(width)),
+    x: anchorX(b, widthNext, area),
+    width: widthNext,
     height: Math.max(MIN_HEIGHT, Math.round(height))
   })
   win.setBounds(next)
@@ -162,7 +185,10 @@ export function setVisible(visible: boolean): void {
   const win = getOverlay()
   if (!win) return
   if (visible) {
-    const fresh = clampBounds({ ...currentBounds(), width: cfg.get().settings.overlay.width })
+    const b = currentBounds()
+    const area = screen.getDisplayMatching(b).workArea
+    const widthNext = cfg.get().settings.overlay.width
+    const fresh = clampBounds({ ...b, x: anchorX(b, widthNext, area), width: widthNext })
     win.setBounds(fresh)
     win.showInactive()
   } else {
@@ -228,6 +254,16 @@ export function showMenu(): void {
           click: () => {
             cfg.mutate((c) => {
               c.settings.overlay.locked = true
+            })
+          }
+        },
+        {
+          label: '边缘吸附',
+          type: 'checkbox',
+          checked: settings.overlay.snapEdges !== false,
+          click: () => {
+            cfg.mutate((c) => {
+              c.settings.overlay.snapEdges = !c.settings.overlay.snapEdges
             })
           }
         },

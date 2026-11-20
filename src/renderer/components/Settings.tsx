@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ConfigView } from '../../shared/types'
 
 interface Props {
@@ -11,6 +11,14 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
   const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
   const [probeInterval, setProbeInterval] = useState(String(config.settings.autoProbeIntervalSec))
+  const [posX, setPosX] = useState(config.settings.overlay.x === null ? '' : String(config.settings.overlay.x))
+  const [posY, setPosY] = useState(config.settings.overlay.y === null ? '' : String(config.settings.overlay.y))
+
+  // 拖动会改坐标，回到设置页时同步显示最新值
+  useEffect(() => {
+    setPosX(config.settings.overlay.x === null ? '' : String(config.settings.overlay.x))
+    setPosY(config.settings.overlay.y === null ? '' : String(config.settings.overlay.y))
+  }, [config.settings.overlay.x, config.settings.overlay.y])
 
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
     const res = await window.api.updateSettings(values)
@@ -96,6 +104,45 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
             onChange={(e) => void patch({ overlayShowCost: e.target.checked })}
           />
         </label>
+        <label className="setting-row">
+          <span>边缘吸附</span>
+          <input
+            type="checkbox"
+            checked={config.settings.overlay.snapEdges}
+            onChange={(e) => void patch({ overlaySnapEdges: e.target.checked })}
+          />
+        </label>
+        <div className="setting-row">
+          <span>位置 X / Y（像素）</span>
+          <div className="row nowrap">
+            <input
+              className="mono w-sm"
+              type="number"
+              value={posX}
+              onChange={(e) => setPosX(e.target.value)}
+            />
+            <input
+              className="mono w-sm"
+              type="number"
+              value={posY}
+              onChange={(e) => setPosY(e.target.value)}
+            />
+            <button
+              className="btn sm"
+              onClick={() => {
+                const x = Math.round(Number(posX))
+                const y = Math.round(Number(posY))
+                if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                  notify('X / Y 需要是数字', 'bad')
+                  return
+                }
+                void patch({ overlayX: x, overlayY: y })
+              }}
+            >
+              应用
+            </button>
+          </div>
+        </div>
         <div className="setting-row">
           <span>不透明度（10–100）</span>
           <div className="row nowrap">

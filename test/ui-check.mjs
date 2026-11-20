@@ -833,6 +833,26 @@ try {
     )) === true
   )
   check(
+    '设置页有位置像素输入并生效',
+    (await s.eval(
+      `(async () => {
+        const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('位置 X / Y'))
+        const inputs = f?.querySelectorAll('input[type=number]') ?? []
+        if (inputs.length !== 2) return false
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+        setter.call(inputs[0], '321')
+        inputs[0].dispatchEvent(new Event('input', { bubbles: true }))
+        setter.call(inputs[1], '322')
+        inputs[1].dispatchEvent(new Event('input', { bubbles: true }))
+        f.querySelector('button').click()
+        await new Promise((r) => setTimeout(r, 700))
+        const ov = (await window.api.config()).data?.settings.overlay
+        return ov?.x === 321 && ov?.y === 322
+      })()`,
+      true
+    )) === true
+  )
+  check(
     '透明度是数字输入',
     (await s.eval(
       "(() => { const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('不透明度')); const i = f?.querySelector('input[type=number]'); return i ? i.value : '' })()"
@@ -1113,6 +1133,47 @@ try {
   await o.eval("(async()=>await window.api.updateSettings({overlayGlobal:false}))()")
   await sleep(800)
   check('可切回单模型', (await capText()).includes('my-claude') && !(await capText()).includes('Σ'))
+
+  // 位置按像素设定、宽度以中心生长、贴边时贴边侧不动、吸附开关可持久化
+  const stateOf = () => o.eval("(async()=> (await window.api.overlayState()).data)()", true)
+  const st0 = await stateOf()
+  const area = st0.area
+  const cx = area.x + 400
+  const cy = area.y + 300
+  await o.eval(`(async()=>await window.api.updateSettings({overlayX:${cx}, overlayY:${cy}}))()`)
+  await sleep(500)
+  const place = await stateOf()
+  check('按像素设定位置生效', Math.abs(place.bounds.x - cx) <= 1 && Math.abs(place.bounds.y - cy) <= 1, JSON.stringify(place.bounds))
+  const centerBefore = place.bounds.x + place.bounds.width / 2
+  await o.eval("(async()=>await window.api.updateSettings({overlayShowProvider:false}))()")
+  await sleep(900)
+  const shrunk = await stateOf()
+  const centerAfter = shrunk.bounds.x + shrunk.bounds.width / 2
+  check(
+    '宽度变化以中心为轴',
+    shrunk.bounds.width !== place.bounds.width && Math.abs(centerAfter - centerBefore) <= 3,
+    `${centerBefore} -> ${centerAfter}`
+  )
+  await o.eval("(async()=>await window.api.updateSettings({overlayShowProvider:true}))()")
+  await sleep(800)
+  const rightX = area.x + area.width - (await stateOf()).bounds.width
+  await o.eval(`(async()=>await window.api.updateSettings({overlayX:${rightX}, overlayY:${area.y + 200}}))()`)
+  await sleep(500)
+  const edge0 = (await stateOf()).bounds
+  check('可以贴到右缘', Math.abs(edge0.x + edge0.width - (area.x + area.width)) <= 1, JSON.stringify(edge0))
+  await o.eval("(async()=>await window.api.updateSettings({overlayShowCost:false}))()")
+  await sleep(900)
+  const edge1 = (await stateOf()).bounds
+  check('贴右缘时变窄右缘不动', Math.abs(edge1.x + edge1.width - (area.x + area.width)) <= 1, JSON.stringify(edge1))
+  await o.eval("(async()=>await window.api.updateSettings({overlayShowCost:true}))()")
+  await sleep(700)
+  await o.eval("(async()=>await window.api.updateSettings({overlaySnapEdges:false}))()")
+  await sleep(300)
+  check(
+    '吸附开关可持久化',
+    (await o.eval("(async()=> (await window.api.config()).data?.settings.overlay.snapEdges)()", true)) === false
+  )
+  await o.eval("(async()=>await window.api.updateSettings({overlaySnapEdges:true}))()")
 
   // 锁定
   await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true}))()")

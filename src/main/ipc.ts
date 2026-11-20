@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, shell } from 'electron'
+import { app, dialog, ipcMain, screen, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -390,6 +390,9 @@ export function register(): void {
         overlayVisible?: boolean
         overlayModelId?: string | null
         overlayGlobal?: boolean
+        overlaySnapEdges?: boolean
+        overlayX?: number
+        overlayY?: number
         allowLan?: boolean
         overlayTheme?: 'dark' | 'light'
         overlayLocked?: boolean
@@ -417,6 +420,9 @@ export function register(): void {
           if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
           if (patch.overlayGlobal !== undefined) c.settings.overlay.global = patch.overlayGlobal
+          if (patch.overlaySnapEdges !== undefined) c.settings.overlay.snapEdges = patch.overlaySnapEdges
+          if (patch.overlayX !== undefined) c.settings.overlay.x = Math.round(patch.overlayX)
+          if (patch.overlayY !== undefined) c.settings.overlay.y = Math.round(patch.overlayY)
           if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
           if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
           if (patch.overlayShowProvider !== undefined) c.settings.overlay.showProvider = patch.overlayShowProvider
@@ -430,6 +436,10 @@ export function register(): void {
           }
         })
         overlayWin.applySettings()
+        if (patch.overlayX !== undefined || patch.overlayY !== undefined) {
+          const ov = cfg.get().settings.overlay
+          if (ov.x !== null && ov.y !== null) overlayWin.moveTo(ov.x, ov.y)
+        }
         if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
         if (patch.theme !== undefined) mainWindow.applyTheme()
         // 端口 / 局域网开关变化后的代理重启统一由 index.ts 的 cfg.onChange 处理
@@ -761,5 +771,13 @@ export function register(): void {
   ipcMain.handle(CH.overlayMenu, wrap(() => overlayWin.showMenu()))
   ipcMain.handle(CH.overlayOpenMain, wrap(() => showMain()))
   ipcMain.handle(CH.overlaySetSize, wrap((width: number, height: number) => overlayWin.resize(width, height)))
+  ipcMain.handle(
+    CH.overlayState,
+    wrap(() => {
+      const bounds = overlayWin.bounds()
+      if (!bounds) return null
+      return { bounds, area: screen.getDisplayMatching(bounds).workArea }
+    })
+  )
   ipcMain.handle(CH.mainOpen, wrap(() => showMain()))
 }

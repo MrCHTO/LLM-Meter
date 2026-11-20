@@ -63,6 +63,8 @@ export interface OverlayState {
   modelId: string | null
   /** 盯全部启用模型的合计数据，优先于 modelId */
   global: boolean
+  /** 拖动时吸附屏幕工作区边缘 */
+  snapEdges: boolean
   /** 锁定后拖不动，防误碰 */
   locked: boolean
   theme: 'dark' | 'light'
