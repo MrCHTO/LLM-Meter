@@ -97,7 +97,7 @@ function Capsule(): JSX.Element {
       : '未选择模型'
 
   const providerName = isGlobal ? '全局' : (model?.providerName ?? '')
-  const aliasName = isGlobal ? '全部模型' : (model?.alias ?? '')
+  const aliasName = isGlobal ? 'Σ' : (model?.alias ?? '')
   const cost = isGlobal ? models.reduce((a, m) => a + m.today.cost, 0) : (model?.today.cost ?? 0)
   const currency = isGlobal ? (models[0]?.currency ?? 'CNY') : (model?.currency ?? 'CNY')
   const hasTarget = isGlobal || model !== undefined

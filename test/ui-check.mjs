@@ -1102,7 +1102,7 @@ try {
   const singleCostText = await costText()
   await o.eval("(async()=>await window.api.updateSettings({overlayGlobal:true}))()")
   await sleep(900)
-  check('可切全局数据', (await capText()).includes('全局') && (await capText()).includes('全部模型'))
+  check('可切全局数据', (await capText()).includes('全局') && (await capText()).includes('Σ'))
   check(
     '全局费用是各模型之和',
     (await costValue()) > singleCost,
@@ -1112,7 +1112,7 @@ try {
   await o.shot('overlay-global.png')
   await o.eval("(async()=>await window.api.updateSettings({overlayGlobal:false}))()")
   await sleep(800)
-  check('可切回单模型', (await capText()).includes('my-claude') && !(await capText()).includes('全部模型'))
+  check('可切回单模型', (await capText()).includes('my-claude') && !(await capText()).includes('Σ'))
 
   // 锁定
   await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true}))()")
