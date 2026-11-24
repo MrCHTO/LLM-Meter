@@ -20,7 +20,8 @@ win:
   artifactName: ${productName}-${version}-setup.${ext}
 nsis:
   oneClick: false
-  perMachine: false
+  perMachine: true
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: LLM Meter
+  include: resources/installer.nsh

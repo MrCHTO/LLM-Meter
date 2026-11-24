@@ -1,13 +1,15 @@
 /** 一次性的安装版验证：真实档案上跑旧数据导入并截图主窗。 */
 import { spawn } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const EXE = process.env.LOCALAPPDATA + '/Programs/LLM Meter/LLM Meter.exe'
-const PROFILE = process.env.APPDATA + '/llm-meter'
-const DATA = join(PROFILE, 'data')
+const EXE =
+  process.env.LLM_METER_EXE ??
+  process.env.PROGRAMFILES + '/llm meter/LLM Meter.exe'
+/** 安装版数据在安装目录下 */
+const DATA = join(dirname(EXE), 'data')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const PORT = JSON.parse(readFileSync(join(DATA, 'config.json'), 'utf8')).settings.port

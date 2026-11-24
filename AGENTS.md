@@ -20,7 +20,7 @@ LLM Meter 是 Windows 桌面端的大模型流量计量器：本机起 OpenAI / 
 ## 项目约定
 
 - 常用命令：`npm run dev`、`npm run build`、`npm test`、`npm run dist`；带界面的验证用 `node test/ui-check.mjs`，安装版核对 `node test/installed-check.mjs`。
-- 测试一律使用临时 `--user-data-dir`，不写用户 `%APPDATA%\llm-meter` 的真实配置；只读排查可打开 `data/llm-meter.db`。
+- 测试一律使用临时 `--user-data-dir`，不写真实档案；安装版数据在安装目录 `data/`（默认 `C:\Program Files\llm meter\data`），开发运行在 `%APPDATA%\llm-meter\data`，只读排查按运行方式取 `llm-meter.db`。
 - 分支：开发在 `dev`，`main` 为稳定版；开发期不覆盖安装用户正在运行的实例，需用户确认后再 `taskkill` 并静默安装。
 - 提交信息用 Conventional Commits（`feat:` / `fix:` / `chore:` 等，中文描述），发版与版本同步用 `chore:`。
 - 版本与发版流程、CHANGELOG 维护见 `.github/instructions/python-versioning.instructions.md`；版本号须同时更新 `package.json`、`CHANGELOG.md`、`README.md` 变更记录。

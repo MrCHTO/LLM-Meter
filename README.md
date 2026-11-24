@@ -23,7 +23,7 @@ npm run dist         # 出 Windows 安装包（dist/）
 npm test             # 单元测试
 ```
 
-数据目录固定在 `%APPDATA%\llm-meter\data`，设置页有「打开目录」。
+安装版数据放在安装目录的 `data` 下（默认 `C:\Program Files\llm meter\data`），开发运行仍用 `%APPDATA%\llm-meter\data`；设置页有「打开目录」。
 
 ## 接入客户端
 
