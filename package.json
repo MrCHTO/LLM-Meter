@@ -1,6 +1,6 @@
 {
   "name": "llm-meter",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "本地大模型流量计量与看板",
   "main": "./out/main/index.js",
   "author": "EDY",
