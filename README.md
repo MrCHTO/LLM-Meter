@@ -108,4 +108,4 @@ node test/cache-probe.mjs <baseUrl> <key> <model> identity      # 判断某家�
 
 ## 变更记录
 
-当前版本 **v0.12.0**。完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **v0.12.1**。完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
