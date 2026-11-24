@@ -7,6 +7,7 @@ import * as repo from './store/db/repo'
 import { ensureDirs } from './store/paths'
 import * as proxy from './proxy/server'
 import * as calibrate from './calibrate'
+import * as settingsService from './settings/service'
 import * as autoProbe from './probe/auto'
 import * as ipc from './ipc'
 import * as applog from './applog'
@@ -17,6 +18,7 @@ import { send, getMain, setMain } from './windows/registry'
 
 let pushTimer: NodeJS.Timeout | null = null
 let calTimer: NodeJS.Timeout | null = null
+let setSettingsOff: (() => void) | null = null
 let proxyError: string | null = null
 
 const gotLock = app.requestSingleInstanceLock()
@@ -60,10 +62,6 @@ if (!gotLock) {
 
     if (settings.overlay.visible) overlay.create()
 
-    // 端口或局域网开关变了会自动重启代理，登录项变了同步注册表（托盘、设置页共用这一条出口）
-    let lastNet = { port: settings.port, allowLan: settings.allowLan }
-    let lastLogin = settings.startAtLogin
-    let lastTheme = settings.theme
     // 跟随系统时，系统深浅色一变就刷新窗口底色与页面
     nativeTheme.on('updated', () => {
       if (cfg.get().settings.theme !== 'system') return
@@ -77,30 +75,33 @@ if (!gotLock) {
         /* 注册表写不进去就下次再说 */
       }
     }
-    applyLogin(lastLogin)
-    cfg.onChange(() => {
-      const s = cfg.get().settings
+    applyLogin(settings.startAtLogin)
+
+    // 设置项副作用集中在这里：设置页、托盘、悬浮窗菜单只负责写
+    setSettingsOff = settingsService.onChange(({ before, after, keys }) => {
       tray.rebuild()
       overlay.applySettings()
-      // 配置一变就推一帧，胶囊不用等 500ms 轮询，选中状态与列表始终一致
-      send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
-      if (s.port !== lastNet.port || s.allowLan !== lastNet.allowLan) {
-        lastNet = { port: s.port, allowLan: s.allowLan }
-        applog.info('settings', `接入设置变更：端口 ${s.port}，局域网${s.allowLan ? '开' : '关'}`)
-        void proxy.start(s.port).then((st) => {
+      if ((keys.includes('overlayX') || keys.includes('overlayY')) && after.overlay.x !== null && after.overlay.y !== null) {
+        overlay.moveTo(after.overlay.x, after.overlay.y)
+      }
+      if (keys.includes('overlayVisible')) overlay.setVisible(after.overlay.visible)
+      if (keys.includes('theme') && after.theme !== before.theme) mainWindow.applyTheme()
+      if (after.port !== before.port || after.allowLan !== before.allowLan) {
+        applog.info('settings', `接入设置变更：端口 ${after.port}，局域网${after.allowLan ? '开' : '关'}`)
+        void proxy.start(after.port).then((st) => {
           proxyError = st.error
           if (!st.running) applog.error('proxy', `重启失败：${st.error ?? '未知原因'}`)
         })
       }
-      if (s.startAtLogin !== lastLogin) {
-        lastLogin = s.startAtLogin
-        applog.info('settings', `开机自启${s.startAtLogin ? '开' : '关'}`)
-        applyLogin(lastLogin)
+      if (after.startAtLogin !== before.startAtLogin) {
+        applog.info('settings', `开机自启${after.startAtLogin ? '开' : '关'}`)
+        applyLogin(after.startAtLogin)
       }
-      if (s.theme !== lastTheme) {
-        lastTheme = s.theme
-        mainWindow.applyTheme()
-      }
+    })
+
+    cfg.onChange(() => {
+      // 配置一变就推一帧，胶囊不用等 500ms 轮询，选中状态与列表始终一致
+      send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
     })
 
     pushTimer = setInterval(() => {
@@ -136,6 +137,8 @@ if (!gotLock) {
     pushTimer = null
     if (calTimer) clearTimeout(calTimer)
     calTimer = null
+    setSettingsOff?.()
+    setSettingsOff = null
     autoProbe.stop()
     tray.destroy()
     db.close()

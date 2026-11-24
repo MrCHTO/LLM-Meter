@@ -2,7 +2,7 @@ import { app, dialog, ipcMain, screen, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { channelOf, type IpcMethods } from '../shared/ipc/contract'
+import { channelOf, type IpcMethods, type SettingsPatch } from '../shared/ipc/contract'
 import type {
   ApiFormat,
   ConfigView,
@@ -37,7 +37,7 @@ import * as rate from './rate'
 import * as calibrate from './calibrate'
 import { lanIp } from './net'
 import * as overlayWin from './windows/overlay'
-import * as mainWindow from './windows/main-window'
+import * as settings from './settings/service'
 import { showMain } from './windows/registry'
 
 function ok<T>(data?: T): IpcResult<T> {
@@ -394,74 +394,13 @@ export function register(): void {
     wrap((id?: string) => probe.stop(id))
   )
 
-  handle('updateSettings',
-    wrap(
-      async (patch: {
-        port?: number
-        usdCny?: number
-        retentionDays?: number
-        rollupRetentionDays?: number
-        overlayOpacity?: number
-        startMinimized?: boolean
-        overlayWidth?: number
-        overlayVisible?: boolean
-        overlayModelId?: string | null
-        overlayGlobal?: boolean
-        overlayX?: number
-        overlayY?: number
-        allowLan?: boolean
-        overlayTheme?: 'dark' | 'light'
-        overlayLocked?: boolean
-        overlayShowProvider?: boolean
-        overlayShowModel?: boolean
-        overlayShowCost?: boolean
-        startAtLogin?: boolean
-        theme?: 'light' | 'dark' | 'system'
-        autoCalibrate?: boolean
-        autoProbeIntervalSec?: number
-      }) => {
-        cfg.mutate((c) => {
-          if (patch.port !== undefined) c.settings.port = Math.min(65535, Math.max(1024, Math.round(patch.port)))
-          if (patch.allowLan !== undefined) c.settings.allowLan = patch.allowLan
-          if (patch.usdCny !== undefined) c.settings.usdCny = Math.min(20, Math.max(1, patch.usdCny))
-          if (patch.retentionDays !== undefined) c.settings.retentionDays = Math.max(1, Math.round(patch.retentionDays))
-          if (patch.rollupRetentionDays !== undefined) {
-            c.settings.rollupRetentionDays = Math.max(1, Math.round(patch.rollupRetentionDays))
-          }
-          if (patch.overlayOpacity !== undefined) {
-            c.settings.overlayOpacity = Math.min(100, Math.max(10, Math.round(patch.overlayOpacity)))
-          }
-          if (patch.startMinimized !== undefined) c.settings.startMinimized = patch.startMinimized
-          if (patch.overlayWidth !== undefined)
-            c.settings.overlay.width = Math.min(720, Math.max(240, Math.round(patch.overlayWidth)))
-          if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
-          if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
-          if (patch.overlayGlobal !== undefined) c.settings.overlay.global = patch.overlayGlobal
-          if (patch.overlayX !== undefined) c.settings.overlay.x = Math.round(patch.overlayX)
-          if (patch.overlayY !== undefined) c.settings.overlay.y = Math.round(patch.overlayY)
-          if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
-          if (patch.overlayLocked !== undefined) c.settings.overlay.locked = patch.overlayLocked
-          if (patch.overlayShowProvider !== undefined) c.settings.overlay.showProvider = patch.overlayShowProvider
-          if (patch.overlayShowModel !== undefined) c.settings.overlay.showModel = patch.overlayShowModel
-          if (patch.overlayShowCost !== undefined) c.settings.overlay.showCost = patch.overlayShowCost
-          if (patch.startAtLogin !== undefined) c.settings.startAtLogin = patch.startAtLogin
-          if (patch.theme !== undefined) c.settings.theme = patch.theme
-          if (patch.autoCalibrate !== undefined) c.settings.autoCalibrate = patch.autoCalibrate
-          if (patch.autoProbeIntervalSec !== undefined) {
-            c.settings.autoProbeIntervalSec = Math.min(3600, Math.max(60, Math.round(patch.autoProbeIntervalSec)))
-          }
-        })
-        overlayWin.applySettings()
-        if (patch.overlayX !== undefined || patch.overlayY !== undefined) {
-          const ov = cfg.get().settings.overlay
-          if (ov.x !== null && ov.y !== null) overlayWin.moveTo(ov.x, ov.y)
-        }
-        if (patch.overlayVisible !== undefined) overlayWin.setVisible(patch.overlayVisible)
-        if (patch.theme !== undefined) mainWindow.applyTheme()
-        // 端口 / 局域网开关变化后的代理重启统一由 index.ts 的 cfg.onChange 处理
-        return true
-      }
-    )
+  handle(
+    'updateSettings',
+    wrap((patch: SettingsPatch) => {
+      // 校验、落盘与副作用都归 settings/service，这里只转发
+      settings.update(patch)
+      return true
+    })
   )
 
   handle('rotateToken',

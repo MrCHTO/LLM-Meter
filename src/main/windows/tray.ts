@@ -1,8 +1,8 @@
 import { Menu, Tray, app } from 'electron'
 import { join } from 'node:path'
 import * as cfg from '../store/config'
+import * as settings from '../settings/service'
 import * as proxy from '../proxy/server'
-import * as overlay from './overlay'
 import { markQuitting } from './main-window'
 import { showMain } from './registry'
 
@@ -26,22 +26,12 @@ export function rebuild(): void {
     { label: '打开主窗口', click: () => showMain() },
     {
       label: s.overlay.visible ? '隐藏悬浮窗' : '显示悬浮窗',
-      click: () => {
-        cfg.mutate((c) => {
-          c.settings.overlay.visible = !c.settings.overlay.visible
-        })
-        overlay.setVisible(!s.overlay.visible)
-        rebuild()
-      }
+      click: () => settings.update({ overlayVisible: !s.overlay.visible })
     },
     {
       label: s.allowLan ? '关闭局域网' : '开启局域网',
-      // 开关后由 index.ts 的 cfg.onChange 统一重启代理
-      click: () => {
-        cfg.mutate((c) => {
-          c.settings.allowLan = !c.settings.allowLan
-        })
-      }
+      // 开关后由 settings 的服务端订阅统一重启代理
+      click: () => settings.update({ allowLan: !s.allowLan })
     },
     {
       label: '重启代理',
@@ -51,13 +41,7 @@ export function rebuild(): void {
     },
     {
       label: s.overlay.locked ? '解锁位置' : '锁定位置',
-      click: () => {
-        cfg.mutate((c) => {
-          c.settings.overlay.locked = !c.settings.overlay.locked
-        })
-        overlay.applySettings()
-        rebuild()
-      }
+      click: () => settings.update({ overlayLocked: !s.overlay.locked })
     },
     { type: 'separator' },
     {

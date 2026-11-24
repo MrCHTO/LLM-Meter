@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ConfigView } from '../../shared/types'
+import { LIMITS, clampInt } from '../../shared/limits'
 
 interface Props {
   config: ConfigView
@@ -104,19 +105,16 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
                   <input
                     className="mono w-sm"
                     type="number"
-                    min={1024}
-                    max={65535}
+                    min={LIMITS.port.min}
+                    max={LIMITS.port.max}
                     value={port}
                     onChange={(e) => setPort(e.target.value)}
                   />
                   <button
                     className="btn sm"
                     onClick={async () => {
-                      const value = Number(port)
-                      if (!value || value < 1024 || value > 65535) {
-                        notify('端口需要在 1024-65535')
-                        return
-                      }
+                      const value = clampInt('port', Number(port))
+                      setPort(String(value))
                       await patch({ port: value })
                       notify('端口已应用', 'ok')
                     }}

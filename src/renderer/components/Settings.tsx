@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ConfigView } from '../../shared/types'
+import { LIMITS, clampInt } from '../../shared/limits'
 
 interface Props {
   config: ConfigView
@@ -163,14 +164,14 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
           </div>
         </div>
         <div className="setting-row">
-          <span>不透明度（10–100）</span>
+          <span>不透明度（{LIMITS.overlayOpacity.min}–{LIMITS.overlayOpacity.max}）</span>
           <div className="row nowrap">
             <input
               className="mono w-sm"
               data-field="opacity"
               type="number"
-              min={10}
-              max={100}
+              min={LIMITS.overlayOpacity.min}
+              max={LIMITS.overlayOpacity.max}
               value={opacity}
               onChange={(e) => setOpacity(e.target.value)}
               onKeyUp={(e) => {
@@ -211,7 +212,7 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
       <div className="card">
         <h2>探针与校准</h2>
         <div className="setting-row">
-          <span>自动探针间隔 / 秒（60–3600）</span>
+          <span>自动探针间隔 / 秒（{LIMITS.autoProbeIntervalSec.min}–{LIMITS.autoProbeIntervalSec.max}）</span>
           <div className="row nowrap">
             <input
               className="mono w-sm"
@@ -222,7 +223,7 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
             <button
               className="btn sm"
               onClick={async () => {
-                const value = Math.min(3600, Math.max(60, Math.round(Number(probeInterval) || 300)))
+                const value = clampInt('autoProbeIntervalSec', Number(probeInterval) || 300)
                 setProbeInterval(String(value))
                 await patch({ autoProbeIntervalSec: value })
               }}

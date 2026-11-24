@@ -2,13 +2,15 @@ import { BrowserWindow, Menu, screen } from 'electron'
 import { join } from 'node:path'
 import type { Rectangle } from 'electron'
 import * as cfg from '../store/config'
-import { getOverlay, send, setOverlay } from './registry'
+import * as settingsService from '../settings/service'
+import { LIMITS } from '../../shared/limits'
+import { getOverlay, setOverlay } from './registry'
 import { anchorX } from './snap'
 
 /** 只留状态点时也要能贴住内容，最小宽度按状态点圆点定 */
 const MIN_WIDTH = 56
 const MIN_HEIGHT = 36
-const DEFAULT_WIDTH = 340
+const DEFAULT_WIDTH = LIMITS.overlayWidth.fallback
 const DEFAULT_HEIGHT = 40
 
 let hovered = false
@@ -134,6 +136,7 @@ function saveBounds(): void {
     const win = getOverlay()
     if (!win) return
     const b = win.getBounds()
+    // 拖拽时位置与宽度高频变化，直接落盘；其余设置项走 settings 服务
     cfg.mutate((c) => {
       c.settings.overlay.x = b.x
       c.settings.overlay.y = b.y
@@ -232,11 +235,7 @@ function modelSubmenu(): Electron.MenuItemConstructorOptions[] {
     label: '全局（全部模型）',
     type: 'radio',
     checked: cfg.get().settings.overlay.global === true,
-    click: () => {
-      cfg.mutate((c) => {
-        c.settings.overlay.global = true
-      })
-    }
+    click: () => settingsService.update({ overlayGlobal: true })
   }
   if (models.length === 0) return [all, { label: '没有启用的模型', enabled: false }]
   return [
@@ -245,12 +244,7 @@ function modelSubmenu(): Electron.MenuItemConstructorOptions[] {
       label: m.alias,
       type: 'radio' as const,
       checked: cfg.get().settings.overlay.global !== true && current === m.id,
-      click: () => {
-        cfg.mutate((c) => {
-          c.settings.overlay.global = false
-          c.settings.overlay.modelId = m.id
-        })
-      }
+      click: () => settingsService.update({ overlayGlobal: false, overlayModelId: m.id })
     }))
   ]
 }
@@ -261,11 +255,7 @@ export function showMenu(): void {
   const settings = cfg.get().settings
   const unlock: Electron.MenuItemConstructorOptions = {
     label: '解锁位置',
-    click: () => {
-      cfg.mutate((c) => {
-        c.settings.overlay.locked = false
-      })
-    }
+    click: () => settingsService.update({ overlayLocked: false })
   }
   // 锁定时只给「解锁位置」，其余项都收起来
   const template: Electron.MenuItemConstructorOptions[] = settings.overlay.locked
@@ -274,11 +264,7 @@ export function showMenu(): void {
         { label: '选择模型', submenu: modelSubmenu() },
         {
           label: '锁定位置',
-          click: () => {
-            cfg.mutate((c) => {
-              c.settings.overlay.locked = true
-            })
-          }
+          click: () => settingsService.update({ overlayLocked: true })
         },
         {
           label: '外观',
@@ -288,9 +274,7 @@ export function showMenu(): void {
               type: 'radio',
               checked: settings.overlay.theme !== 'light',
               click: () => {
-                cfg.mutate((c) => {
-                  c.settings.overlay.theme = 'dark'
-                })
+                settingsService.update({ overlayTheme: 'dark' })
               }
             },
             {
@@ -298,9 +282,7 @@ export function showMenu(): void {
               type: 'radio',
               checked: settings.overlay.theme === 'light',
               click: () => {
-                cfg.mutate((c) => {
-                  c.settings.overlay.theme = 'light'
-                })
+                settingsService.update({ overlayTheme: 'light' })
               }
             }
           ]
@@ -313,9 +295,7 @@ export function showMenu(): void {
               type: 'checkbox',
               checked: settings.overlay.showProvider !== false,
               click: () => {
-                cfg.mutate((c) => {
-                  c.settings.overlay.showProvider = !c.settings.overlay.showProvider
-                })
+                settingsService.update({ overlayShowProvider: !settings.overlay.showProvider })
               }
             },
             {
@@ -323,9 +303,7 @@ export function showMenu(): void {
               type: 'checkbox',
               checked: settings.overlay.showModel !== false,
               click: () => {
-                cfg.mutate((c) => {
-                  c.settings.overlay.showModel = !c.settings.overlay.showModel
-                })
+                settingsService.update({ overlayShowModel: !settings.overlay.showModel })
               }
             },
             {
@@ -333,9 +311,7 @@ export function showMenu(): void {
               type: 'checkbox',
               checked: settings.overlay.showCost !== false,
               click: () => {
-                cfg.mutate((c) => {
-                  c.settings.overlay.showCost = !c.settings.overlay.showCost
-                })
+                settingsService.update({ overlayShowCost: !settings.overlay.showCost })
               }
             }
           ]
@@ -343,8 +319,4 @@ export function showMenu(): void {
       ]
   const menu = Menu.buildFromTemplate(template)
   menu.popup({ window: win })
-}
-
-export function notify(): void {
-  send('overlay:ping', Date.now())
 }

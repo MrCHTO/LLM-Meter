@@ -2,22 +2,23 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs'
 import { configPath, ensureDirs } from './paths'
 import * as token from '../security/token'
+import { LIMITS, clampInt, clampRate } from '../../shared/limits'
 import type { ConfigFile, ModelCfg, Provider, Settings } from '../../shared/types'
 
 const DEFAULT_SETTINGS: Settings = {
-  port: 8787,
+  port: LIMITS.port.fallback,
   allowLan: false,
-  usdCny: 7.2,
+  usdCny: LIMITS.usdCny.fallback,
   usdCnyDate: '',
   localToken: '',
   localKey: null,
   tokens: [],
-  retentionDays: 30,
-  rollupRetentionDays: 365,
+  retentionDays: LIMITS.retentionDays.fallback,
+  rollupRetentionDays: LIMITS.rollupRetentionDays.fallback,
   overlay: {
     x: null,
     y: null,
-    width: 320,
+    width: LIMITS.overlayWidth.fallback,
     visible: true,
     modelId: null,
     global: false,
@@ -27,12 +28,12 @@ const DEFAULT_SETTINGS: Settings = {
     showModel: true,
     showCost: true
   },
-  overlayOpacity: 100,
+  overlayOpacity: LIMITS.overlayOpacity.fallback,
   startMinimized: false,
   startAtLogin: false,
   theme: 'system',
   autoCalibrate: true,
-  autoProbeIntervalSec: 300,
+  autoProbeIntervalSec: LIMITS.autoProbeIntervalSec.fallback,
   lastCalibrate: null
 }
 
@@ -59,9 +60,6 @@ function num(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback
 }
 
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v))
-}
 
 function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback
@@ -135,19 +133,19 @@ function normalize(raw: unknown): ConfigFile {
   const keep = storedToken.startsWith('sk-') && (!signed || storedKey !== null)
   const issued = keep ? null : token.issue()
   const settings: Settings = {
-    port: clamp(Math.round(num(os.port, DEFAULT_SETTINGS.port)), 1024, 65535),
+    port: clampInt('port', num(os.port, LIMITS.port.fallback)),
     allowLan: os.allowLan === true,
-    usdCny: clamp(num(os.usdCny, DEFAULT_SETTINGS.usdCny), 1, 20),
+    usdCny: clampRate(num(os.usdCny, LIMITS.usdCny.fallback)),
     usdCnyDate: /^\d{4}-\d{2}-\d{2}$/.test(str(os.usdCnyDate)) ? str(os.usdCnyDate) : '',
     localToken: keep ? storedToken : issued!.token,
     localKey: keep ? (signed ? storedKey : null) : null,
     tokens: [],
-    retentionDays: clamp(Math.round(num(os.retentionDays, DEFAULT_SETTINGS.retentionDays)), 1, 3650),
-    rollupRetentionDays: clamp(Math.round(num(os.rollupRetentionDays, DEFAULT_SETTINGS.rollupRetentionDays)), 1, 3650),
+    retentionDays: clampInt('retentionDays', num(os.retentionDays, LIMITS.retentionDays.fallback)),
+    rollupRetentionDays: clampInt('rollupRetentionDays', num(os.rollupRetentionDays, LIMITS.rollupRetentionDays.fallback)),
     overlay: {
       x: typeof ov.x === 'number' ? ov.x : null,
       y: typeof ov.y === 'number' ? ov.y : null,
-      width: clamp(Math.round(num(ov.width, DEFAULT_SETTINGS.overlay.width)), 240, 720),
+      width: clampInt('overlayWidth', num(ov.width, LIMITS.overlayWidth.fallback)),
       visible: ov.visible !== false,
       modelId: typeof ov.modelId === 'string' && ov.modelId ? ov.modelId : null,
       global: ov.global === true,
@@ -157,12 +155,12 @@ function normalize(raw: unknown): ConfigFile {
       showModel: ov.showModel !== false,
       showCost: ov.showCost !== false
     },
-    overlayOpacity: clamp(Math.round(num(os.overlayOpacity, DEFAULT_SETTINGS.overlayOpacity)), 10, 100),
+    overlayOpacity: clampInt('overlayOpacity', num(os.overlayOpacity, LIMITS.overlayOpacity.fallback)),
     startMinimized: os.startMinimized === true,
     startAtLogin: os.startAtLogin === true,
     theme: os.theme === 'light' || os.theme === 'dark' ? os.theme : 'system',
     autoCalibrate: os.autoCalibrate !== false,
-    autoProbeIntervalSec: clamp(Math.round(num(os.autoProbeIntervalSec, 300)), 60, 3600),
+    autoProbeIntervalSec: clampInt('autoProbeIntervalSec', num(os.autoProbeIntervalSec, LIMITS.autoProbeIntervalSec.fallback)),
     lastCalibrate:
       os.lastCalibrate && typeof os.lastCalibrate === 'object'
         ? (os.lastCalibrate as { at: number; rate: number; updated: number; missed: number })
