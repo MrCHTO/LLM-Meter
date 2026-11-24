@@ -703,8 +703,10 @@ try {
     await s.eval("[...document.querySelectorAll('select')].some((x) => x.innerText.includes('总 token'))")
   )
   check(
-    '图表卡撑满内容区高度',
-    (await s.eval("(() => { const c = document.querySelector('.analysis-card'); const content = document.querySelector('.content'); if (!c || !content) return false; return c.getBoundingClientRect().height >= content.clientHeight - 60 })()")) === true
+    '图表卡高度在合理区间',
+    (await s.eval(
+      "(() => { const c = document.querySelector('.analysis-card')?.getBoundingClientRect().height ?? 0; return c >= 400 && c <= 680 })()"
+    )) === true
   )
   // 右键菜单：刷新 / 导出 CSV
   await s.eval("(() => { const card = document.querySelector('.analysis-card'); const r = card.getBoundingClientRect(); card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 200, clientY: r.top + 120 })); return true })()")

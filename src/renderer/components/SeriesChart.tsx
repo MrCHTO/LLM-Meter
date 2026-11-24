@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '../analysis.css'
 
 export interface SeriesItem {
@@ -21,8 +21,8 @@ interface Props {
   onToggle: (key: string) => void
 }
 
-const W = 1000
-const H = 260
+const DEFAULT_W = 1000
+const DEFAULT_H = 260
 const PAD = { top: 12, right: 12, bottom: 22, left: 62 }
 
 /** 挑一个好看的刻度步长（1 / 2 / 2.5 / 5 × 10ⁿ），整数指标至少为 1。 */
@@ -37,6 +37,23 @@ function niceStep(peak: number, integer: boolean): number {
 /** 多序列时间轴分组柱状图，纯 SVG：自适应 Y 轴、图例隐藏、悬停十字线。 */
 export function SeriesChart({ buckets, series, format, timeFormat, integer = false, onToggle }: Props): JSX.Element {
   const [hover, setHover] = useState<number | null>(null)
+  // 视口按容器实际像素设置，柱子不会被纵向拉长
+  const [box, setBox] = useState({ w: DEFAULT_W, h: DEFAULT_H })
+  const roRef = useRef<ResizeObserver | null>(null)
+  const plotRef = useCallback((el: HTMLDivElement | null) => {
+    roRef.current?.disconnect()
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect()
+      if (r.width < 50 || r.height < 50) return
+      setBox((prev) => (Math.abs(prev.w - r.width) < 1 && Math.abs(prev.h - r.height) < 1 ? prev : { w: r.width, h: r.height }))
+    })
+    ro.observe(el)
+    roRef.current = ro
+  }, [])
+  useEffect(() => () => roRef.current?.disconnect(), [])
+  const W = box.w
+  const H = box.h
 
   const visible = series.filter((s) => !s.hidden)
   const peak = useMemo(() => {
@@ -78,7 +95,7 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
 
   return (
     <div className="series-wrap">
-      <div className="chart-plot">
+      <div className="chart-plot" ref={plotRef}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="series-svg"
