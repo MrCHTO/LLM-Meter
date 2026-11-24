@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { ConfigView } from '../../shared/types'
+import { useApp, useConfig } from '../state/AppState'
+
 import { LIMITS, clampInt } from '../../shared/limits'
 
-interface Props {
-  config: ConfigView
-  notify: (text: string, kind?: 'ok' | 'bad') => void
-  onChanged: () => Promise<void>
-}
 
-export function Access({ config, notify, onChanged }: Props): JSX.Element {
+export function Access(): JSX.Element {
+  const config = useConfig()
+  const { notify, reload: onChanged } = useApp()
   const [remark, setRemark] = useState('')
   const [modal, setModal] = useState(false)
   const [busy, setBusy] = useState(false)

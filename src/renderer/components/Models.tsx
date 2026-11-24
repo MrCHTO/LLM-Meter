@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { ApiFormat, ConfigView, LiveSnapshot, ModelCfg, ProviderView } from '../../shared/types'
+import { useApp, useConfig } from '../state/AppState'
+import type { ApiFormat, ModelCfg, ProviderView } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney, fmtMs } from '../../shared/format'
 import { Confirm, useConfirm } from './Confirm'
 import { useColumnWidths } from '../columns'
-
-interface Props {
-  config: ConfigView
-  snapshot: LiveSnapshot | null
-  notify: (text: string, kind?: 'ok' | 'bad') => void
-  onChanged: () => Promise<void>
-}
 
 interface ProviderDraft {
   id?: string
@@ -51,7 +45,9 @@ function emptyModel(providerId: string): ModelDraft {
   }
 }
 
-export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Element {
+export function Models(): JSX.Element {
+  const config = useConfig()
+  const { snapshot, notify, reload: onChanged } = useApp()
   const [provider, setProvider] = useState<ProviderDraft | null>(null)
   const [model, setModel] = useState<ModelDraft | null>(null)
   const [busy, setBusy] = useState(false)

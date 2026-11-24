@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AppLog, ConfigView, LogPage, LogQuery, RequestLog } from '../../shared/types'
+import { useApp, useConfig } from '../state/AppState'
+import type { AppLog, LogPage, LogQuery, RequestLog } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtTokens } from '../../shared/format'
 import { fmtClock } from '../../shared/date'
 import { useColumnWidths } from '../columns'
 
 interface Props {
-  config: ConfigView
-  notify: (text: string, kind?: 'ok' | 'bad') => void
   initialModelId?: string | null
 }
 
@@ -38,7 +37,9 @@ function localInput(ts: number): string {
   return d.toISOString().slice(0, 16)
 }
 
-export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
+export function Logs({ initialModelId }: Props): JSX.Element {
+  const config = useConfig()
+  const { notify } = useApp()
   const [kind, setKind] = useState<Kind>('request')
   const [preset, setPreset] = useState<Preset>('24h')
   const [customFrom, setCustomFrom] = useState(() => localInput(Date.now() - 86_400_000))

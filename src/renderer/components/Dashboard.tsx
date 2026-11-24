@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import type { ConfigView, LiveSnapshot, ModelLive, StatsRow } from '../../shared/types'
+import { useApp, useConfig } from '../state/AppState'
+import type { ModelLive, StatsRow } from '../../shared/types'
 import { fmtMoney, fmtPct, fmtTokens } from '../../shared/format'
 import { useColumnWidths } from '../columns'
 import { MultiRate, rateColor } from './MultiRate'
 import { Sparkline } from './Sparkline'
 
 interface Props {
-  snapshot: LiveSnapshot | null
-  config: ConfigView
-  notify: (text: string, kind?: 'ok' | 'bad') => void
-  onChanged: () => Promise<void>
   onOpenLogs: (modelId: string) => void
+  goLogs: () => void
 }
 
 interface MenuState {
@@ -37,7 +35,9 @@ function ChartPanel(props: { title: string; buckets: number[]; reqPerSec?: strin
 
 type Range = 'today' | '24h' | 'week' | 'month'
 
-export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: Props): JSX.Element {
+export function Dashboard({ onOpenLogs, goLogs }: Props): JSX.Element {
+  const config = useConfig()
+  const { snapshot, notify, reload: onChanged } = useApp()
   const [probing, setProbing] = useState<Record<string, boolean>>({})
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -278,7 +278,10 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               return (
                 <tr
                   key={m.modelId}
-                  onClick={() => onOpenLogs(m.modelId)}
+                  onClick={() => {
+                    onOpenLogs(m.modelId)
+                    goLogs()
+                  }}
                   onDragStart={(e) => {
                     e.dataTransfer?.setData('text/plain', m.modelId)
                     setDragId(m.modelId)
@@ -401,7 +404,14 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
           >
             {config.models.find((m) => m.id === menu.modelId)?.showRate === false ? '显示曲线图' : '隐藏曲线图'}
           </button>
-          <button onClick={() => onOpenLogs(menu.modelId)}>查看日志</button>
+          <button
+            onClick={() => {
+              onOpenLogs(menu.modelId)
+              goLogs()
+            }}
+          >
+            查看日志
+          </button>
         </div>
       ) : null}
     </div>

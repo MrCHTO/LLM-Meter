@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useApp } from '../state/AppState'
 import type { StatsGranularity, StatsGroup, StatsMetric, StatsSeries } from '../../shared/types'
 import { fmtMoney, fmtTokens } from '../../shared/format'
 import { dayKey, dayStart } from '../../shared/date'
@@ -6,10 +7,6 @@ import { ActivityHeatmap } from './ActivityHeatmap'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
 import { TrendChart, type TrendSeries } from './TrendChart'
 import { UsageDonut, type UsageRow } from './UsageDonut'
-
-interface Props {
-  notify: (text: string, kind?: 'ok' | 'bad') => void
-}
 
 type Preset = 'today' | '24h' | '7d' | 'custom'
 type UsageRange = 7 | 30
@@ -49,7 +46,8 @@ function granularityOf(span: number): StatsGranularity {
 
 const DAY_MS = 86_400_000
 
-export function Analysis({ notify }: Props): JSX.Element {
+export function Analysis(): JSX.Element {
+  const { notify } = useApp()
   const [preset, setPreset] = useState<Preset>('24h')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')

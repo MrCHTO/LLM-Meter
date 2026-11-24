@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { ConfigView } from '../../shared/types'
+import { useApp, useConfig } from '../state/AppState'
+
 import { LIMITS, clampInt } from '../../shared/limits'
 
-interface Props {
-  config: ConfigView
-  notify: (text: string, kind?: 'ok' | 'bad') => void
-  onChanged: () => Promise<void>
-}
-
-export function SettingsView({ config, notify, onChanged }: Props): JSX.Element {
+export function SettingsView(): JSX.Element {
+  const config = useConfig()
+  const { notify, reload: onChanged } = useApp()
   const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
   const [probeInterval, setProbeInterval] = useState(String(config.settings.autoProbeIntervalSec))
