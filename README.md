@@ -1,111 +1,69 @@
 # LLM Meter
 
-本机的大模型流量计量器。它在本机起一个 OpenAI / Anthropic 格式的入口，把客户端请求转发到真实上游，同时记录每个模型的 token 用量、首字延迟、每秒 token 产出、缓存命中率和折算成本，用主窗口和置顶悬浮窗实时显示，并能在「分析」页看年度 Token 活动、每日趋势与模型用量占比，按区间查历史流量、按模型或供应商出图、导出 CSV。
+## 项目概述
 
-真实 API Key 只存在本应用里（Windows DPAPI 加密），客户端只拿本地 token，所以换中转站或换 key 时所有客户端一处都不用改。
+本机的大模型流量计量器：在本机起 OpenAI / Anthropic 兼容入口，把请求转发到真实上游，同时记录 token、首字延迟、tok/s、缓存命中率与人民币成本，提供仪表盘、分析、置顶悬浮胶囊与托盘常驻。
 
-## 两条数据来源
+技术栈：Electron 45 + React 18 + TypeScript，electron-vite 构建，`node:sqlite` 存库，配置为 DPAPI 加密的 `config.json`。应用入口 `src/main/index.ts`，代理前缀 `/openai/v1` 与 `/anthropic`，默认端口 `8787`（被占用时自动顺延，实际端口在「接入」页可见）。
 
-| 来源 | 说明 |
-|---|---|
-| 代理 | 客户端把 Base URL 指过来，真实请求被转发并逐条记录真实 usage |
-| 测速 | 手动点「测速」，用同一段长前缀连发两次，第二次的缓存读取量就是缓存有没有生效的答案 |
+真实 API Key 只存在本应用里，客户端只拿本地 token；只有走代理的流量会被记录，网页版直连或未改 Base URL 的工具看不到。
 
-只有走代理的流量会被记录。网页版直连、或没改 Base URL 的工具，这里看不到。
+当前版本 `0.14.0`，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
-## 快速开始
+## 目录结构
 
-```bash
-npm install          # 或 pnpm install
-npm run dev          # 开发
-npm run build        # 产出 out/
-npm run dist         # 出 Windows 安装包（dist/）
-npm test             # 单元测试
-```
+- `src/main/`：主进程。`proxy/`（转发与协议适配）、`probe/`（测速、自动探活、供应商连通性）、`store/`（配置、实时指标、`db/` 与迁移）、`windows/`（主窗、胶囊、托盘）、`security/`（DPAPI、token、日志脱敏）、`settings/`（设置服务）、`ipc/`（按域拆分的通道注册）、`pricing/`、`export/`、`dev/`。
+- `src/preload/index.ts`：contextBridge 暴露的 `window.api`。
+- `src/renderer/`：React 页面（仪表盘、分析、模型与供应商、接入、日志、设置）、独立胶囊页 `overlay.tsx`、`state/` 应用状态、`components/models/` 表单、`lib/`。
+- `src/shared/`：跨进程类型、IPC 契约（`ipc/contract.ts`）、边界表（`limits.ts`）、格式化与日期工具。
+- `scripts/make-icons.mjs`：图标生成；`scripts/check/`：端到端、界面、安装版等回归脚本。
+- `test/`：vitest 用例；`resources/`：图标与安装脚本。
 
-安装版数据放在安装目录的 `data` 下（默认 `C:\Program Files\llm meter\data`），开发运行仍用 `%APPDATA%\llm-meter\data`；设置页有「打开目录」。
+## 环境要求
 
-## 接入客户端
+- Windows 10 及以上，x64。
+- Node.js 24 与 npm 12。
+- 打包需要写 `dist/` 的磁盘空间；已装 Electron 时打包不再联网下载。
 
-1. 「模型与供应商」→ 添加供应商：填 Base URL、选协议、填真实 Key。
-2. 添加模型：上游模型名填上游真实名字，别名随便取（客户端里填这个）。
-3. 「设置」里复制本地 token（形如 `sk-` + 32 位十六进制；重签后旧值立即失效，旧的签名票据仍可继续用）。
-4. 客户端配置：
-
-| 客户端字段 | 填什么 |
-|---|---|
-| Base URL | OpenAI：`http://127.0.0.1:8787/openai/v1`<br>Anthropic：`http://127.0.0.1:8787/anthropic` |
-| API Key | 本地 token |
-| model | 模型别名 |
-
-端口被占用时应用会自动顺延到下一个可用端口，实际端口在设置页和标题栏都能看到。
-
-## 指标口径
-
-| 指标 | 公式 |
-|---|---|
-| 缓存命中率 | 缓存读 token ÷ 输入 token 总量（输入已含缓存部分） |
-| tok/s | 请求进行中按 1 秒窗口显示；结束后显示该请求的生成速率（灰色），5 分钟后隐藏；表格列固定显示最近一次请求的生成速率；历史区间的 tok/s = 输出 token ÷ 生成窗口秒数 |
-| TTFT | 首个内容帧（含推理通道）− 请求发出；表格里给 P50 / P95 / P99，按今天的代理流量逐条算分位数（探针不计入） |
-| 成本 | (未命中输入×输入单价 + 输出×输出单价 + 缓存读×缓存读单价 + 缓存写×缓存写单价) ÷ 1e6，一律人民币；未命中输入 = 输入总量 − 缓存读 − 缓存写，缓存部分不按原价重复计费 |
-
-单价按每百万 token、以人民币填。新增模型时点「查价」会按模型名先取 models.dev 的厂商官方价，取不到再退回 OpenRouter 最低服务商价，按当天汇率折成人民币回填，查不到或超时留着手填。非流式请求没有首字时间，tok/s 记空，界面标「仅总时长」。失败的请求计错误数、token 记 0，仍会落一条明细。
-
-不同上游的缓存字段会被归一：OpenAI 的 `prompt_tokens_details.cached_tokens`、DeepSeek 的 `prompt_cache_hit_tokens`、Anthropic 的 `cache_read_input_tokens`。Anthropic 的 `input_tokens` 本身不含缓存，记录时会补成总量，保证命中率口径一致。
-
-上游压根没报缓存时（不少中转会把 `prompt_tokens_details` 置空），命中率会是 0 或「—」，这反映的是上游行为，不是本应用的 bug。用「测速」可以判定某家到底有没有偷偷关缓存。
-
-## 分析
-
-「分析」页把库里的流量按时间（今天 / 近 24 小时 / 近 7 天 / 自定义）、指标（请求数、总 token、输入 token、输出 token、成本）、分组（模型 / 供应商）做成多序列时间轴分组柱状图与分组合计，固定统计真实流量；0 值不画柱。TTFT 给 P50 / P95 / P99（按明细逐样本算分位数）。Top 10 按成本取，导出 CSV 带 BOM，Excel 直接能开。自动刷新是静默的，不会让按钮闪「查询中」。
-
-大区间默认走分钟或小时聚合，只有导出和 Top N 碰明细表。
-
-## 数据
-
-单个 SQLite 库 `llm-meter.db`（WAL；驱动是 Electron 内置的 `node:sqlite`，不需要原生模块和 electron-rebuild）：
-
-| 表/文件 | 内容 | 保留 |
-|---|---|---|
-| `config.json` | 供应商、模型、设置、悬浮窗位置（Key 是 DPAPI 密文） | 永久 |
-| `requests` | 每请求一行：tokens、TTFT、耗时、成本，附供应商名/地址/上游模型名与当时单价快照 | 默认 30 天 |
-| `rollup_minute` | 每分钟 × 模型 × 来源聚合 | 默认 365 天 |
-| `rollup_day` | 每日 × 模型 × 来源聚合 | 永久 |
-
-历史行冗余存供应商名、Base URL、上游模型名，删掉供应商或模型后历史仍可查。明细与两级聚合在同一个事务里写，不会出现「明细有、聚合缺」。
-
-启动时和每天 04:00 各清理一次过期行，随后 `PRAGMA incremental_vacuum`；清理量可在设置页手动触发。备份用 `VACUUM INTO` 出一致性快照，配置与库一并放进 `backups/`。
-
-从旧版升级时，首次启动会把 `events/*.jsonl` 与 `rollup/*.json` 分批事务导入，按明细 id 幂等（重复跑不叠加），原目录改名到 `data/legacy-imported/<时间戳>/` 留底。损坏的配置文件会改名留证并回落到空配置，坏行跳过。
-
-`node:sqlite` 在 Electron 45（Node 22）下已验证能建库、能 WAL 读写，探针留在 `test/sqlite-probe.cjs`。
-
-## 悬浮窗
-
-置顶、可拖到任意位置并记住位置（拔掉副屏会钳回主屏）、双击开主窗。右键菜单只在未锁定时给 选中模型、锁定位置、黑/白外观，锁定后只剩「解锁位置」；透明度只在主窗口设置里输数值（10–100，默认 100）。只显示勾了「在悬浮窗显示」的模型，只显示数字不含 prompt 内容。
-
-关主窗只是收到托盘，代理和悬浮窗继续跑；托盘菜单可打开主窗、隐藏/显示悬浮窗、开启/关闭局域网、重启代理或退出。
-
-## 测试
+## 安装与启动
 
 ```bash
-npm test                                                       # 单测：SSE 跨块分帧、usage 提取、成本、URL 拼接、配置容错、库写入与清理
-node test/e2e.mjs                                              # 假上游端到端，28 项（含库断言与 token 迁移）
-node test/ui-check.mjs                                         # CDP 驱动真实窗口 + 截图（test/shots），85 项
-node test/import-check.mjs <exe> <含 events/rollup 的备份目录>   # 打包产物的旧数据导入回归
-node test/installed-check.mjs                                   # 安装版实机核对（真实档案，会触发旧数据导入）
-node test/real-e2e.mjs <baseUrl> <key> <model>                  # 真实上游核对
-node test/cache-probe.mjs <baseUrl> <key> <model> identity      # 判断某家缓存是否生效
+npm ci            # 安装依赖
+npm run dev       # 开发运行
+npm run build     # 产出 out/
+npm test          # 单元测试
+npm run lint      # 静态检查
+npm run typecheck # 类型检查
+npm run dist      # 出 Windows 安装包（dist/）
 ```
 
-## 已知边界
+界面与端到端核对用独立临时档案，不碰已安装实例与开发档案：
 
-- 默认只监听 `127.0.0.1`；打开设置里的「允许局域网访问」后改绑 `0.0.0.0`，同网段可用局域网地址访问，凭据仍是本地 token（首次绑定可能弹防火墙授权）。
-- 代理是常驻进程，关掉应用入口就断。
-- 上游 300 秒未完成会超时中断并记 `timeout`。
-- 请求体上限 64MB。
-- 测速不发 temperature（个别模型只接受固定值），遇 429 会按 Retry-After 退避重试两次；仍失败多为账号 TPM/RPM 用满，隔一分钟再测。
+```bash
+node scripts/check/e2e.mjs          # 假上游端到端
+node scripts/check/ui-check.mjs     # CDP 驱动真实窗口并截图
+node scripts/check/installed-check.mjs          # 安装版只读核对
+node scripts/check/real-e2e.mjs <baseUrl> <key> <model>
+node scripts/check/cache-probe.mjs <baseUrl> <key> <model> identity
+```
 
-## 变更记录
+## 配置说明
 
-当前版本 **v0.13.1**。完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
+配置存放在数据目录的 `config.json`：供应商、模型、设置与悬浮窗位置，API Key 是 DPAPI 密文（`safeStorage` 不可用时为 `raw:` 前缀明文）。界面上的入口：
+
+- 「模型与供应商」：供应商 Base URL、协议、真实 Key；模型上游名、别名与单价（每百万 token，人民币）。
+- 「接入」：监听端口、局域网开关、本地 token 管理与复制。
+- 「设置」：主题、悬浮窗外观与透明度、保留期、自动校准、开机自启、备份与打开数据目录。
+
+数据目录：安装版为安装目录下 `data/`（默认 `C:\Program Files\llm meter\data`），开发与测试为 `%APPDATA%\llm-meter\data`；安装目录不可写时自动退回用户目录。数据库 `llm-meter.db` 为单文件 WAL，明细默认保留 30 天、分钟聚合 365 天，启动与每日 04:00 清理，备份用 `VACUUM INTO` 出一致性快照。
+
+默认只监听 `127.0.0.1`，开启局域网后改绑 `0.0.0.0`（首次可能弹防火墙授权），凭据仍是本地 token。
+
+## 部署说明
+
+打包走 `electron-builder` 的 NSIS 目标：`npm run dist` 产出 `dist/LLM Meter-<version>-setup.exe`，全机安装到 `C:\Program Files\llm meter`，卸载时保留 `data`。
+
+- 版本一致性：`package.json` 的 `version` 是唯一来源，`app.getVersion()` 直接读取；发版须同步 `CHANGELOG.md` 顶部条目与 README 里出现的版本号。
+- 升级前先让用户退出正在运行的实例，再静默安装，避免覆盖运行中的文件。
+- 运行日志写入库表 `app_logs` 并由日志页展示，随明细保留期一起清理；`LLM_METER_DEBUG=1` 时额外把上游头（鉴权头已脱敏）、请求体与 usage 打到控制台，并把请求体写到 `%TEMP%\llmmeter-body.json`。
+- 代理是常驻进程：关掉应用入口就断；上游 300 秒未完成会中断并记 `timeout`；请求体上限 64MB。
