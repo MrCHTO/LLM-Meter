@@ -99,6 +99,30 @@ function textOf(delta: Record<string, unknown> | null): string {
 
 /* ------------------------------------------------------------------ OpenAI */
 
+/** usage 字段归一，流式帧与非流式响应共用 */
+function openaiUsage(usage: Record<string, unknown>): {
+  usage: Partial<Usage>
+  reportedCacheInput: boolean
+  reportedCacheRead: boolean
+} {
+  const details = asRecord(usage.prompt_tokens_details)
+  return {
+    reportedCacheInput:
+      'cache_write_tokens' in usage ||
+      'cache_creation_tokens' in (details ?? {}) ||
+      'cache_write_tokens' in (details ?? {}),
+    // 渠道把 details 置空（GLM 渠道恒 null）时视为未上报缓存读，界面显示 — 而不是误导性的 0.00%
+    reportedCacheRead: details !== null || num(usage.prompt_cache_hit_tokens) > 0,
+    usage: {
+      input: num(usage.prompt_tokens),
+      output: num(usage.completion_tokens),
+      cacheRead: num(details?.cached_tokens) || num(usage.prompt_cache_hit_tokens),
+      cacheInput:
+        num(usage.cache_write_tokens) || num(details?.cache_creation_tokens) || num(details?.cache_write_tokens)
+    }
+  }
+}
+
 const openai: Adapter = {
   format: 'openai',
   auth: (key) => ({ authorization: `Bearer ${key}` }),
@@ -129,23 +153,10 @@ const openai: Adapter = {
 
       const usage = asRecord(parsed.usage)
       if (usage) {
-        const details = asRecord(usage.prompt_tokens_details)
-        const cached = num(details?.cached_tokens) || num(usage.prompt_cache_hit_tokens)
-        const reported =
-          'cache_write_tokens' in usage ||
-          'cache_creation_tokens' in (details ?? {}) ||
-          'cache_write_tokens' in (details ?? {})
-        const written =
-          num(usage.cache_write_tokens) || num(details?.cache_creation_tokens) || num(details?.cache_write_tokens)
-        info.reportedCacheInput = reported
-        // 渠道把 details 置空（GLM 渠道恒 null）时视为未上报缓存读，界面显示 — 而不是误导性的 0.00%
-        info.reportedCacheRead = details !== null || num(usage.prompt_cache_hit_tokens) > 0
-        info.usage = {
-          input: num(usage.prompt_tokens),
-          output: num(usage.completion_tokens),
-          cacheRead: cached,
-          cacheInput: written
-        }
+        const out = openaiUsage(usage)
+        info.reportedCacheInput = out.reportedCacheInput
+        info.reportedCacheRead = out.reportedCacheRead
+        info.usage = out.usage
       }
 
       const choices = parsed.choices
@@ -166,21 +177,7 @@ const openai: Adapter = {
     const parsed = parseJson(body)
     const usage = asRecord(parsed?.usage)
     if (!usage) return null
-    const details = asRecord(usage.prompt_tokens_details)
-    return {
-      reportedCacheInput:
-        'cache_write_tokens' in usage ||
-        'cache_creation_tokens' in (details ?? {}) ||
-        'cache_write_tokens' in (details ?? {}),
-      reportedCacheRead: details !== null || num(usage.prompt_cache_hit_tokens) > 0,
-      usage: {
-        input: num(usage.prompt_tokens),
-        output: num(usage.completion_tokens),
-        cacheRead: num(details?.cached_tokens) || num(usage.prompt_cache_hit_tokens),
-        cacheInput:
-          num(usage.cache_write_tokens) || num(details?.cache_creation_tokens) || num(details?.cache_write_tokens)
-      }
-    }
+    return openaiUsage(usage)
   },
 
   errorOf(body) {
@@ -189,6 +186,27 @@ const openai: Adapter = {
 }
 
 /* --------------------------------------------------------------- Anthropic */
+
+/** usage 字段归一，流式帧与非流式响应共用 */
+function anthropicUsage(usage: Record<string, unknown>): {
+  usage: Partial<Usage>
+  reportedCacheInput: boolean
+  reportedCacheRead: boolean
+} {
+  const read = num(usage.cache_read_input_tokens)
+  const write = num(usage.cache_creation_input_tokens)
+  return {
+    reportedCacheInput: 'cache_creation_input_tokens' in usage,
+    reportedCacheRead: 'cache_read_input_tokens' in usage,
+    usage: {
+      // Anthropic 的 input_tokens 不含缓存部分，统一补成总量
+      input: num(usage.input_tokens) + read + write,
+      output: num(usage.output_tokens),
+      cacheRead: read,
+      cacheInput: write
+    }
+  }
+}
 
 const anthropic: Adapter = {
   format: 'anthropic',
@@ -218,17 +236,10 @@ const anthropic: Adapter = {
       const message = asRecord(parsed.message)
       const startUsage = asRecord(message?.usage) ?? asRecord(parsed.usage)
       if (startUsage) {
-        const read = num(startUsage.cache_read_input_tokens)
-        const write = num(startUsage.cache_creation_input_tokens)
-        info.reportedCacheInput = 'cache_creation_input_tokens' in startUsage
-        info.reportedCacheRead = 'cache_read_input_tokens' in startUsage
-        info.usage = {
-          // Anthropic 的 input_tokens 不含缓存部分，统一补成总量
-          input: num(startUsage.input_tokens) + read + write,
-          output: num(startUsage.output_tokens),
-          cacheRead: read,
-          cacheInput: write
-        }
+        const out = anthropicUsage(startUsage)
+        info.reportedCacheInput = out.reportedCacheInput
+        info.reportedCacheRead = out.reportedCacheRead
+        info.usage = out.usage
       }
 
       // message_delta 带输出侧 usage（只给 output，其余沿用 message_start）
@@ -251,18 +262,7 @@ const anthropic: Adapter = {
     const parsed = parseJson(body)
     const usage = asRecord(asRecord(parsed?.message)?.usage) ?? asRecord(parsed?.usage)
     if (!usage) return null
-    const read = num(usage.cache_read_input_tokens)
-    const write = num(usage.cache_creation_input_tokens)
-    return {
-      reportedCacheInput: 'cache_creation_input_tokens' in usage,
-      reportedCacheRead: 'cache_read_input_tokens' in usage,
-      usage: {
-        input: num(usage.input_tokens) + read + write,
-        output: num(usage.output_tokens),
-        cacheRead: read,
-        cacheInput: write
-      }
-    }
+    return anthropicUsage(usage)
   },
 
   errorOf(body) {

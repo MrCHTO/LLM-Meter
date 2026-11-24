@@ -4,15 +4,15 @@ import { fmtMoney, fmtTokens } from '../src/shared/format'
 
 describe('命中率', () => {
   it('缓存读取 / 输入总量', () => {
-    expect(hitRate({ input: 1200, uncached: 120, output: 0, cacheRead: 1080, cacheInput: 0 })).toBeCloseTo(0.9)
+    expect(hitRate(1080, 1200)).toBeCloseTo(0.9)
   })
 
   it('没有输入时为 null', () => {
-    expect(hitRate({ input: 0, uncached: 0, output: 10, cacheRead: 0, cacheInput: 0 })).toBeNull()
+    expect(hitRate(0, 0)).toBeNull()
   })
 
   it('全部命中为 1', () => {
-    expect(hitRate({ input: 500, uncached: 0, output: 0, cacheRead: 500, cacheInput: 0 })).toBe(1)
+    expect(hitRate(500, 500)).toBe(1)
   })
 })
 

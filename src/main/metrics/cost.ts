@@ -34,8 +34,9 @@ export function normalizeUsage(input: number, cacheRead: number, cacheInput: num
   }
 }
 
-export function hitRate(u: Usage): number | null {
-  return u.input > 0 ? u.cacheRead / u.input : null
+/** 命中率 = 缓存读 / 输入总量；输入为 0 时 null */
+export function hitRate(cacheRead: number, input: number): number | null {
+  return input > 0 ? cacheRead / input : null
 }
 
 export function tps(output: number, durationMs: number, ttftMs: number | null): number | null {

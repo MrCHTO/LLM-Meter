@@ -1,56 +1,14 @@
 import type { DayPoint, LiveSnapshot, ModelLive, RequestEvent, SnapshotTotals, TodayTotals } from '../../shared/types'
+export { BUCKETS } from './live/types'
+import { BUCKETS, COEF_CJK, COEF_OTHER, RECENT_MAX, type ModelState } from './live/types'
+import { coefOf, pushTtftSample, realtimeOf, tpsOf, ttftPct } from './live/metrics'
 import * as cfg from './config'
 import * as db from './db'
-import { tps } from '../metrics/cost'
+import { hitRate, tps } from '../metrics/cost'
 import * as repo from './db/repo'
 import { dayKey } from '../../shared/date'
 
 /** 曲线窗口秒数：每格 1 秒，3 分钟 */
-export const BUCKETS = 180
-const RECENT_MAX = 200
-/** tok/s 按 1 秒窗口：最近 1 秒桶里的输出 token 数 */
-const TPS_WINDOW = 1
-/** 实时速率窗口：只看最近 2 秒的增量估算 */
-const DELTA_WINDOW_MS = 2000
-/** 中文/英文每 token 的字符数默认值，会按完成请求的真实 usage 校正 */
-const COEF_CJK = 1.7
-const COEF_OTHER = 3.8
-/** TTFT 分位数的样本上限，够估 P99 又不至于无限涨 */
-const TTFT_SAMPLES_MAX = 500
-
-interface ModelState {
-  buckets: number[]
-  /** 每秒请求数，供请求曲线用 */
-  reqBuckets: number[]
-  bucketSecond: number
-  today: TodayTotals
-  lastError: string | null
-  lastErrorAt: number | null
-  lastTtftMs: number | null
-  lastTps: number | null
-  lastTpsAt: number | null
-  /** 今天的 TTFT 样本，重启时从明细回灌 */
-  ttftSamples: number[]
-  probing: boolean
-  probeFails: number
-  lastProbeAt: number | null
-  lastProbeOk: boolean | null
-  /** 流式增量样本，用于实时估算速率 */
-  deltaSamples: { ts: number; tokens: number }[]
-  /** 每秒估算 token，供多模型实时曲线 */
-  deltaBuckets: number[]
-  deltaSecond: number
-  /** 当前生成开始时间；首字前为 null */
-  genStart: number | null
-  /** 本次生成累计的中英字符与默认估算量，结束后用于校正系数 */
-  genCjk: number
-  genOther: number
-  genEst: number
-  /** 已观察的真实输出 token 与真实字符，系数随完成请求收敛 */
-  calibObs: number
-  calibEst: number
-}
-
 const state = new Map<string, ModelState>()
 const recent: RequestEvent[] = []
 /** 进行中的请求数，驱动胶囊彩虹边框 */
@@ -76,14 +34,6 @@ export function end(modelId: string): void {
 }
 
 /** 当前模型的 token 估算系数（字符/token），随完成请求向真实比例收敛 */
-function coefOf(s: ModelState): { cjk: number; other: number } {
-  if (s.calibEst <= 0) return { cjk: COEF_CJK, other: COEF_OTHER }
-  // 先验 20 token，避免第一条请求把系数带飞
-  const ratio = Math.min(3, Math.max(0.5, (s.calibObs + 20) / (s.calibEst + 20)))
-  return { cjk: COEF_CJK / ratio, other: COEF_OTHER / ratio }
-}
-
-/** 流式增量到达：记样本与秒桶，供胶囊和曲线显示估算速率 */
 export function noteDelta(modelId: string, cjk: number, other: number): void {
   if (cjk <= 0 && other <= 0) return
   const s = ensure(modelId)
@@ -104,16 +54,6 @@ export function noteDelta(modelId: string, cjk: number, other: number): void {
   }
   const idx = BUCKETS - 1
   s.deltaBuckets[idx] = (s.deltaBuckets[idx] ?? 0) + tokens
-}
-
-function realtimeOf(s: ModelState, now: number): number | null {
-  if (s.genStart === null) return null
-  while (s.deltaSamples.length && (s.deltaSamples[0] as { ts: number }).ts < now - DELTA_WINDOW_MS) {
-    s.deltaSamples.shift()
-  }
-  const sum = s.deltaSamples.reduce((a, b) => a + b.tokens, 0)
-  const span = Math.min(DELTA_WINDOW_MS, Math.max(500, now - s.genStart)) / 1000
-  return sum / span
 }
 
 function blankToday(): TodayTotals {
@@ -313,19 +253,6 @@ export function record(ev: RequestEvent): void {
   if (recent.length > RECENT_MAX) recent.length = RECENT_MAX
 }
 
-function pushTtftSample(s: ModelState, ms: number): void {
-  s.ttftSamples.push(ms)
-  if (s.ttftSamples.length > TTFT_SAMPLES_MAX) s.ttftSamples.shift()
-}
-
-/** 最近邻法分位数，无样本返回 null */
-function ttftPct(samples: number[], p: number): number | null {
-  if (samples.length === 0) return null
-  const sorted = [...samples].sort((a, b) => a - b)
-  const idx = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)
-  return Math.round(sorted[Math.max(0, idx)] ?? sorted[sorted.length - 1] ?? 0)
-}
-
 function describe(ev: RequestEvent): string {
   const label: Record<string, string> = {
     auth: '本地 token 不对',
@@ -367,11 +294,6 @@ export function recentFor(modelId: string, limit = 20): RequestEvent[] {
   }
 }
 
-export function tpsOf(s: ModelState): number {
-  const tail = s.buckets.slice(-TPS_WINDOW)
-  return tail.reduce((a, b) => a + b, 0) / TPS_WINDOW
-}
-
 export function snapshot(
   proxyRunning: boolean,
   proxyError: string | null,
@@ -404,13 +326,11 @@ export function snapshot(
       s.deltaSecond = second
     }
     const provider = providers.get(m.providerId)
-    const tps = tpsOf(s)
+    const rateNow = tpsOf(s)
     const realtimeTps = realtimeOf(s, now)
     // 渠道具备缓存读计数（有过上报或曾命中过）才显示数值；否则显示 — 而非误导性的 0.00%
-    const hitRate =
-      (s.today.cacheReadReported > 0 || s.today.cacheRead > 0) && s.today.input > 0
-        ? s.today.cacheRead / s.today.input
-        : null
+    const known = s.today.cacheReadReported > 0 || s.today.cacheRead > 0
+    const hit = known ? hitRate(s.today.cacheRead, s.today.input) : null
     models.push({
       modelId: m.id,
       alias: m.alias,
@@ -423,9 +343,9 @@ export function snapshot(
       showRate: m.showRate,
       buckets: [...s.buckets],
       deltaBuckets: [...s.deltaBuckets],
-      tps,
+      tps: rateNow,
       realtimeTps,
-      hitRate,
+      hitRate: hit,
       today: { ...s.today },
       lastError: s.lastError,
       lastErrorAt: s.lastErrorAt,
@@ -443,7 +363,7 @@ export function snapshot(
       lastProbeOk: s.lastProbeOk,
       probeFails: s.probeFails
     })
-    totals.tps += tps
+    totals.tps += rateNow
     for (let i = 0; i < BUCKETS; i++) {
       totals.buckets[i] = (totals.buckets[i] ?? 0) + (s.buckets[i] ?? 0)
       totals.reqBuckets[i] = (totals.reqBuckets[i] ?? 0) + (s.reqBuckets[i] ?? 0)
@@ -457,7 +377,7 @@ export function snapshot(
   const inputTotal = models.reduce((a, x) => a + x.today.input, 0)
   const cacheTotal = models.reduce((a, x) => a + x.today.cacheRead, 0)
   const readKnown = models.some((x) => x.today.cacheReadReported > 0 || x.today.cacheRead > 0)
-  totals.hitRate = readKnown && inputTotal > 0 ? cacheTotal / inputTotal : null
+  totals.hitRate = readKnown ? hitRate(cacheTotal, inputTotal) : null
 
   return {
     ts: now,
