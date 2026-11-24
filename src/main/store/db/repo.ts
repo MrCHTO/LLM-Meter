@@ -462,8 +462,9 @@ export function series(
   const stepMs = seconds * 1000
   // 先把整个区间的桶占满，空时段也占时间轴，曲线不会从一段直接跳到另一段
   if (granularity === 'day') {
-    const end = Date.parse(`${to}T00:00:00`)
-    let time = Date.parse(`${from}T00:00:00`)
+    // from/to 是毫秒时间戳，先换成日键再解析
+    const end = Date.parse(`${dayKeyOf(to)}T00:00:00`)
+    let time = Date.parse(`${dayKeyOf(from)}T00:00:00`)
     for (let guard = 0; guard < 5000 && time <= end; guard++) {
       index.set(time, buckets.length)
       buckets.push(time)
