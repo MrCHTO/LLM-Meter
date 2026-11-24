@@ -1,49 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useApp, useConfig } from '../state/AppState'
-import type { ApiFormat, ModelCfg, ProviderView } from '../../shared/types'
+import type { ModelCfg, ProviderView } from '../../shared/types'
+
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney, fmtMs } from '../../shared/format'
 import { Confirm, useConfirm } from './Confirm'
 import { useColumnWidths } from '../columns'
+import { EMPTY_PROVIDER, emptyModel, type ModelDraft, type ProviderDraft } from './models/drafts'
+import { ModelForm } from './models/ModelForm'
+import { ProviderForm } from './models/ProviderForm'
 
-interface ProviderDraft {
-  id?: string
-  name: string
-  baseUrl: string
-  format: ApiFormat
-  apiKey: string
-}
-
-const EMPTY_PROVIDER: ProviderDraft = { name: '', baseUrl: '', format: 'openai', apiKey: '' }
-
-interface ModelDraft {
-  id?: string
-  providerId: string
-  upstreamModel: string
-  alias: string
-  priceIn: string
-  priceOut: string
-  priceCacheRead: string
-  priceCacheInput: string
-  cacheInputSupported: boolean | null
-  currency: string
-  watch: boolean
-}
-
-function emptyModel(providerId: string): ModelDraft {
-  return {
-    providerId,
-    upstreamModel: '',
-    alias: '',
-    priceIn: '0',
-    priceOut: '0',
-    priceCacheRead: '0',
-    priceCacheInput: '0',
-    cacheInputSupported: null,
-    currency: 'CNY',
-    watch: true
-  }
-}
 
 export function Models(): JSX.Element {
   const config = useConfig()
@@ -541,197 +507,29 @@ export function Models(): JSX.Element {
         : null}
 
       {provider ? (
-        <div className="mask" onClick={() => setProvider(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{provider.id ? '编辑供应商' : '添加供应商'}</h3>
-            <div className="section" style={{ gap: 10 }}>
-              <label className="field">
-                <span>名称（必填）</span>
-                <input
-                  type="text"
-                  value={provider.name}
-                  placeholder="例如 我的中转站"
-                  onChange={(e) => setProvider({ ...provider, name: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>Base URL</span>
-                <input
-                  type="text"
-                  className="mono"
-                  value={provider.baseUrl}
-                  placeholder="https://relay.example.com"
-                  onChange={(e) => setProvider({ ...provider, baseUrl: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>协议</span>
-                <select
-                  value={provider.format}
-                  onChange={(e) => setProvider({ ...provider, format: e.target.value as ApiFormat })}
-                >
-                  <option value="openai">OpenAI（/v1/chat/completions）</option>
-                  <option value="anthropic">Anthropic Messages（/v1/messages）</option>
-                </select>
-              </label>
-              <label className="field">
-                <span>API Key {provider.id ? '（留空表示不改）' : ''}</span>
-                <input
-                  type="password"
-                  className="mono"
-                  value={provider.apiKey}
-                  placeholder="sk-..."
-                  onChange={(e) => setProvider({ ...provider, apiKey: e.target.value })}
-                />
-              </label>
-            </div>
-            <div className="actions">
-              <button className="btn" onClick={() => setProvider(null)}>
-                取消
-              </button>
-              <button className="btn primary" disabled={busy} onClick={() => void saveProvider()}>
-                保存
-              </button>
-            </div>
-          </div>
-        </div>
+        <ProviderForm
+          draft={provider}
+          busy={busy}
+          onChange={setProvider}
+          onSave={() => void saveProvider()}
+          onClose={() => setProvider(null)}
+        />
       ) : null}
 
       {model ? (
-        <div className="mask" onClick={() => setModel(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{model.id ? '编辑模型' : '添加模型'}</h3>
-            <div className="section" style={{ gap: 10 }}>
-              <label className="field">
-                <span>供应商</span>
-                <select value={model.providerId} onChange={(e) => setModel({ ...model, providerId: e.target.value })}>
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}（{FORMAT_LABEL[p.format]}）
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>上游模型名</span>
-                <div className="row">
-                  <input
-                    type="text"
-                    className="mono"
-                    value={model.upstreamModel}
-                    placeholder="deepseek/deepseek-v4.1-flash"
-                    onChange={(e) => {
-                      const value = e.target.value
-                      const follow = !model.id && (model.alias === '' || model.alias === model.upstreamModel)
-                      setModel({ ...model, upstreamModel: value, alias: follow ? value : model.alias })
-                      if (priceNote && value.trim() !== lookedUpFor) {
-                        setPriceNote('模型名已改，点「查价」按新名字重查')
-                      }
-                    }}
-                    onBlur={() => {
-                      const empty = !model.priceIn || Number(model.priceIn) === 0
-                      if (empty && model.upstreamModel.trim()) void lookupPrice(model.upstreamModel)
-                    }}
-                  />
-                  <button className="btn" onClick={() => void lookupPrice(model.upstreamModel)}>
-                    查价
-                  </button>
-                </div>
-              </label>
-              {priceNote ? <p className="hint">{priceNote}</p> : null}
-              <label className="field">
-                <span>别名（必填，客户端调用时用这个名字）</span>
-                <input
-                  type="text"
-                  className="mono"
-                  value={model.alias}
-                  placeholder="my-claude"
-                  onChange={(e) => setModel({ ...model, alias: e.target.value })}
-                />
-              </label>
-              <div className="grid-2">
-                <label className="field">
-                  <span>输入单价 / 百万 token / ¥</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={model.priceIn}
-                    onChange={(e) => setModel({ ...model, priceIn: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>输出单价 / 百万 token / ¥</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={model.priceOut}
-                    onChange={(e) => setModel({ ...model, priceOut: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>缓存读取单价 / 百万 token / ¥</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={model.priceCacheRead}
-                    onChange={(e) => setModel({ ...model, priceCacheRead: e.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>缓存输入单价 / 百万 token / ¥</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={writeField === 'no' ? '' : model.priceCacheInput}
-                    placeholder={writeField === 'no' ? '-' : undefined}
-                    disabled={writeField === 'no'}
-                    onChange={(e) => setModel({ ...model, priceCacheInput: e.target.value })}
-                  />
-                </label>
-              </div>
-              <div className="row mt" style={{ gap: 8 }}>
-                {(() => {
-                  const source = model.id ? config.models.find((x) => x.id === model.id)?.priceSource : undefined
-                  return model.id ? (
-                    <>
-                      <span className="muted">价格来源：{source === 'manual' ? '手动' : '自动校准'}</span>
-                      <button
-                        className="btn sm"
-                        disabled={source !== 'manual'}
-                        onClick={async () => {
-                          if (!model.id) return
-                          const res = await window.api.updateModel(model.id, { priceSource: 'auto' })
-                          if (!res.ok) notify(res.error ?? '恢复失败')
-                          else await onChanged()
-                        }}
-                      >
-                        恢复自动
-                      </button>
-                    </>
-                  ) : (
-                    <span className="muted">新建模型的价格按手动记，之后可「恢复自动」交给每天校准</span>
-                  )
-                })()}
-              </div>
-              <label className="row" style={{ gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={model.watch}
-                  onChange={(e) => setModel({ ...model, watch: e.target.checked })}
-                />
-                <span>在悬浮窗显示</span>
-              </label>
-            </div>
-            <div className="actions">
-              <button className="btn" onClick={() => setModel(null)}>
-                取消
-              </button>
-              <button className="btn primary" disabled={busy} onClick={() => void saveModel()}>
-                保存
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModelForm
+          draft={model}
+          providers={providers}
+          busy={busy}
+          priceNote={priceNote}
+          lookedUpFor={lookedUpFor}
+          writeField={writeField}
+          onChange={setModel}
+          onLookup={(name) => void lookupPrice(name)}
+          onPriceNote={setPriceNote}
+          onSave={() => void saveModel()}
+          onClose={() => setModel(null)}
+        />
       ) : null}
       <Confirm {...confirmProps} />
     </div>
