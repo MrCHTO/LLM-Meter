@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import '../analysis.css'
 
 export interface SeriesItem {
@@ -37,6 +37,14 @@ function niceStep(peak: number, integer: boolean): number {
 /** 多序列时间轴分组柱状图，纯 SVG：自适应 Y 轴、图例隐藏、悬停十字线。 */
 export function SeriesChart({ buckets, series, format, timeFormat, integer = false, onToggle }: Props): JSX.Element {
   const [hover, setHover] = useState<number | null>(null)
+  // 量出气泡真实尺寸，贴近边缘时反向钳制，避免裁切或把卡片撑出滚动条
+  const tipRef = useRef<HTMLDivElement>(null)
+  const [tipSize, setTipSize] = useState({ w: 160, h: 60 })
+  useLayoutEffect(() => {
+    if (hover === null || !tipRef.current) return
+    const { offsetWidth: w, offsetHeight: h } = tipRef.current
+    setTipSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
+  }, [hover, series])
   // 视口按容器实际像素设置，柱子不会被纵向拉长
   const [box, setBox] = useState({ w: DEFAULT_W, h: DEFAULT_H })
   const roRef = useRef<ResizeObserver | null>(null)
@@ -91,9 +99,8 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
     hoverAt === null || visible.length === 0
       ? base
       : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
-  // 预估气泡高度，贴底时上移，避免被卡片下沿裁掉
-  const tipHeight = 26 + visible.length * 17
-  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipHeight - 4))
+  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipSize.h - 4))
+  const tipPad = tipSize.w / 2 + 4
 
   return (
     <div className="series-wrap">
@@ -159,9 +166,10 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
 
       {hoverAt !== null ? (
         <div
+          ref={tipRef}
           className="series-tip"
           style={{
-            left: `clamp(80px, ${tipLeftPct}%, calc(100% - 80px))`,
+            left: `clamp(${tipPad}px, ${tipLeftPct}%, calc(100% - ${tipPad}px))`,
             top: `${(tipTop / H) * 100}%`,
             transform: 'translateX(-50%)'
           }}

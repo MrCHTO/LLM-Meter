@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { fmtWan } from '../format'
 
 export interface TrendSeries {
@@ -48,6 +48,14 @@ function smoothPath(pts: [number, number][], top: number, bottom: number): strin
 /** 每日 token 折线图：Y 轴只留网格，悬停十字线读数。 */
 export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
   const [hover, setHover] = useState<number | null>(null)
+  // 量出气泡真实尺寸，贴近边缘时反向钳制，避免裁切或把卡片撑出滚动条
+  const tipRef = useRef<HTMLDivElement>(null)
+  const [tipSize, setTipSize] = useState({ w: 160, h: 60 })
+  useLayoutEffect(() => {
+    if (hover === null || !tipRef.current) return
+    const { offsetWidth: w, offsetHeight: h } = tipRef.current
+    setTipSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
+  }, [hover, series])
 
   const visible = series.filter((s) => !s.hidden)
   const n = buckets.length
@@ -70,9 +78,8 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
     hoverAt === null || visible.length === 0
       ? base
       : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
-  // 预估气泡高度，贴底时上移，避免被卡片下沿裁掉
-  const tipHeight = 26 + visible.length * 17
-  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipHeight - 4))
+  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipSize.h - 4))
+  const tipPad = tipSize.w / 2 + 4
 
   return (
     <div className="trend-wrap">
@@ -134,9 +141,10 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
 
       {hoverAt !== null ? (
         <div
+          ref={tipRef}
           className="series-tip"
           style={{
-            left: `clamp(80px, ${(tipLeft / W) * 100}%, calc(100% - 80px))`,
+            left: `clamp(${tipPad}px, ${(tipLeft / W) * 100}%, calc(100% - ${tipPad}px))`,
             top: `${(tipTop / H) * 100}%`,
             transform: 'translateX(-50%)'
           }}

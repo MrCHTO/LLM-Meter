@@ -73,6 +73,8 @@
 .series-tip {
   position: absolute;
   min-width: 150px;
+  max-height: 100%;
+  overflow: hidden;
   padding: 8px 10px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -100,8 +102,16 @@
   flex: none;
 }
 
+.tip-row span {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tip-row b {
   margin-left: auto;
+  flex: none;
 }
 
 .legend {
