@@ -282,31 +282,27 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       <div className="analysis-body">
       <ActivityHeatmap daily={activity} />
 
-      <div className="ana-section-head">
-        <span>时间范围</span>
-        <div className="seg" role="tablist" aria-label="用量统计时间范围">
-          {(
-            [
-              { id: 7 as UsageRange, label: '近 7 日' },
-              { id: 30 as UsageRange, label: '近 30 日' }
-            ] as const
-          ).map((r) => (
-            <button
-              key={r.id}
-              role="tab"
-              aria-selected={usageRange === r.id}
-              className={usageRange === r.id ? 'on' : ''}
-              onClick={() => setUsageRange(r.id)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="card ana-panel">
         <div className="ana-panel-head">
           <h2>每日 Token 趋势图</h2>
+          <div className="seg" role="tablist" aria-label="趋势时间范围">
+            {(
+              [
+                { id: 7 as UsageRange, label: '近 7 日' },
+                { id: 30 as UsageRange, label: '近 30 日' }
+              ] as const
+            ).map((r) => (
+              <button
+                key={r.id}
+                role="tab"
+                aria-selected={usageRange === r.id}
+                className={usageRange === r.id ? 'on' : ''}
+                onClick={() => setUsageRange(r.id)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
         <TrendChart
           buckets={trend?.buckets ?? []}
@@ -320,10 +316,6 @@ export function Analysis({ config, notify }: Props): JSX.Element {
           <h2>模型用量</h2>
         </div>
         <UsageDonut rows={usageRows} />
-      </div>
-
-      <div className="ana-section-head">
-        <span>自定义分析</span>
       </div>
 
       <div className="card analysis-card">

@@ -390,7 +390,6 @@ export function register(): void {
         overlayVisible?: boolean
         overlayModelId?: string | null
         overlayGlobal?: boolean
-        overlaySnapEdges?: boolean
         overlayX?: number
         overlayY?: number
         allowLan?: boolean
@@ -420,7 +419,6 @@ export function register(): void {
           if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
           if (patch.overlayGlobal !== undefined) c.settings.overlay.global = patch.overlayGlobal
-          if (patch.overlaySnapEdges !== undefined) c.settings.overlay.snapEdges = patch.overlaySnapEdges
           if (patch.overlayX !== undefined) c.settings.overlay.x = Math.round(patch.overlayX)
           if (patch.overlayY !== undefined) c.settings.overlay.y = Math.round(patch.overlayY)
           if (patch.overlayTheme !== undefined) c.settings.overlay.theme = patch.overlayTheme
@@ -776,7 +774,7 @@ export function register(): void {
     wrap(() => {
       const bounds = overlayWin.bounds()
       if (!bounds) return null
-      return { bounds, area: screen.getDisplayMatching(bounds).workArea }
+      return { bounds, area: screen.getDisplayMatching(bounds).workArea, opacity: cfg.get().settings.overlayOpacity }
     })
   )
   ipcMain.handle(CH.mainOpen, wrap(() => showMain()))

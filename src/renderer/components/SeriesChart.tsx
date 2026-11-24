@@ -91,7 +91,9 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
     hoverAt === null || visible.length === 0
       ? base
       : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
-  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, 180))
+  // 预估气泡高度，贴底时上移，避免被卡片下沿裁掉
+  const tipHeight = 26 + visible.length * 17
+  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipHeight - 4))
 
   return (
     <div className="series-wrap">

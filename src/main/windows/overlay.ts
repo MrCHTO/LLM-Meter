@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { Rectangle } from 'electron'
 import * as cfg from '../store/config'
 import { getOverlay, send, setOverlay } from './registry'
-import { anchorX, snapToEdges } from './snap'
+import { anchorX } from './snap'
 
 /** 只留状态点时也要能贴住内容，最小宽度按状态点圆点定 */
 const MIN_WIDTH = 56
@@ -156,10 +156,7 @@ export function startDrag(): void {
     if (!w) return
     const p = screen.getCursorScreenPoint()
     const size = w.getBounds()
-    let next = clampBounds({ x: p.x - dragOffset.x, y: p.y - dragOffset.y, width: size.width, height: size.height })
-    if (cfg.get().settings.overlay.snapEdges !== false) {
-      next = clampBounds(snapToEdges(next, screen.getDisplayMatching(next).workArea))
-    }
+    const next = clampBounds({ x: p.x - dragOffset.x, y: p.y - dragOffset.y, width: size.width, height: size.height })
     w.setPosition(next.x, next.y)
   }, 16)
 }
@@ -279,16 +276,6 @@ export function showMenu(): void {
           click: () => {
             cfg.mutate((c) => {
               c.settings.overlay.locked = true
-            })
-          }
-        },
-        {
-          label: '边缘吸附',
-          type: 'checkbox',
-          checked: settings.overlay.snapEdges !== false,
-          click: () => {
-            cfg.mutate((c) => {
-              c.settings.overlay.snapEdges = !c.settings.overlay.snapEdges
             })
           }
         },

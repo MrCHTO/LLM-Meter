@@ -73,7 +73,6 @@ declare global {
         overlayVisible?: boolean
         overlayModelId?: string | null
         overlayGlobal?: boolean
-        overlaySnapEdges?: boolean
         overlayX?: number
         overlayY?: number
         allowLan?: boolean
@@ -118,7 +117,11 @@ declare global {
       overlayOpenMain: () => Promise<IpcResult<void>>
       overlaySetSize: (width: number, height: number) => Promise<IpcResult<void>>
       overlayState: () => Promise<
-        IpcResult<{ bounds: { x: number; y: number; width: number; height: number }; area: { x: number; y: number; width: number; height: number } } | null>
+        IpcResult<{
+          bounds: { x: number; y: number; width: number; height: number }
+          area: { x: number; y: number; width: number; height: number }
+          opacity: number
+        } | null>
       >
       openMain: () => Promise<IpcResult<void>>
 

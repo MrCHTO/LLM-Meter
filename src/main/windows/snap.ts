@@ -13,26 +13,8 @@ export interface Rect {
   height: number
 }
 
-/** 吸附判定距离（像素） */
+/** 贴边判定距离（像素），只影响换宽时靠左还是靠右收放 */
 export const SNAP = 16
-
-/** 离边不足阈值时贴到最近的那条边，x/y 各自独立判断 */
-export function snapToEdges(next: Rect, area: Area, threshold = SNAP): Rect {
-  let { x, y } = next
-  const right = area.x + area.width - next.width
-  const bottom = area.y + area.height - next.height
-  const dx = [
-    { d: Math.abs(x - area.x), v: area.x },
-    { d: Math.abs(x - right), v: right }
-  ].sort((a, b) => a.d - b.d)[0]
-  if (dx !== undefined && dx.d <= threshold) x = dx.v
-  const dy = [
-    { d: Math.abs(y - area.y), v: area.y },
-    { d: Math.abs(y - bottom), v: bottom }
-  ].sort((a, b) => a.d - b.d)[0]
-  if (dy !== undefined && dy.d <= threshold) y = dy.v
-  return { ...next, x, y }
-}
 
 /**
  * 宽度变化后 x 的取法：贴着左边就保持左缘、贴着右边就保持右缘，

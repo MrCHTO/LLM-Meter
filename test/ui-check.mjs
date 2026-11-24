@@ -442,16 +442,16 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(3)')?.click()")
   await sleep(600)
   check('模型页列出供应商', (await s.eval("document.querySelectorAll('tbody tr').length")) >= 1)
-  check('供应商与模型的状态都是可点文字按钮', (await s.eval("document.querySelectorAll('.state').length")) >= 4)
+  check('供应商与模型的状态都是滑动开关', (await s.eval("[...document.querySelectorAll('.switch')].filter((b) => b.getAttribute('role') === 'switch' && b.tagName === 'BUTTON').length")) >= 4)
   check(
     '模型表没有悬浮窗与自动探针列',
     await s.eval("[...document.querySelectorAll('thead')].every((th) => !['悬浮窗', '自动探针'].some((h) => th.innerText.includes(h)))")
   )
   check(
-    '模型状态是最后一列文字按钮',
+    '模型状态是最后一列开关',
     (await s.eval("[...document.querySelectorAll('.tbl-models thead th')].map((th) => th.innerText).join('|')")).endsWith('|状态') &&
       (await s.eval("document.querySelector('.tbl-models thead th:last-child').innerText")) === '状态' &&
-      (await s.eval("document.querySelector('.tbl-models tbody .state')?.innerText ?? ''")) === '启用'
+      (await s.eval("document.querySelector('.tbl-models tbody .switch')?.getAttribute('aria-checked') ?? ''")) === 'true' && (await s.eval("document.querySelector('.tbl-models tbody .switch')?.innerText ?? ''")) === ''
   )
   // 自动探针走右键菜单
   await s.eval("(() => { const tr = document.querySelector('.tbl-models tbody tr'); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 60 })); return true })()")
@@ -499,10 +499,10 @@ try {
   await s.eval("document.body.click()")
   await sleep(200)
   // 点最后一列的状态按钮关闭该行，再点开
-  await s.eval("document.querySelector('.tbl-models tbody .state')?.click()")
+  await s.eval("document.querySelector('.tbl-models tbody .switch')?.click()")
   await sleep(900)
   check('点状态后整行变灰', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === true, await s.eval("document.querySelector('.content')?.innerText.slice(0,100)"))
-  await s.eval("document.querySelector('.tbl-models tbody .state')?.click()")
+  await s.eval("document.querySelector('.tbl-models tbody .switch')?.click()")
   await sleep(900)
   check('再点状态恢复', (await s.eval("document.querySelector('.tbl-models tbody tr')?.classList.contains('row-off')")) === false)
   // 拖动排序：把第一行拖到第二行位置
@@ -538,10 +538,10 @@ try {
   await sleep(200)
   check('文案已改为 OpenAI', !(await s.eval('document.body.innerText')).includes('OpenAI 兼容'))
   check(
-    '状态是无框文字按钮',
-    (await s.eval("document.querySelectorAll('.state').length")) > 0 &&
-      (await s.eval("document.querySelectorAll('.state.pill, .state.btn').length")) === 0,
-    `state=${await s.eval("document.querySelectorAll('.state').length")} pillbtn=${await s.eval("document.querySelectorAll('.state.pill, .state.btn').length")} rows=${await s.eval("document.querySelectorAll('.tbl-models tbody tr').length")} body=${await s.eval("document.querySelector('.content')?.innerText.slice(0,80)")}`
+    '状态是滑动开关',
+    (await s.eval("document.querySelectorAll('.switch[role=switch]').length")) > 0 &&
+      (await s.eval("document.querySelectorAll('.state').length")) === 0,
+    `switch=${await s.eval("document.querySelectorAll('.switch').length")} rows=${await s.eval("document.querySelectorAll('.tbl-models tbody tr').length")}`
   )
   check(
     '状态列居中',
@@ -754,6 +754,12 @@ try {
     Boolean(tipLeft1) && Boolean(tipLeft2) && tipLeft1 !== tipLeft2,
     `${tipLeft1} → ${tipLeft2} (w=${svgW}, x=${cross1}/${cross2})`
   )
+  check(
+    '读数气泡不超出卡片',
+    (await s.eval(
+      "(() => { const t = document.querySelector('.series-tip'); const c = document.querySelector('.analysis-card'); if (!t || !c) return false; const tr = t.getBoundingClientRect(); const cr = c.getBoundingClientRect(); return tr.top >= cr.top + 2 && tr.bottom <= cr.bottom - 2 })()"
+    )) === true
+  )
   await s.eval("document.querySelector('.series-svg')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))")
   await s.eval("document.querySelector('.series-svg')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))")
   // 等首次查询结束，再跨过至少一个 5 秒轮询，按钮不应回到「查询中」
@@ -773,8 +779,13 @@ try {
   await sleep(500)
   check('活动格铺满整年网格', (await s.eval("document.querySelectorAll('.heat-cell').length")) >= 360)
   check(
+    '区间段控在趋势卡头、无小节标题',
+    (await s.eval("document.querySelectorAll('.ana-panel-head .seg').length")) >= 1 &&
+      (await s.eval("document.querySelectorAll('.ana-section-head').length")) === 0
+  )
+  check(
     '活动格有每日/每周/累计口径',
-    (await s.eval("[...document.querySelectorAll('.ana-panel-head .seg button')].map((b) => b.innerText).join(',')")) === '每日,每周,累计'
+    (await s.eval("[...document.querySelectorAll('.analysis-body > .card:first-child .seg button')].map((b) => b.innerText).join(',')")) === '每日,每周,累计'
   )
   await s.eval("[...document.querySelectorAll('.seg button')].find((b) => b.innerText === '每周')?.click()")
   await sleep(500)
@@ -894,6 +905,19 @@ try {
     )) === true
   )
   check(
+    '位置输入跟随悬浮窗移动',
+    (await s.eval(
+      `(async () => {
+        await window.api.updateSettings({ overlayX: 456, overlayY: 457 })
+        await new Promise((r) => setTimeout(r, 1600))
+        const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('位置 X / Y'))
+        const inputs = f?.querySelectorAll('input[type=number]') ?? []
+        return inputs[0]?.value === '456' && inputs[1]?.value === '457'
+      })()`,
+      true
+    )) === true
+  )
+  check(
     '透明度是数字输入',
     (await s.eval(
       "(() => { const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('不透明度')); const i = f?.querySelector('input[type=number]'); return i ? i.value : '' })()"
@@ -911,6 +935,18 @@ try {
       await new Promise((r) => setTimeout(r, 500))
       return i.value
     })()`, true) === '100'
+  )
+  check(
+    '不透明度输入跟随配置变化',
+    (await s.eval(
+      `(async () => {
+        await window.api.updateSettings({ overlayOpacity: 80 })
+        await new Promise((r) => setTimeout(r, 900))
+        const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('不透明度'))
+        return f?.querySelector('input[type=number]')?.value === '80'
+      })()`,
+      true
+    )) === true
   )
   check(
     '开机自启与只留托盘开关存在',
@@ -1217,13 +1253,10 @@ try {
   check('贴右缘时变窄右缘不动', Math.abs(edge1.x + edge1.width - (area.x + area.width)) <= 1, JSON.stringify(edge1))
   await o.eval("(async()=>await window.api.updateSettings({overlayShowCost:true}))()")
   await sleep(700)
-  await o.eval("(async()=>await window.api.updateSettings({overlaySnapEdges:false}))()")
-  await sleep(300)
   check(
-    '吸附开关可持久化',
-    (await o.eval("(async()=> (await window.api.config()).data?.settings.overlay.snapEdges)()", true)) === false
+    '边缘吸附字段已移除',
+    (await o.eval("(async()=> 'snapEdges' in ((await window.api.config()).data?.settings.overlay ?? {}))()", true)) === false
   )
-  await o.eval("(async()=>await window.api.updateSettings({overlaySnapEdges:true}))()")
 
   // 锁定
   await o.eval("(async()=>await window.api.updateSettings({overlayLocked:true}))()")

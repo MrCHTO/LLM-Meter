@@ -20,6 +20,31 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
     setPosY(config.settings.overlay.y === null ? '' : String(config.settings.overlay.y))
   }, [config.settings.overlay.x, config.settings.overlay.y])
 
+  // 坐标随悬浮窗实时位置走；正在编辑的输入框不被轮询覆盖
+  useEffect(() => {
+    let stopped = false
+    const tick = async (): Promise<void> => {
+      const res = await window.api.overlayState()
+      if (stopped || !res.ok || !res.data) return
+      const active = document.activeElement as HTMLInputElement | null
+      if (active?.dataset.field !== 'posX') setPosX(String(res.data.bounds.x))
+      if (active?.dataset.field !== 'posY') setPosY(String(res.data.bounds.y))
+      if (active?.dataset.field !== 'opacity') setOpacity(String(res.data.opacity))
+    }
+    void tick()
+    const timer = setInterval(() => void tick(), 700)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [])
+
+  // 不透明度从别处变化时同步回显
+  useEffect(() => {
+    const active = document.activeElement as HTMLInputElement | null
+    if (active?.dataset.field !== 'opacity') setOpacity(String(config.settings.overlayOpacity))
+  }, [config.settings.overlayOpacity])
+
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
     const res = await window.api.updateSettings(values)
     if (!res.ok) notify(res.error ?? '保存失败')
@@ -104,25 +129,19 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
             onChange={(e) => void patch({ overlayShowCost: e.target.checked })}
           />
         </label>
-        <label className="setting-row">
-          <span>边缘吸附</span>
-          <input
-            type="checkbox"
-            checked={config.settings.overlay.snapEdges}
-            onChange={(e) => void patch({ overlaySnapEdges: e.target.checked })}
-          />
-        </label>
         <div className="setting-row">
           <span>位置 X / Y（像素）</span>
           <div className="row nowrap">
             <input
               className="mono w-sm"
+              data-field="posX"
               type="number"
               value={posX}
               onChange={(e) => setPosX(e.target.value)}
             />
             <input
               className="mono w-sm"
+              data-field="posY"
               type="number"
               value={posY}
               onChange={(e) => setPosY(e.target.value)}
@@ -148,6 +167,7 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
           <div className="row nowrap">
             <input
               className="mono w-sm"
+              data-field="opacity"
               type="number"
               min={10}
               max={100}

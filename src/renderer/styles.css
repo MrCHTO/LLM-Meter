@@ -1028,16 +1028,42 @@ tr.open > td {
 }
 
 .pick,
-.state {
-  padding: 3px 6px;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  white-space: nowrap;
+/* 状态开关：轨道 + 滑钮 */
+.switch {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  vertical-align: middle;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-.pick.on,
-.state.on {
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.switch.on {
+  background: color-mix(in srgb, var(--ok) 24%, transparent);
+  border-color: var(--ok-line);
+}
+
+.switch.on::after {
+  transform: translateX(16px);
+  background: var(--ok);
+}
+
+.pick.on {
   color: var(--ok);
   font-weight: 600;
 }

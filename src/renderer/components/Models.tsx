@@ -309,15 +309,16 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                   <td className="mono c-left">{p.keyMasked}</td>
                   <td className="c-center">
                     <button
-                      className={p.enabled ? 'state on' : 'state'}
+                      role="switch"
+                      aria-checked={p.enabled}
+                      title={p.enabled ? '已启用' : '已停用'}
+                      className={p.enabled ? 'switch on' : 'switch'}
                       onClick={async () => {
                         const res = await window.api.updateProvider(p.id, { enabled: !p.enabled })
                         if (!res.ok) notify(res.error ?? '切换失败')
                         else await onChanged()
                       }}
-                    >
-                      {p.enabled ? '启用' : '停用'}
-                    </button>
+                    />
                   </td>
                 </tr>
               ))}
@@ -405,15 +406,16 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                     <td className="mono">{m.cacheInputSupported === false ? '—' : fmtMoney(m.priceCacheInput, m.currency)}</td>
                     <td className="c-center">
                       <button
-                        className={m.enabled ? 'state on' : 'state'}
+                        role="switch"
+                        aria-checked={m.enabled}
+                        title={m.enabled ? '已启用' : '已停用'}
+                        className={m.enabled ? 'switch on' : 'switch'}
                         onClick={async () => {
                           const res = await window.api.updateModel(m.id, { enabled: !m.enabled })
                           if (!res.ok) notify(res.error ?? '切换失败')
                           else await onChanged()
                         }}
-                      >
-                        {m.enabled ? '启用' : '停用'}
-                      </button>
+                      />
                       <span
                         className="grip row-grip"
                         draggable

@@ -66,10 +66,13 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
   const labelEvery = Math.max(1, Math.ceil(n / 7))
   const hoverAt = hover === null ? null : Math.min(n - 1, Math.max(0, hover))
   const tipLeft = hoverAt === null ? 0 : x(hoverAt)
-  const tipTop =
+  const tipTopRaw =
     hoverAt === null || visible.length === 0
       ? base
       : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
+  // 预估气泡高度，贴底时上移，避免被卡片下沿裁掉
+  const tipHeight = 26 + visible.length * 17
+  const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipHeight - 4))
 
   return (
     <div className="trend-wrap">
@@ -134,7 +137,7 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
           className="series-tip"
           style={{
             left: `clamp(80px, ${(tipLeft / W) * 100}%, calc(100% - 80px))`,
-            top: `${(Math.max(6, Math.min(tipTop - 12, 160)) / H) * 100}%`,
+            top: `${(tipTop / H) * 100}%`,
             transform: 'translateX(-50%)'
           }}
         >
