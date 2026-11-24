@@ -110,6 +110,8 @@ export function Analysis({ notify }: Props): JSX.Element {
         const s = await window.api.statsSeries({ ...q, granularity: granularityOf(r.to - r.from), metric, groupBy })
         if (s.ok && s.data) setSeries(s.data)
         else if (!silent) notify(s.error ?? '查询失败')
+      } catch (err) {
+        if (!silent) notify(err instanceof Error ? err.message : '查询失败')
       } finally {
         inFlight.current = false
         if (!silent) setBusy(false)

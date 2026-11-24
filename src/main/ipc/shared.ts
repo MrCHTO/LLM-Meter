@@ -1,6 +1,7 @@
 /** IPC 注册的公共工具：统一返回形态、异常兜底与按契约注册 */
 
 import { ipcMain } from 'electron'
+import * as applog from '../applog'
 import { channelOf, type IpcMethods } from '../../shared/ipc/contract'
 import type { IpcResult, LogQuery } from '../../shared/types'
 
@@ -17,7 +18,8 @@ export function wrap<A extends unknown[], T>(fn: (...args: A) => T | Promise<T>)
     try {
       return ok(await fn(...args))
     } catch (err) {
-      console.error('[ipc]', err)
+      // 失败要留在日志页里，不能只进 DevTools
+      applog.error('ipc', err instanceof Error ? err.message : String(err))
       return bad(err instanceof Error ? err.message : '操作失败')
     }
   }

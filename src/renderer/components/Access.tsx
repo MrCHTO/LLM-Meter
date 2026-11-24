@@ -24,10 +24,19 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
     return () => window.removeEventListener('click', close)
   }, [menu])
 
-  const patch = async (value: { allowLan?: boolean; port?: number }): Promise<void> => {
-    const res = await window.api.updateSettings(value)
-    if (!res.ok) notify(res.error ?? '保存失败')
-    else await onChanged()
+  const patch = async (value: { allowLan?: boolean; port?: number }): Promise<boolean> => {
+    try {
+      const res = await window.api.updateSettings(value)
+      if (!res.ok) {
+        notify(res.error ?? '保存失败')
+        return false
+      }
+      await onChanged()
+      return true
+    } catch (err) {
+      notify(err instanceof Error ? err.message : '保存失败')
+      return false
+    }
   }
 
   const copy = async (text: string): Promise<void> => {
@@ -115,8 +124,7 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
                     onClick={async () => {
                       const value = clampInt('port', Number(port))
                       setPort(String(value))
-                      await patch({ port: value })
-                      notify('端口已应用', 'ok')
+                      if (await patch({ port: value })) notify('端口已应用', 'ok')
                     }}
                   >
                     应用

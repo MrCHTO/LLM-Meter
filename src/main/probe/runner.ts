@@ -88,16 +88,13 @@ function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, st
       priceCacheInput: model.priceCacheInput
     })
   } catch (err) {
-    console.error('[db] 写入失败', err)
+    applog.error('db', `写入失败：${err instanceof Error ? err.message : String(err)}`)
   }
   if (!run.ok) {
     applog.warn('probe', `${model.alias} 探针失败：${run.status || '无响应'}${run.error ? ` ${run.error}` : ''}`)
   }
 }
 
-export function isRunning(modelId: string): boolean {
-  return active.has(modelId)
-}
 
 export function stop(modelId?: string): void {
   if (modelId) {

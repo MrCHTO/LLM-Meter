@@ -1,4 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import * as applog from '../applog'
+import { maskHeaders } from '../security/redact'
 import { createHash, randomUUID } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -41,19 +43,9 @@ export interface ProxyState {
   error: string | null
 }
 
-interface Deps {
-  record: (ev: RequestEvent) => void
-}
 
 let server: Server | null = null
 let state: ProxyState = { running: false, port: 0, error: null }
-const deps: Deps = {
-  record: () => undefined
-}
-
-export function bindDeps(d: Deps): void {
-  deps.record = d.record
-}
 
 export function getState(): ProxyState {
   return { ...state }
@@ -177,9 +169,8 @@ function recordEvent(input: {
       tokenRemark: input.tokenRemark ?? null
     })
   } catch (err) {
-    console.error('[db] 写入失败', err)
+    applog.error('db', `写入失败：${err instanceof Error ? err.message : String(err)}`)
   }
-  deps.record(ev)
 }
 
 function classify(status: number): ErrorKind {
@@ -192,7 +183,6 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
   if (pathname === '/healthz') {
     json(res, 200, { ok: true, uptime: process.uptime() })
-    return
   }
 
   const auth = token.fromHeaders(req.headers)
@@ -330,8 +320,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     if (process.env.LLM_METER_DEBUG) {
       console.log(`[debug] → ${method} ${target.toString()}`)
       console.log(`[debug] body=${(prepared.body ?? '').slice(0, 220)} len=${prepared.body?.length ?? 0}`)
-      const safe = { ...headers }
-      if (safe.authorization) safe.authorization = `Bearer ${'*'.repeat(8)}`
+      const safe = maskHeaders(headers)
       console.log('[debug] headers', JSON.stringify(safe))
       console.log(
         '[debug] bodySha',
@@ -498,7 +487,7 @@ function listenOn(port: number, host: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const s = createServer((req, res) => {
       handle(req, res).catch((err: unknown) => {
-        console.error('[proxy] handler crash', err)
+        applog.error('proxy', `请求处理异常：${err instanceof Error ? err.message : String(err)}`)
         if (!res.headersSent) fail(res, 500, '代理内部错误', 'network')
         else res.end()
       })
@@ -530,14 +519,14 @@ export async function start(preferred: number): Promise<ProxyState> {
           c.settings.port = port
         })
       }
-      console.log(`[proxy] listening on ${host}:${port}`)
+      applog.info('proxy', `代理监听 ${host}:${port}`)
       return getState()
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EADDRINUSE') {
         state = { running: false, port: 0, error: (err as Error).message }
         return getState()
       }
-      console.warn(`[proxy] port ${port} busy, trying next`)
+      applog.warn('proxy', `端口 ${port} 被占用，顺延下一个`)
     }
   }
   state = { running: false, port: 0, error: '找不到可用端口' }

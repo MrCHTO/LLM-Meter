@@ -1,4 +1,4 @@
-import type { DayPoint, LiveSnapshot, ModelLive, RequestEvent, SnapshotTotals, TodayTotals } from '../../shared/types'
+import type { LiveSnapshot, ModelLive, RequestEvent, SnapshotTotals, TodayTotals } from '../../shared/types'
 export { BUCKETS } from './live/types'
 import { BUCKETS, COEF_CJK, COEF_OTHER, RECENT_MAX, type ModelState } from './live/types'
 import { coefOf, pushTtftSample, realtimeOf, tpsOf, ttftPct } from './live/metrics'
@@ -391,29 +391,3 @@ export function snapshot(
   }
 }
 
-export function overlayModels(): ModelLive[] {
-  const snap = snapshot(false, null, '')
-  return snap.models.filter((m) => {
-    const model = cfg.modelById(m.modelId)
-    return model?.watch === true && model.enabled
-  })
-}
-
-export function liveOf(modelId: string): ModelLive | undefined {
-  return snapshot(false, null, '').models.find((m) => m.modelId === modelId)
-}
-
-export function emptyDays(days: number): DayPoint[] {
-  const out: DayPoint[] = []
-  const now = Date.now()
-  for (let i = days - 1; i >= 0; i--) {
-    out.push({
-      ts: new Date(new Date(now - i * 86400_000).setHours(0, 0, 0, 0)).getTime(),
-      out: 0,
-      req: 0,
-      err: 0,
-      cost: 0
-    })
-  }
-  return out
-}

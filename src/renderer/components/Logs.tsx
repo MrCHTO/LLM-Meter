@@ -82,13 +82,19 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
     }
     const mine = ++seq.current
     setLoading(true)
-    const res = kind === 'request' ? await window.api.logRequests(query) : await window.api.logApps(query)
-    if (mine !== seq.current) return
-    setLoading(false)
-    if (res.ok && res.data) setData(res.data)
-    else {
+    try {
+      const res = kind === 'request' ? await window.api.logRequests(query) : await window.api.logApps(query)
+      if (mine !== seq.current) return
+      if (res.ok && res.data) setData(res.data)
+      else {
+        setData({ rows: [], total: 0 })
+        if (res.error) notify(res.error)
+      }
+    } catch (err) {
       setData({ rows: [], total: 0 })
-      if (res.error) notify(res.error)
+      notify(err instanceof Error ? err.message : '查询失败')
+    } finally {
+      if (mine === seq.current) setLoading(false)
     }
   }, [preset, customFrom, customTo, applied, page, kind, modelId, source, result, level, notify])
 

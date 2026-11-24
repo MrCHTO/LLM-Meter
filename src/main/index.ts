@@ -1,4 +1,4 @@
-import { app, nativeTheme, BrowserWindow } from 'electron'
+import { app, dialog, nativeTheme, BrowserWindow } from 'electron'
 import { CH } from '../shared/types'
 import * as cfg from './store/config'
 import * as live from './store/live'
@@ -45,7 +45,7 @@ if (!gotLock) {
     // 曲线只画最近窗口（BUCKETS 秒），回放范围跟着走，多留 5 秒余量
     live.replay(repo.replaySince(db.get(), Date.now() - (live.BUCKETS * 1000 + 5000)))
 
-    proxy.bindDeps({ record: () => undefined })
+
     const state = await proxy.start(settings.port)
     proxyError = state.error
     if (state.running) applog.info('proxy', `代理已启动，端口 ${settings.port}`)
@@ -126,6 +126,11 @@ if (!gotLock) {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow.create()
     })
   })
+    .catch((err: unknown) => {
+      // 启动链整段失败时，用户至少要知道，而不是只剩一个没有窗口的进程
+      applog.error('startup', `启动失败：${err instanceof Error ? err.message : String(err)}`)
+      dialog.showErrorBox('LLM Meter 启动失败', err instanceof Error ? err.message : String(err))
+    })
 
   app.on('window-all-closed', () => {
     // 托盘常驻，不退出

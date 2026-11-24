@@ -25,7 +25,7 @@ export function backupTo(db: Db, file: string): void {
 }
 
 /** 备注改名后回写历史：明细按 token_id 改名，两张 token 聚合从明细整表重建（聚合键无 token_id，整表重建才与明细严格一致），同一事务。 */
-export function renameTokenRemark(db: Db, tokenId: string, from: string, to: string): void {
+export function renameTokenRemark(db: Db, tokenId: string, _from: string, to: string): void {
   db.tx(() => {
     db.run('update requests set token_remark = ? where token_id = ?', to, tokenId)
     rebuildTokenRollups(db)

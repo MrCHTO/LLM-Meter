@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import * as applog from '../../applog'
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, renameSync } from 'node:fs'
 import * as cfg from '../config'
@@ -32,9 +33,9 @@ export function init(): void {
   if (!alreadyImported(conn)) {
     try {
       const out = importLegacy(conn, dataDir())
-      console.log(`[db] 旧数据导入完成：请求 ${out.requests} 条、分钟桶 ${out.minutes} 条`)
+      applog.info('db', `旧数据导入完成：请求 ${out.requests} 条、分钟桶 ${out.minutes} 条`)
     } catch (err) {
-      console.error('[db] 旧数据导入失败，下次启动重试', err)
+      applog.error('db', `旧数据导入失败，下次启动重试：${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -66,7 +67,7 @@ function importCalibrateLog(conn: Db): void {
     })
     renameSync(file, `${file}.imported`)
   } catch (err) {
-    console.error('[db] calibrate.log 迁移失败', err)
+    applog.error('db', `calibrate.log 迁移失败：${err instanceof Error ? err.message : String(err)}`)
   }
 }
 
@@ -80,9 +81,9 @@ function runPrune(): void {
   lastPruneDay = hour >= 4 ? today : `${today}-${hour}`
   try {
     const out = prune(get(), Date.now(), settings.retentionDays, settings.rollupRetentionDays)
-    if (out.requests) console.log(`[db] 清理过期明细 ${out.requests} 条`)
+    if (out.requests) applog.info('db', `清理过期明细 ${out.requests} 条`)
   } catch (err) {
-    console.error('[db] 清理失败', err)
+    applog.error('db', `清理失败：${err instanceof Error ? err.message : String(err)}`)
   }
 }
 

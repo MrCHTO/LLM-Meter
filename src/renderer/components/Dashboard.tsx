@@ -104,19 +104,33 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
     async (modelId: string): Promise<void> => {
       setProbing((m) => ({ ...m, [modelId]: true }))
       setMenu(null)
-      const res = await window.api.runProbe(modelId)
-      setProbing((m) => ({ ...m, [modelId]: false }))
-      const failed = !res.ok || !res.data?.ok
-      if (res.ok && res.data) notify(`${res.data.alias}：${res.data.message}`, res.data.ok ? 'ok' : 'bad')
-      else notify(res.error ?? '测速失败')
-      if (failed) {
-        // 失败用红底纹提示，5 秒后恢复
-        setFlash((m) => ({ ...m, [modelId]: true }))
-        setTimeout(() => setFlash((m) => ({ ...m, [modelId]: false })), 5000)
+      try {
+        const res = await window.api.runProbe(modelId)
+        const failed = !res.ok || !res.data?.ok
+        if (res.ok && res.data) notify(`${res.data.alias}：${res.data.message}`, res.data.ok ? 'ok' : 'bad')
+        else notify(res.error ?? '测速失败')
+        if (failed) {
+          // 失败用红底纹提示，5 秒后恢复
+          setFlash((m) => ({ ...m, [modelId]: true }))
+          setTimeout(() => setFlash((m) => ({ ...m, [modelId]: false })), 5000)
+        }
+      } catch (err) {
+        notify(err instanceof Error ? err.message : '测速失败')
+      } finally {
+        setProbing((m) => ({ ...m, [modelId]: false }))
       }
       await onChanged()
     },
     [notify, onChanged]
+  )
+
+  const stopProbe = useCallback(
+    async (modelId: string): Promise<void> => {
+      setMenu(null)
+      const res = await window.api.stopProbe(modelId)
+      notify(res.ok ? '已请求停止测速' : (res.error ?? '停止失败'), res.ok ? 'ok' : 'bad')
+    },
+    [notify]
   )
 
   const models = snapshot?.models ?? []
@@ -370,7 +384,11 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
           style={{ left: Math.min(menu.x, window.innerWidth - 130), top: Math.min(menu.y, window.innerHeight - 80) }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button onClick={() => void runProbe(menu.modelId)}>测速</button>
+          <button
+            onClick={() => void (probing[menu.modelId] === true ? stopProbe(menu.modelId) : runProbe(menu.modelId))}
+          >
+            {probing[menu.modelId] === true ? '停止测速' : '测速'}
+          </button>
           <button
             onClick={async () => {
               const target = config.models.find((m) => m.id === menu.modelId)

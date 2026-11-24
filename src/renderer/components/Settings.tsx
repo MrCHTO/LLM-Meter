@@ -46,14 +46,23 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
     if (active?.dataset.field !== 'opacity') setOpacity(String(config.settings.overlayOpacity))
   }, [config.settings.overlayOpacity])
 
-  const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<void> => {
-    const res = await window.api.updateSettings(values)
-    if (!res.ok) notify(res.error ?? '保存失败')
-    else await onChanged()
+  const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<boolean> => {
+    try {
+      const res = await window.api.updateSettings(values)
+      if (!res.ok) {
+        notify(res.error ?? '保存失败')
+        return false
+      }
+      await onChanged()
+      return true
+    } catch (err) {
+      notify(err instanceof Error ? err.message : '保存失败')
+      return false
+    }
   }
 
   const applyOpacity = async (): Promise<void> => {
-    const value = Math.min(100, Math.max(10, Math.round(Number(opacity) || 100)))
+    const value = clampInt('overlayOpacity', Number(opacity) || LIMITS.overlayOpacity.fallback)
     setOpacity(String(value))
     await patch({ overlayOpacity: value })
   }
@@ -264,9 +273,9 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
             <button
               className="btn sm"
               onClick={async () => {
-                await patch({ retentionDays: Number(retention) || 30 })
-                await window.api.cleanupEvents()
-                notify('保留期已更新', 'ok')
+                if (!(await patch({ retentionDays: Number(retention) || 30 }))) return
+                const res = await window.api.cleanupEvents()
+                notify(res.ok ? '保留期已更新' : (res.error ?? '清理失败'), res.ok ? 'ok' : 'bad')
               }}
             >
               应用
@@ -276,7 +285,13 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
         <div className="setting-row">
           <span>维护</span>
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn sm" onClick={() => void window.api.openDataDir()}>
+            <button
+              className="btn sm"
+              onClick={async () => {
+                const res = await window.api.openDataDir()
+                if (!res.ok) notify(res.error ?? '打不开目录')
+              }}
+            >
               打开目录
             </button>
             <button

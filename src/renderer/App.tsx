@@ -39,9 +39,13 @@ export default function App(): JSX.Element {
   }, [])
 
   const reload = useCallback(async () => {
-    const res = await window.api.config()
-    if (res.ok && res.data) setConfig(res.data)
-    else if (res.error) notify(res.error)
+    try {
+      const res = await window.api.config()
+      if (res.ok && res.data) setConfig(res.data)
+      else if (res.error) notify(res.error)
+    } catch (err) {
+      notify(err instanceof Error ? err.message : '读取配置失败')
+    }
   }, [notify])
 
   useEffect(() => {

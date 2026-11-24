@@ -133,19 +133,6 @@ export interface ProviderInput {
   enabled: boolean
 }
 
-export interface ModelInput {
-  providerId: string
-  upstreamModel: string
-  alias: string
-  enabled: boolean
-  watch: boolean
-  priceIn: number
-  priceOut: number
-  priceCacheRead: number
-  priceCacheInput: number
-  currency: string
-}
-
 /** 渲染层看到的供应商：不含密文，只告诉有没有 key、以及掩码回显 */
 export interface ProviderView extends Omit<Provider, 'keyCipher'> {
   hasKey: boolean
