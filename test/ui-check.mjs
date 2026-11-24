@@ -758,6 +758,38 @@ try {
     await sleep(500)
   }
   check('自动刷新时查询按钮不闪', !flicker)
+
+  // 用量统计：活动格、趋势、占比
+  await s.eval("document.querySelector('.content').scrollTop = 0")
+  await sleep(500)
+  check('活动格铺满整年网格', (await s.eval("document.querySelectorAll('.heat-cell').length")) >= 360)
+  check(
+    '活动格有每日/每周/累计口径',
+    (await s.eval("[...document.querySelectorAll('.ana-panel-head .seg button')].map((b) => b.innerText).join(',')")) === '每日,每周,累计'
+  )
+  await s.eval("[...document.querySelectorAll('.seg button')].find((b) => b.innerText === '每周')?.click()")
+  await sleep(500)
+  check(
+    '切每周后同列格子同色',
+    (await s.eval(
+      "(() => { const cells = [...document.querySelectorAll('.heat-cell')]; const col = Math.floor((cells.length - 1) / 7); const lv = cells[col * 7].dataset.lv; return lv !== '0' && cells.slice(col * 7, col * 7 + 7).every((c) => c.dataset.lv === lv) })()"
+    )) === true
+  )
+  await s.eval("[...document.querySelectorAll('.seg button')].find((b) => b.innerText === '每日')?.click()")
+  await sleep(400)
+  await s.eval(
+    "(() => { const cells = [...document.querySelectorAll('.heat-cell')]; cells[cells.length - 1].dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return true })()"
+  )
+  await sleep(300)
+  check('活动格悬停显示读数', (await s.eval("document.querySelector('.heat-tip')?.innerText ?? ''")).includes('tokens'))
+  check('趋势图画出模型线', (await s.eval("document.querySelectorAll('.trend-line').length")) >= 1)
+  await s.eval("[...document.querySelectorAll('.seg button')].find((b) => b.innerText === '近 30 日')?.click()")
+  await sleep(1600)
+  check('切近 30 日后横轴跨度变长', (await s.eval("document.querySelectorAll('.trend-svg text').length")) >= 5)
+  check('模型用量列出占比', /%/.test(await s.eval("[...document.querySelectorAll('.donut-name b')].map((b) => b.innerText).join(',')")))
+  check('环图有占比段', (await s.eval("document.querySelectorAll('.donut-seg').length")) >= 1)
+  await s.eval("[...document.querySelectorAll('.seg button')].find((b) => b.innerText === '近 7 日')?.click()")
+  await sleep(600)
   await s.shot('analysis.png')
 
   await s.eval("document.querySelector('.tab:nth-child(6)')?.click()")

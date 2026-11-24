@@ -83,6 +83,10 @@ body {
   height: 100%;
 }
 
+#root {
+  height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -1275,24 +1279,27 @@ tr.dragging .grip {
 
 
 
+/* 分析页改为纵向滚动：三块用量统计在上，自定义图表垫底并保持一屏高度 */
 .analysis-page {
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
 }
 
 .analysis-body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   min-height: 0;
 }
 
 .analysis-card {
-  flex: 1;
+  flex: none;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  height: calc(100vh - 96px);
+  min-height: 440px;
   overflow: hidden;
 }
 

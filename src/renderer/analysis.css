@@ -113,3 +113,260 @@
   white-space: nowrap;
   padding-bottom: 8px;
 }
+
+/* ---------- 用量统计：活动格 / 趋势 / 占比 ---------- */
+
+.ana-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ana-panel-head h2 {
+  margin: 0;
+}
+
+.ana-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+}
+
+.seg button {
+  padding: 3px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.seg button.on {
+  background: var(--text);
+  color: var(--panel);
+}
+
+.seg button:not(.on):hover {
+  color: var(--text);
+}
+
+/* 活动格：矩形按列铺满，格子随宽度保持正方形 */
+.heat-wrap {
+  position: relative;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.heat-grid {
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 4px;
+}
+
+.heat-cell {
+  aspect-ratio: 1;
+  min-height: 6px;
+  border-radius: 3px;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.heat-cell[data-lv='1'] {
+  background: color-mix(in srgb, var(--accent) 22%, var(--panel-2));
+}
+
+.heat-cell[data-lv='2'] {
+  background: color-mix(in srgb, var(--accent) 42%, var(--panel-2));
+}
+
+.heat-cell[data-lv='3'] {
+  background: color-mix(in srgb, var(--accent) 62%, var(--panel-2));
+}
+
+.heat-cell[data-lv='4'] {
+  background: color-mix(in srgb, var(--accent) 82%, var(--panel-2));
+}
+
+.heat-cell[data-lv='5'] {
+  background: var(--accent);
+}
+
+.heat-cell.on {
+  outline: 1px solid var(--text);
+  outline-offset: 1px;
+}
+
+.heat-tip {
+  position: absolute;
+  bottom: 22px;
+  min-width: 132px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px var(--shadow);
+  font-size: 11px;
+  pointer-events: none;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.heat-months {
+  display: grid;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.heat-months span {
+  font-size: 10px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* 趋势折线 */
+.trend-wrap {
+  position: relative;
+}
+
+.trend-svg {
+  display: block;
+  width: 100%;
+  height: 240px;
+}
+
+.trend-svg .trend-grid {
+  stroke: var(--line-soft);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-svg .trend-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 模型用量环图 */
+.donut-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.donut-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  justify-self: center;
+}
+
+.donut-svg {
+  display: block;
+  width: 100%;
+  transform: rotate(-90deg);
+}
+
+.donut-track {
+  fill: none;
+  stroke: var(--panel-2);
+}
+
+.donut-seg {
+  fill: none;
+  stroke-linecap: butt;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.donut-center b {
+  font-size: 22px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-center span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.donut-list {
+  min-width: 0;
+}
+
+.donut-row + .donut-row {
+  border-top: 1px solid var(--line-soft);
+}
+
+.donut-row-main {
+  padding: 10px 2px;
+}
+
+.donut-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.donut-name i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.donut-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut-name b {
+  margin-left: auto;
+  flex: none;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.donut-tok {
+  margin: 3px 0 0 16px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+@media (max-width: 1040px) {
+  .donut-grid {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}

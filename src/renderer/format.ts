@@ -4,6 +4,13 @@ export function fmtTokens(n: number): string {
   return String(Math.round(n))
 }
 
+/** 用量统计用的中文计数：万 / 亿，保留一位小数 */
+export function fmtWan(n: number): string {
+  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(2)}亿`
+  if (n >= 10_000) return `${(n / 10_000).toFixed(1)}万`
+  return String(Math.round(n))
+}
+
 function symbolOf(currency: string): string {
   if (currency === 'CNY') return '¥'
   if (currency === 'EUR') return '€'

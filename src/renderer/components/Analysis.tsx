@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsSeries } from '../../shared/types'
 import { fmtMoney, fmtTokens } from '../format'
+import { ActivityHeatmap } from './ActivityHeatmap'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
+import { TrendChart, type TrendSeries } from './TrendChart'
+import { UsageDonut, type UsageRow } from './UsageDonut'
 
 interface Props {
   config: ConfigView
@@ -9,6 +12,7 @@ interface Props {
 }
 
 type Preset = 'today' | '24h' | '7d' | 'custom'
+type UsageRange = 7 | 30
 
 const METRICS: { id: StatsMetric; label: string; unit: string; digits: number }[] = [
   { id: 'requests', label: '请求数', unit: '次', digits: 0 },
@@ -19,7 +23,7 @@ const METRICS: { id: StatsMetric; label: string; unit: string; digits: number }[
   { id: 'cost', label: '成本', unit: '¥', digits: 2 }
 ]
 
-const COLORS = ['#1f6feb', '#0f9d63', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#65a30d', '#c026d3']
+const COLORS = ['#1f6feb', '#0f9d63', '#9333ea', '#d97706', '#dc2626', '#0891b2', '#65a30d', '#c026d3']
 
 function rangeOf(preset: Preset, customFrom: string, customTo: string): { from: number; to: number } | null {
   const now = Date.now()
@@ -43,6 +47,20 @@ function granularityOf(span: number): StatsGranularity {
   return 'day'
 }
 
+const DAY_MS = 86_400_000
+
+function dayStart(ts: number): number {
+  const d = new Date(ts)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+function dayKeyOf(ts: number): string {
+  const d = new Date(ts)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 export function Analysis({ config, notify }: Props): JSX.Element {
   const [preset, setPreset] = useState<Preset>('today')
   const [customFrom, setCustomFrom] = useState('')
@@ -53,7 +71,16 @@ export function Analysis({ config, notify }: Props): JSX.Element {
   const [series, setSeries] = useState<StatsSeries | null>(null)
   const [busy, setBusy] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  // 用量统计：一年活动格、近 7/30 日趋势与模型占比
+  const [usageRange, setUsageRange] = useState<UsageRange>(7)
+  const [activity, setActivity] = useState<Map<string, number>>(new Map())
+  const [usage, setUsage] = useState<{ key: string; label: string; tokens: number }[]>([])
+  const [trend, setTrend] = useState<StatsSeries | null>(null)
+  const [trendHidden, setTrendHidden] = useState<Record<string, boolean>>({})
   const inFlight = useRef(false)
+  // 轮询与切区间可能并发，只认最后一次请求的结果
+  const activitySeq = useRef(0)
+  const usageSeq = useRef(0)
 
   const range = rangeOf(preset, customFrom, customTo)
   const granularity = range ? granularityOf(range.to - range.from) : 'hour'
@@ -113,6 +140,100 @@ export function Analysis({ config, notify }: Props): JSX.Element {
     return () => clearInterval(timer)
   }, [load, preset])
 
+  // 活动格固定看近一年；按模型分组再在渲染层求和，便于复用现成的日聚合
+  const loadActivity = useCallback(async (): Promise<void> => {
+    const seq = ++activitySeq.current
+    const to = Date.now()
+    const from = dayStart(to - 364 * DAY_MS)
+    const res = await window.api.statsSeries({
+      from,
+      to,
+      source: 'proxy',
+      granularity: 'day',
+      metric: 'total',
+      groupBy: 'model'
+    })
+    if (seq !== activitySeq.current) return
+    if (!res.ok || !res.data) return
+    const map = new Map<string, number>()
+    res.data.buckets.forEach((bucket, i) => {
+      let sum = 0
+      for (const s of res.data?.series ?? []) sum += s.points[i] ?? 0
+      map.set(dayKeyOf(bucket), sum)
+    })
+    setActivity(map)
+  }, [])
+
+  const loadUsage = useCallback(async (): Promise<void> => {
+    const seq = ++usageSeq.current
+    const to = Date.now()
+    const from = dayStart(to - (usageRange - 1) * DAY_MS)
+    const totals = await window.api.statsTotals({ from, to, source: 'proxy', groupBy: 'model' })
+    if (seq !== usageSeq.current) return
+    if (!totals.ok || !totals.data) return
+    setUsage(
+      totals.data
+        .map((r) => ({ key: r.key, label: r.label, tokens: r.total }))
+        .filter((r) => r.tokens > 0)
+        .sort((a, b) => b.tokens - a.tokens)
+    )
+    const res = await window.api.statsSeries({
+      from,
+      to,
+      source: 'proxy',
+      granularity: 'day',
+      metric: 'total',
+      groupBy: 'model'
+    })
+    if (seq !== usageSeq.current) return
+    if (res.ok && res.data) setTrend(res.data)
+  }, [usageRange])
+
+  useEffect(() => {
+    void loadActivity()
+  }, [loadActivity])
+
+  useEffect(() => {
+    void loadUsage()
+  }, [loadUsage])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void loadActivity()
+      void loadUsage()
+    }, 10_000)
+    return () => clearInterval(timer)
+  }, [loadActivity, loadUsage])
+
+  // 趋势与占比共用同一套模型配色，按用量从高到低分配
+  const colorOf = useMemo(() => {
+    const map = new Map<string, string>()
+    usage.forEach((r, i) => map.set(r.key, COLORS[i % COLORS.length] as string))
+    return map
+  }, [usage])
+
+  const usageRows: UsageRow[] = useMemo(
+    () => usage.map((r) => ({ key: r.key, label: r.label, tokens: r.tokens, color: colorOf.get(r.key) ?? COLORS[0] as string })),
+    [usage, colorOf]
+  )
+
+  const trendSeries: TrendSeries[] = useMemo(() => {
+    if (!trend) return []
+    const byKey = new Map(trend.series.map((s) => [s.key, s]))
+    const ordered = usage.flatMap((u) => {
+      const s = byKey.get(u.key)
+      return s ? [{ ...s, label: u.label }] : []
+    })
+    const extra = trend.series.filter((s) => !usage.some((u) => u.key === s.key))
+    return [...ordered, ...extra].map((s, i) => ({
+      key: s.key,
+      label: s.label,
+      points: s.points,
+      color: colorOf.get(s.key) ?? (COLORS[i % COLORS.length] as string),
+      hidden: trendHidden[s.key] === true
+    }))
+  }, [trend, usage, colorOf, trendHidden])
+
   useEffect(() => {
     if (!menu) return
     const close = (): void => setMenu(null)
@@ -159,6 +280,52 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       }}
     >
       <div className="analysis-body">
+      <ActivityHeatmap daily={activity} />
+
+      <div className="ana-section-head">
+        <span>时间范围</span>
+        <div className="seg" role="tablist" aria-label="用量统计时间范围">
+          {(
+            [
+              { id: 7 as UsageRange, label: '近 7 日' },
+              { id: 30 as UsageRange, label: '近 30 日' }
+            ] as const
+          ).map((r) => (
+            <button
+              key={r.id}
+              role="tab"
+              aria-selected={usageRange === r.id}
+              className={usageRange === r.id ? 'on' : ''}
+              onClick={() => setUsageRange(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card ana-panel">
+        <div className="ana-panel-head">
+          <h2>每日 Token 趋势图</h2>
+        </div>
+        <TrendChart
+          buckets={trend?.buckets ?? []}
+          series={trendSeries}
+          onToggle={(key) => setTrendHidden((h) => ({ ...h, [key]: !h[key] }))}
+        />
+      </div>
+
+      <div className="card ana-panel">
+        <div className="ana-panel-head">
+          <h2>模型用量</h2>
+        </div>
+        <UsageDonut rows={usageRows} />
+      </div>
+
+      <div className="ana-section-head">
+        <span>自定义分析</span>
+      </div>
+
       <div className="card analysis-card">
         <div className="row nowrap ana-head">
           <div className="row nowrap ana-controls">
@@ -220,6 +387,8 @@ export function Analysis({ config, notify }: Props): JSX.Element {
             onClick={() => {
               setMenu(null)
               void load()
+              void loadActivity()
+              void loadUsage()
             }}
           >
             刷新
