@@ -24,6 +24,27 @@ function dayLabel(ts: number): string {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+/** Catmull-Rom 转三次贝塞尔，折点处收成圆滑过渡；控制点纵向钳在绘图区内防过冲 */
+function smoothPath(pts: [number, number][], top: number, bottom: number): string {
+  if (pts.length === 0) return ''
+  if (pts.length === 1) return `M ${pts[0]?.[0]} ${pts[0]?.[1]}`
+  const clamp = (v: number): number => Math.max(top, Math.min(bottom, v))
+  const at = (i: number): [number, number] => pts[Math.max(0, Math.min(pts.length - 1, i))] as [number, number]
+  let d = `M ${pts[0]?.[0]} ${pts[0]?.[1]}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = at(i - 1)
+    const p1 = at(i) as [number, number]
+    const p2 = at(i + 1) as [number, number]
+    const p3 = at(i + 2)
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6
+    const c1y = clamp(p1[1] + (p2[1] - p0[1]) / 6)
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6
+    const c2y = clamp(p2[1] - (p3[1] - p1[1]) / 6)
+    d += ` C ${c1x} ${c1y} ${c2x} ${c2y} ${p2[0]} ${p2[1]}`
+  }
+  return d
+}
+
 /** 每日 token 折线图：Y 轴只留网格，悬停十字线读数。 */
 export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
   const [hover, setHover] = useState<number | null>(null)
@@ -81,7 +102,7 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
               x={i === 0 ? PAD.left : i === n - 1 ? W - PAD.right : x(i)}
               y={H - 6}
               textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
-              className="axis"
+              className="axis trend-axis"
             >
               {dayLabel(b)}
             </text>
@@ -89,11 +110,15 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
         )}
 
         {visible.map((s) => (
-          <polyline
+          <path
             key={s.key}
             className="trend-line"
             stroke={s.color}
-            points={s.points.map((v, i) => `${x(i)},${y(v)}`).join(' ')}
+            d={smoothPath(
+              s.points.map((v, i) => [x(i), y(v)]),
+              PAD.top,
+              base
+            )}
           />
         ))}
 

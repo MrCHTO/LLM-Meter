@@ -267,6 +267,11 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* 时间轴日期用正文色，深色主题下即白色 */
+.trend-svg .trend-axis {
+  fill: var(--text);
+}
+
 /* 模型用量环图 */
 .donut-grid {
   display: grid;
