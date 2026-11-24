@@ -1,6 +1,6 @@
 # LLM Meter
 
-本机的大模型流量计量器。它在本机起一个 OpenAI / Anthropic 格式的入口，把客户端请求转发到真实上游，同时记录每个模型的 token 用量、首字延迟、每秒 token 产出、缓存命中率和折算成本，用主窗口和置顶悬浮窗实时显示，并能在「分析」页按区间查历史流量、按模型或供应商出图、导出 CSV。
+本机的大模型流量计量器。它在本机起一个 OpenAI / Anthropic 格式的入口，把客户端请求转发到真实上游，同时记录每个模型的 token 用量、首字延迟、每秒 token 产出、缓存命中率和折算成本，用主窗口和置顶悬浮窗实时显示，并能在「分析」页看年度 Token 活动、每日趋势与模型用量占比，按区间查历史流量、按模型或供应商出图、导出 CSV。
 
 真实 API Key 只存在本应用里（Windows DPAPI 加密），客户端只拿本地 token，所以换中转站或换 key 时所有客户端一处都不用改。
 
@@ -108,4 +108,4 @@ node test/cache-probe.mjs <baseUrl> <key> <model> identity      # 判断某家�
 
 ## 变更记录
 
-当前版本 **v0.10.0**。完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 **v0.10.1**。完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
