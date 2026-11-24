@@ -33,48 +33,79 @@
   --toast-bad-bg: #fdecec;
   --scrim: rgb(17 24 39 / 35%);
   --shadow: rgb(15 23 42 / 16%);
+  --scroll-thumb: rgb(15 23 42 / 18%);
+  --scroll-thumb-hover: rgb(15 23 42 / 30%);
   --radius: 10px;
 }
 
 :root[data-theme='dark'] {
-  --bg: #14171c;
-  --panel: #1d222a;
-  --panel-2: #262c36;
-  --line: #2f3542;
-  --line-soft: #262b34;
-  --text: #e7ecf3;
-  --muted: #9aa4b2;
-  --dim: #7d8794;
-  --accent: #4d8df2;
-  --accent-hover: #5c99f7;
-  --ok: #34c483;
-  --warn: #d69a2a;
-  --bad: #e76a6a;
-  --ok-line: #2d5343;
+  /* 中性灰阶：以 #181818 为底逐级提亮，避免蓝黑暗调 */
+  --bg: #181818;
+  --panel: #202020;
+  --panel-2: #2a2a2a;
+  --line: #363636;
+  --line-soft: #2a2a2a;
+  --text: #ececec;
+  --muted: #a6a6a6;
+  --dim: #828282;
+  --accent: #5b9bff;
+  --accent-hover: #74acff;
+  --ok: #46c98a;
+  --warn: #dba43c;
+  --bad: #ea7a7a;
+  --ok-line: #345a47;
   --warn-line: #5c4a26;
-  --bad-line: #5a3030;
-  --ok-text: #5fd6a0;
-  --bad-text: #f09191;
-  --btn-hover-line: #3d4553;
-  --input-bg: #161a20;
-  --hover: #232a34;
-  --open-bg: #1f2735;
-  --detail-bg: #1a1f27;
-  --bar-track: #3a4a63;
-  --spark-empty-stroke: #46505e;
-  --spark-fill: rgb(77 141 242 / 22%);
-  --spark-fill-empty: rgb(77 141 242 / 8%);
+  --bad-line: #5d3333;
+  --ok-text: #6cdda4;
+  --bad-text: #f39a9a;
+  --btn-hover-line: #454545;
+  --input-bg: #1b1b1b;
+  --hover: #262626;
+  --open-bg: #252525;
+  --detail-bg: #1d1d1d;
+  --bar-track: #3f3f3f;
+  --spark-empty-stroke: #4b4b4b;
+  --spark-fill: rgb(91 155 255 / 24%);
+  --spark-fill-empty: rgb(91 155 255 / 9%);
   --dot-on: #34d399;
   --dot-off: #f26d6d;
-  --capsule-dim: #93a1b1;
-  --toast-ok-bg: #173026;
-  --toast-bad-bg: #331d1d;
-  --scrim: rgb(0 0 0 / 55%);
-  --shadow: rgb(0 0 0 / 45%);
+  --capsule-dim: #a6a6a6;
+  --toast-ok-bg: #1c2e25;
+  --toast-bad-bg: #332020;
+  --scrim: rgb(0 0 0 / 58%);
+  --shadow: rgb(0 0 0 / 50%);
+  --scroll-thumb: rgb(255 255 255 / 18%);
+  --scroll-thumb-hover: rgb(255 255 255 / 30%);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* 细药丸滚动条：轨道透明，悬停加深 */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background: var(--scroll-thumb);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 html,
@@ -781,8 +812,8 @@ body.overlay-body {
   cursor: grab;
   user-select: none;
   /* 默认黑色外观 */
-  background: #12161b;
-  border: 1px solid #333d49;
+  background: #181818;
+  border: 1px solid #3a3a3a;
   color: #e8eef6;
 }
 

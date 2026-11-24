@@ -823,7 +823,7 @@ try {
   await s.eval("(async()=>await window.api.updateSettings({theme:'dark'}))()")
   await sleep(500)
   check('切深色后页面变深色', (await s.eval("document.documentElement.dataset.theme")) === 'dark' &&
-    (await s.eval("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()")) === '#14171c')
+    (await s.eval("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()")) === '#181818')
   await s.eval("(async()=>await window.api.updateSettings({theme:'system'}))()")
   await sleep(300)
   check('切回跟随系统', (await s.eval("['dark','light'].includes(document.documentElement.dataset.theme ?? '')")) === true)
