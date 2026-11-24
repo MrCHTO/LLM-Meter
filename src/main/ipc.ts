@@ -2,7 +2,7 @@ import { app, dialog, ipcMain, screen, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { CH } from '../shared/types'
+import { channelOf, type IpcMethods } from '../shared/ipc/contract'
 import type {
   ApiFormat,
   ConfigView,
@@ -79,6 +79,14 @@ function wrap<A extends unknown[], T>(fn: (...args: A) => T | Promise<T>) {
   }
 }
 
+/** 按契约注册：方法名决定通道，入参与返回值由 IpcMethods 校验 */
+function handle<M extends keyof IpcMethods>(
+  method: M,
+  fn: (e: Electron.IpcMainInvokeEvent, ...args: IpcMethods[M]['args']) => Promise<IpcResult<IpcMethods[M]['result']>>
+): void {
+  ipcMain.handle(channelOf(method), fn)
+}
+
 function view(): ConfigView {
   const c = cfg.get()
   return {
@@ -148,13 +156,11 @@ function validateAlias(alias: string, exceptId?: string): string {
 }
 
 export function register(): void {
-  ipcMain.handle(
-    CH.config,
+  handle('config',
     wrap(() => view())
   )
 
-  ipcMain.handle(
-    CH.providerCreate,
+  handle('createProvider',
     wrap((input: { name: string; baseUrl: string; format: ApiFormat; apiKey: string; enabled: boolean }) => {
       const baseUrl = needBaseUrl(input.baseUrl)
       const name = input.name.trim()
@@ -175,8 +181,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.providerUpdate,
+  handle('updateProvider',
     wrap(
       (
         id: string,
@@ -196,8 +201,7 @@ export function register(): void {
     )
   )
 
-  ipcMain.handle(
-    CH.providerDelete,
+  handle('deleteProvider',
     wrap((id: string) => {
       cfg.mutate((c) => {
         c.models = c.models.filter((m) => m.providerId !== id)
@@ -207,8 +211,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.providerTest,
+  handle('testProvider',
     wrap(async (id: string): Promise<ProviderTestResult> => {
       const p = cfg.providerById(id)
       if (!p) throw new Error('供应商不存在')
@@ -240,8 +243,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.modelCreate,
+  handle('createModel',
     wrap((input: Omit<ModelCfg, 'id' | 'createdAt' | 'sort'>) => {
       const alias = validateAlias(input.alias)
       const provider = cfg.providerById(input.providerId)
@@ -265,8 +267,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.modelUpdate,
+  handle('updateModel',
     wrap((id: string, patch: Partial<ModelCfg>) => {
       cfg.mutate((c) => {
         const m = c.models.find((x) => x.id === id)
@@ -305,8 +306,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.modelReorder,
+  handle('reorderModels',
     wrap((ids: string[]) => {
       cfg.mutate((c) => {
         const order = new Map(ids.map((id, i) => [id, i]))
@@ -316,8 +316,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.modelDelete,
+  handle('deleteModel',
     wrap((id: string) => {
       cfg.mutate((c) => {
         c.models = c.models.filter((m) => m.id !== id)
@@ -326,8 +325,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.priceLookup,
+  handle('lookupPrice',
     wrap(async (modelId: string, providerId?: string) => {
       // 同时探测一次上游 usage 是否带缓存写入字段，决定界面是否允许填写入价
       const probeCacheWrite = async (): Promise<{ probed: boolean; reported: boolean }> => {
@@ -383,25 +381,20 @@ export function register(): void {
       }
     })
   )
-  ipcMain.handle(
-    CH.rateRefresh,
+  handle('refreshRate',
     wrap(() => rate.refresh())
   )
-  ipcMain.handle(
-    CH.calibrate,
+  handle('calibrate',
     wrap(() => calibrate.run())
   )
-  ipcMain.handle(
-    CH.probeRun,
+  handle('runProbe',
     wrap((id: string): Promise<ProbeResult> => probe.run(id))
   )
-  ipcMain.handle(
-    CH.probeStop,
+  handle('stopProbe',
     wrap((id?: string) => probe.stop(id))
   )
 
-  ipcMain.handle(
-    CH.settingsUpdate,
+  handle('updateSettings',
     wrap(
       async (patch: {
         port?: number
@@ -471,8 +464,7 @@ export function register(): void {
     )
   )
 
-  ipcMain.handle(
-    CH.tokenRotate,
+  handle('rotateToken',
     wrap(() => {
       const issued = token.issue()
       cfg.mutate((c) => {
@@ -483,8 +475,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.tokenCreate,
+  handle('createToken',
     wrap((remarkInput: string) => {
       const remark = String(remarkInput ?? '').trim()
       if (!remark) throw new Error('备注必须填写')
@@ -499,8 +490,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.tokenDelete,
+  handle('deleteToken',
     wrap((id: string) => {
       const list = cfg.get().settings.tokens
       if (list.length <= 1) throw new Error('至少保留一个 token')
@@ -511,8 +501,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.tokenUpdate,
+  handle('updateToken',
     wrap((id: string, remarkInput: string) => {
       const remark = String(remarkInput ?? '').trim()
       if (!remark) throw new Error('备注必须填写')
@@ -535,34 +524,29 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.proxyRestart,
+  handle('restartProxy',
     wrap(async () => {
       const state = await proxy.start(cfg.get().settings.port)
       return state
     })
   )
 
-  ipcMain.handle(
-    CH.history,
+  handle('history',
     wrap((days: number, modelId: string | null) => repo.daySeries(db.get(), Math.min(365, Math.max(1, days)), modelId))
   )
 
-  ipcMain.handle(
-    CH.info,
+  handle('info',
     wrap(() => ({ version: app.getVersion(), dataDir: dataDir(), platform: process.platform }))
   )
 
-  ipcMain.handle(
-    CH.openDataDir,
+  handle('openDataDir',
     wrap(async () => {
       await shell.openPath(dataDir())
       return true
     })
   )
 
-  ipcMain.handle(
-    CH.backup,
+  handle('backup',
     wrap(() => {
       // 配置 JSON 原样拷走，数据库用 VACUUM INTO 取一致性快照
       const stamp = Date.now()
@@ -574,17 +558,14 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.recent,
+  handle('recent',
     wrap((modelId: string, limit?: number) => live.recentFor(modelId, limit ?? 20))
   )
 
-  ipcMain.handle(
-    CH.logRequests,
+  handle('logRequests',
     wrap((input: LogQuery) => repo.queryRequests(db.get(), logQuery(input)))
   )
-  ipcMain.handle(
-    CH.logApps,
+  handle('logApps',
     wrap((input: LogQuery) => repo.queryAppLogs(db.get(), logQuery(input)))
   )
 
@@ -593,13 +574,11 @@ export function register(): void {
     return repo.prune(db.get(), Date.now(), s.retentionDays, s.rollupRetentionDays).requests
   }
 
-  ipcMain.handle(
-    CH.exportDaily,
+  handle('exportDaily',
     wrap(() => pruneNow())
   )
 
-  ipcMain.handle(
-    CH.eventsCleanup,
+  handle('cleanupEvents',
     wrap(() => {
       pruneNow()
       return true
@@ -647,8 +626,7 @@ export function register(): void {
       tps: r.tps
     })
 
-  ipcMain.handle(
-    CH.statsSeries,
+  handle('statsSeries',
     wrap((q: StatsSeriesQuery): StatsSeries => {
       const out = repo.series(db.get(), q)
       return {
@@ -658,20 +636,17 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.statsTotals,
+  handle('statsTotals',
     wrap((q: StatsQuery & { groupBy: StatsGroup }): StatsRow[] => repo.totals(db.get(), q).map(mapRow(q.groupBy)))
   )
 
-  ipcMain.handle(
-    CH.statsTop,
+  handle('statsTop',
     wrap((q: StatsQuery & { by: 'cost' | 'requests' | 'output'; limit: number }): StatsRow[] =>
       repo.top(db.get(), q).map(mapRow('model'))
     )
   )
 
-  ipcMain.handle(
-    CH.statsExport,
+  handle('statsExport',
     wrap(async (q: StatsQuery): Promise<StatsExportResult> => {
       const rows = repo.exportRange(db.get(), q.from, q.to, q.source)
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
@@ -738,8 +713,7 @@ export function register(): void {
     })
   )
 
-  ipcMain.handle(
-    CH.devSeed,
+  handle('devSeed',
     wrap((count: number) => {
       const models = cfg.listModels().filter((m) => m.enabled)
       if (models.length === 0) throw new Error('先配置模型')
@@ -798,40 +772,32 @@ export function register(): void {
   )
 
   // 悬浮窗
-  ipcMain.handle(
-    CH.overlayDragStart,
+  handle('overlayDragStart',
     wrap(() => overlayWin.startDrag())
   )
-  ipcMain.handle(
-    CH.overlayDragEnd,
+  handle('overlayDragEnd',
     wrap(() => overlayWin.stopDrag())
   )
-  ipcMain.handle(
-    CH.overlayHover,
+  handle('overlayHover',
     wrap((value: boolean) => overlayWin.setHover(value))
   )
-  ipcMain.handle(
-    CH.overlayMenu,
+  handle('overlayMenu',
     wrap(() => overlayWin.showMenu())
   )
-  ipcMain.handle(
-    CH.overlayOpenMain,
+  handle('overlayOpenMain',
     wrap(() => showMain())
   )
-  ipcMain.handle(
-    CH.overlaySetSize,
+  handle('overlaySetSize',
     wrap((width: number, height: number) => overlayWin.resize(width, height))
   )
-  ipcMain.handle(
-    CH.overlayState,
+  handle('overlayState',
     wrap(() => {
       const bounds = overlayWin.bounds()
       if (!bounds) return null
       return { bounds, area: screen.getDisplayMatching(bounds).workArea, opacity: cfg.get().settings.overlayOpacity }
     })
   )
-  ipcMain.handle(
-    CH.mainOpen,
+  handle('openMain',
     wrap(() => showMain())
   )
 }

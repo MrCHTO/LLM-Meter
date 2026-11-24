@@ -1,67 +1,66 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { CH } from '../shared/types'
+import { bindInvoke, eventChannel, invoke, type IpcApi, type IpcEvents } from '../shared/ipc/contract'
 
-const api = {
-  config: () => ipcRenderer.invoke(CH.config),
-  info: () => ipcRenderer.invoke(CH.info),
+bindInvoke((channel, ...args) => ipcRenderer.invoke(channel, ...args))
 
-  createProvider: (input: unknown) => ipcRenderer.invoke(CH.providerCreate, input),
-  updateProvider: (id: string, patch: unknown) => ipcRenderer.invoke(CH.providerUpdate, id, patch),
-  deleteProvider: (id: string) => ipcRenderer.invoke(CH.providerDelete, id),
-  testProvider: (id: string) => ipcRenderer.invoke(CH.providerTest, id),
+function on<E extends keyof IpcEvents>(event: E, fn: (payload: IpcEvents[E]) => void): () => void {
+  const channel = eventChannel(event)
+  const handler = (_e: Electron.IpcRendererEvent, payload: IpcEvents[E]): void => fn(payload)
+  ipcRenderer.on(channel, handler)
+  return () => ipcRenderer.removeListener(channel, handler)
+}
 
-  createModel: (input: unknown) => ipcRenderer.invoke(CH.modelCreate, input),
-  updateModel: (id: string, patch: unknown) => ipcRenderer.invoke(CH.modelUpdate, id, patch),
-  deleteModel: (id: string) => ipcRenderer.invoke(CH.modelDelete, id),
-  reorderModels: (ids: string[]) => ipcRenderer.invoke(CH.modelReorder, ids),
-  lookupPrice: (modelId: string, providerId?: string) => ipcRenderer.invoke(CH.priceLookup, modelId, providerId),
-  runProbe: (id: string) => ipcRenderer.invoke(CH.probeRun, id),
-  stopProbe: (id?: string) => ipcRenderer.invoke(CH.probeStop, id),
+const api: IpcApi = {
+  info: () => invoke('info'),
+  config: () => invoke('config'),
 
-  updateSettings: (patch: unknown) => ipcRenderer.invoke(CH.settingsUpdate, patch),
-  rotateToken: () => ipcRenderer.invoke(CH.tokenRotate),
-  createToken: (remark: string) => ipcRenderer.invoke(CH.tokenCreate, remark),
-  deleteToken: (id: string) => ipcRenderer.invoke(CH.tokenDelete, id),
-  updateToken: (id: string, remark: string) => ipcRenderer.invoke(CH.tokenUpdate, id, remark),
-  refreshRate: () => ipcRenderer.invoke(CH.rateRefresh),
-  calibrate: () => ipcRenderer.invoke(CH.calibrate),
-  restartProxy: () => ipcRenderer.invoke(CH.proxyRestart),
+  createProvider: (input) => invoke('createProvider', input),
+  updateProvider: (id, patch) => invoke('updateProvider', id, patch),
+  deleteProvider: (id) => invoke('deleteProvider', id),
+  testProvider: (id) => invoke('testProvider', id),
 
-  history: (days: number, modelId: string | null) => ipcRenderer.invoke(CH.history, days, modelId),
-  statsSeries: (q: unknown) => ipcRenderer.invoke(CH.statsSeries, q),
-  statsTotals: (q: unknown) => ipcRenderer.invoke(CH.statsTotals, q),
-  statsTop: (q: unknown) => ipcRenderer.invoke(CH.statsTop, q),
-  statsExport: (q: unknown) => ipcRenderer.invoke(CH.statsExport, q),
-  devSeed: (count: number) => ipcRenderer.invoke(CH.devSeed, count),
-  recent: (modelId: string, limit?: number) => ipcRenderer.invoke(CH.recent, modelId, limit),
-  logRequests: (query: unknown) => ipcRenderer.invoke(CH.logRequests, query),
-  logApps: (query: unknown) => ipcRenderer.invoke(CH.logApps, query),
-  openDataDir: () => ipcRenderer.invoke(CH.openDataDir),
-  backup: () => ipcRenderer.invoke(CH.backup),
-  exportDaily: () => ipcRenderer.invoke(CH.exportDaily),
-  cleanupEvents: () => ipcRenderer.invoke(CH.eventsCleanup),
+  createModel: (input) => invoke('createModel', input),
+  updateModel: (id, patch) => invoke('updateModel', id, patch),
+  deleteModel: (id) => invoke('deleteModel', id),
+  reorderModels: (ids) => invoke('reorderModels', ids),
+  lookupPrice: (modelId, providerId) => invoke('lookupPrice', modelId, providerId),
+  runProbe: (id) => invoke('runProbe', id),
+  stopProbe: (id) => invoke('stopProbe', id),
 
-  overlayState: () => ipcRenderer.invoke(CH.overlayState),
-  overlayDragStart: () => ipcRenderer.invoke(CH.overlayDragStart),
-  overlayDragEnd: () => ipcRenderer.invoke(CH.overlayDragEnd),
-  overlayHover: (value: boolean) => ipcRenderer.invoke(CH.overlayHover, value),
-  overlayMenu: () => ipcRenderer.invoke(CH.overlayMenu),
-  overlayOpenMain: () => ipcRenderer.invoke(CH.overlayOpenMain),
-  overlaySetSize: (width: number, height: number) => ipcRenderer.invoke(CH.overlaySetSize, width, height),
-  openMain: () => ipcRenderer.invoke(CH.mainOpen),
+  updateSettings: (patch) => invoke('updateSettings', patch),
+  rotateToken: () => invoke('rotateToken'),
+  createToken: (remark) => invoke('createToken', remark),
+  deleteToken: (id) => invoke('deleteToken', id),
+  updateToken: (id, remark) => invoke('updateToken', id, remark),
+  refreshRate: () => invoke('refreshRate'),
+  calibrate: () => invoke('calibrate'),
+  restartProxy: () => invoke('restartProxy'),
 
-  onPush: (fn: (snapshot: unknown) => void) => {
-    const handler = (_e: Electron.IpcRendererEvent, payload: unknown): void => fn(payload)
-    ipcRenderer.on(CH.push, handler)
-    return () => ipcRenderer.removeListener(CH.push, handler)
-  },
-  onCalibrated: (fn: (result: unknown) => void) => {
-    const handler = (_e: Electron.IpcRendererEvent, payload: unknown): void => fn(payload)
-    ipcRenderer.on(CH.calibrated, handler)
-    return () => ipcRenderer.removeListener(CH.calibrated, handler)
-  }
+  history: (days, modelId) => invoke('history', days, modelId),
+  recent: (modelId, limit) => invoke('recent', modelId, limit),
+  statsSeries: (q) => invoke('statsSeries', q),
+  statsTotals: (q) => invoke('statsTotals', q),
+  statsTop: (q) => invoke('statsTop', q),
+  statsExport: (q) => invoke('statsExport', q),
+  devSeed: (count) => invoke('devSeed', count),
+  logRequests: (query) => invoke('logRequests', query),
+  logApps: (query) => invoke('logApps', query),
+  openDataDir: () => invoke('openDataDir'),
+  backup: () => invoke('backup'),
+  exportDaily: () => invoke('exportDaily'),
+  cleanupEvents: () => invoke('cleanupEvents'),
+
+  overlayState: () => invoke('overlayState'),
+  overlayDragStart: () => invoke('overlayDragStart'),
+  overlayDragEnd: () => invoke('overlayDragEnd'),
+  overlayHover: (value) => invoke('overlayHover', value),
+  overlayMenu: () => invoke('overlayMenu'),
+  overlayOpenMain: () => invoke('overlayOpenMain'),
+  overlaySetSize: (width, height) => invoke('overlaySetSize', width, height),
+  openMain: () => invoke('openMain'),
+
+  onPush: (fn) => on('push', fn),
+  onCalibrated: (fn) => on('calibrated', fn)
 }
 
 contextBridge.exposeInMainWorld('api', api)
-
-export type Api = typeof api
