@@ -98,25 +98,22 @@ describe('测速执行', () => {
     expect(bodies.every((b) => !b.includes('temperature'))).toBe(true)
   })
 
-  it(
-    '429 三次仍失败时给出限流提示',
-    async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(async () =>
+  it('429 三次仍失败时给出限流提示', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
           new Response(JSON.stringify({ error: { message: 'rate limited' } }), {
             status: 429,
             headers: { 'content-type': 'application/json' }
           })
-        )
       )
-      const probe = await load()
-      const out = await probe.run('m1')
-      expect(out.ok).toBe(false)
-      expect(out.message).toContain('限流')
-    },
-    20_000
-  )
+    )
+    const probe = await load()
+    const out = await probe.run('m1')
+    expect(out.ok).toBe(false)
+    expect(out.message).toContain('限流')
+  }, 20_000)
 
   it('成功时算出首字与速率', async () => {
     vi.stubGlobal(

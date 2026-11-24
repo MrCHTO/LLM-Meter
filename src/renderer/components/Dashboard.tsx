@@ -248,7 +248,9 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               <th className="c-model">模型{cols.resizer(0)}</th>
               <th className="c-url">供应商{cols.resizer(1)}</th>
               <th className="c-rate">TPS{cols.resizer(2)}</th>
-              <th className="c-hit"><span className="hd-cache">缓存</span>命中率{cols.resizer(3)}</th>
+              <th className="c-hit">
+                <span className="hd-cache">缓存</span>命中率{cols.resizer(3)}
+              </th>
               <th className="c-tok">未缓存输入{cols.resizer(4)}</th>
               <th className="c-tok">缓存读取{cols.resizer(5)}</th>
               <th className="c-tok">缓存输入{cols.resizer(6)}</th>
@@ -261,91 +263,99 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
               const running = probing[m.modelId] === true || m.probing
               return (
                 <tr
-                    key={m.modelId}
-                    onClick={() => onOpenLogs(m.modelId)}
-                    onDragStart={(e) => {
-                      e.dataTransfer?.setData('text/plain', m.modelId)
-                      setDragId(m.modelId)
-                    }}
-                    onDragEnd={() => setDragId(null)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      const sourceId = e.dataTransfer?.getData('text/plain') || dragId
-                      void dropOn(m.modelId, sourceId)
-                    }}
-                    className={[
-                      'clickable',
-                      running && 'probing',
-                      flash[m.modelId] && 'bad-flash',
-                      dragId === m.modelId && 'dragging',
-                      'row-drag'
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onContextMenu={(event) => {
-                      event.preventDefault()
-                      setMenu({ modelId: m.modelId, x: event.clientX, y: event.clientY })
-                    }}
+                  key={m.modelId}
+                  onClick={() => onOpenLogs(m.modelId)}
+                  onDragStart={(e) => {
+                    e.dataTransfer?.setData('text/plain', m.modelId)
+                    setDragId(m.modelId)
+                  }}
+                  onDragEnd={() => setDragId(null)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    const sourceId = e.dataTransfer?.getData('text/plain') || dragId
+                    void dropOn(m.modelId, sourceId)
+                  }}
+                  className={[
+                    'clickable',
+                    running && 'probing',
+                    flash[m.modelId] && 'bad-flash',
+                    dragId === m.modelId && 'dragging',
+                    'row-drag'
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    setMenu({ modelId: m.modelId, x: event.clientX, y: event.clientY })
+                  }}
+                >
+                  <td className="c-model">
+                    <span
+                      className={
+                        'probe-dot' +
+                        (m.lastProbeAt === null ? '' : m.lastProbeOk ? ' on' : ' off') +
+                        (m.autoProbe ? '' : ' idle')
+                      }
+                      title={
+                        m.lastProbeAt
+                          ? `上次探针：${new Date(m.lastProbeAt).toLocaleTimeString()}`
+                          : m.autoProbe
+                            ? '尚未探测'
+                            : '自动探针未开启'
+                      }
+                    />
+                    <span className="model-name" style={{ '--mc': colors[m.modelId] } as CSSProperties}>
+                      {m.alias}
+                    </span>
+                  </td>
+                  <td className="c-url" title={`${m.providerName} ${m.baseUrl}`}>
+                    {m.providerName}
+                  </td>
+                  <td className="c-rate mono">
+                    {range === 'today'
+                      ? m.lastTps === null
+                        ? '—'
+                        : Math.round(m.lastTps)
+                      : (rowOf(m.modelId)?.tps ?? null) === null
+                        ? '—'
+                        : Math.round(rowOf(m.modelId)!.tps as number)}
+                  </td>
+                  <td
+                    className="c-hit mono"
+                    title={
+                      hitOf(m)?.reported
+                        ? `缓存读取 ${fmtTokens(hitOf(m)!.read)} / 输入 ${fmtTokens(hitOf(m)!.input)}`
+                        : '渠道未上报缓存读计数'
+                    }
                   >
-                    <td className="c-model">
-                      <span
-                        className={
-                          'probe-dot' +
-                          (m.lastProbeAt === null ? '' : m.lastProbeOk ? ' on' : ' off') +
-                          (m.autoProbe ? '' : ' idle')
-                        }
-                        title={
-                          m.lastProbeAt
-                            ? `上次探针：${new Date(m.lastProbeAt).toLocaleTimeString()}`
-                            : m.autoProbe
-                              ? '尚未探测'
-                              : '自动探针未开启'
-                        }
-                      />
-                      <span className="model-name" style={{ '--mc': colors[m.modelId] } as CSSProperties}>
-                        {m.alias}
-                      </span>
-                    </td>
-                    <td className="c-url" title={`${m.providerName} ${m.baseUrl}`}>
-                      {m.providerName}
-                    </td>
-                    <td className="c-rate mono">
-                      {range === 'today'
-                        ? m.lastTps === null ? '—' : Math.round(m.lastTps)
-                        : (rowOf(m.modelId)?.tps ?? null) === null ? '—' : Math.round(rowOf(m.modelId)!.tps as number)}
-                    </td>
-                    <td
-                      className="c-hit mono"
-                      title={hitOf(m)?.reported ? `缓存读取 ${fmtTokens(hitOf(m)!.read)} / 输入 ${fmtTokens(hitOf(m)!.input)}` : '渠道未上报缓存读计数'}
+                    {hitOf(m)?.reported ? fmtPct(hitOf(m)!.read / hitOf(m)!.input) : '—'}
+                  </td>
+                  <td className="c-tok mono">{fmtTokens(tokOf(m).uncached)}</td>
+                  <td className="c-tok mono">{tokOf(m).readReported ? fmtTokens(tokOf(m).read) : '—'}</td>
+                  <td className="c-tok mono">{tokOf(m).inputReported ? fmtTokens(tokOf(m).cacheInput) : '—'}</td>
+                  <td className="c-tok mono">{fmtTokens(tokOf(m).output)}</td>
+                  <td className="c-cost mono">
+                    {fmtMoney(tokOf(m).cost, m.currency)}
+                    <span
+                      className="grip row-grip"
+                      draggable
+                      title="拖动排序"
+                      onClick={(e) => e.stopPropagation()}
+                      onDragStart={(e) => {
+                        e.dataTransfer?.setData('text/plain', m.modelId)
+                        setDragId(m.modelId)
+                      }}
+                      onDragEnd={() => setDragId(null)}
                     >
-                      {hitOf(m)?.reported ? fmtPct(hitOf(m)!.read / hitOf(m)!.input) : '—'}
-                    </td>
-                    <td className="c-tok mono">{fmtTokens(tokOf(m).uncached)}</td>
-                    <td className="c-tok mono">{tokOf(m).readReported ? fmtTokens(tokOf(m).read) : '—'}</td>
-                    <td className="c-tok mono">{tokOf(m).inputReported ? fmtTokens(tokOf(m).cacheInput) : '—'}</td>
-                    <td className="c-tok mono">{fmtTokens(tokOf(m).output)}</td>
-                    <td className="c-cost mono">
-                      {fmtMoney(tokOf(m).cost, m.currency)}
-                      <span
-                        className="grip row-grip"
-                        draggable
-                        title="拖动排序"
-                        onClick={(e) => e.stopPropagation()}
-                        onDragStart={(e) => {
-                          e.dataTransfer?.setData('text/plain', m.modelId)
-                          setDragId(m.modelId)
-                        }}
-                        onDragEnd={() => setDragId(null)}
-                      >
-                        ⋮⋮
-                      </span>
-                    </td>
-                  </tr>
+                      ⋮⋮
+                    </span>
+                  </td>
+                </tr>
               )
             })}
             {models.length === 0 ? (
               <tr>
-                      <td colSpan={9} className="empty">
+                <td colSpan={9} className="empty">
                   还没有启用的模型
                 </td>
               </tr>

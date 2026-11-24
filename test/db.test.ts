@@ -113,8 +113,16 @@ describe('写入', () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>
     // 旧名字一条 + 新名字一条，同一分钟桶并存
-    repo.recordRequest(conn, ev({ inputTokens: 100, outputTokens: 10, cost: 0.001 }), { ...extra, tokenId: 't1', tokenRemark: '旧名' })
-    repo.recordRequest(conn, ev({ inputTokens: 300, outputTokens: 30, cost: 0.003 }), { ...extra, tokenId: 't1', tokenRemark: '新名' })
+    repo.recordRequest(conn, ev({ inputTokens: 100, outputTokens: 10, cost: 0.001 }), {
+      ...extra,
+      tokenId: 't1',
+      tokenRemark: '旧名'
+    })
+    repo.recordRequest(conn, ev({ inputTokens: 300, outputTokens: 30, cost: 0.003 }), {
+      ...extra,
+      tokenId: 't1',
+      tokenRemark: '新名'
+    })
     repo.renameTokenRemark(conn, 't1', '旧名', '新名')
 
     // 明细两条都归到新名字下
@@ -128,7 +136,11 @@ describe('写入', () => {
     expect(minute).toEqual({ input: 400, output: 40, requests: 2, cost: 0.004 })
     expect(conn.get<{ input: number }>('select input from rollup_token_day')?.input).toBe(400)
     // 无 token_id 的其他明细不被动
-    repo.recordRequest(conn, ev({ inputTokens: 500, outputTokens: 50 }), { ...extra, tokenId: null, tokenRemark: '默认' })
+    repo.recordRequest(conn, ev({ inputTokens: 500, outputTokens: 50 }), {
+      ...extra,
+      tokenId: null,
+      tokenRemark: '默认'
+    })
     expect(conn.get<{ c: number }>("select count(*) c from requests where token_remark = '默认'")?.c).toBe(1)
   })
 
@@ -136,7 +148,11 @@ describe('写入', () => {
     const { repo } = await load()
     const conn = db as NonNullable<typeof db>
     // recordRequest 忠实写事件：标志由上层（server/probe）按 details 存在性传
-    repo.recordRequest(conn, ev({ inputTokens: 1000, cacheReadTokens: 800, cacheReadReported: true }), { ...extra, tokenId: 't1', tokenRemark: 'ZCode' })
+    repo.recordRequest(conn, ev({ inputTokens: 1000, cacheReadTokens: 800, cacheReadReported: true }), {
+      ...extra,
+      tokenId: 't1',
+      tokenRemark: 'ZCode'
+    })
     expect(conn.get<{ v: number }>('select cache_read_reported v from requests')?.v).toBe(1)
     expect(conn.get<{ v: number }>('select cache_read_reported v from rollup_minute')?.v).toBe(1)
     // 无缓存读的请求标志为 0
@@ -150,7 +166,7 @@ describe('写入', () => {
     const conn = db as NonNullable<typeof db>
     // 旧导入行没有 token_remark
     repo.recordRequest(conn, ev(), { ...extra, tokenId: null, tokenRemark: null })
-    conn.run("update requests set token_remark = null")
+    conn.run('update requests set token_remark = null')
     expect(() => repo.rebuildTokenRollups(conn)).not.toThrow()
     expect(conn.get<{ v: string }>('select token_remark v from rollup_token_minute')?.v).toBe('默认')
   })
@@ -223,7 +239,14 @@ describe('查询', () => {
     const now = Date.now()
     repo.recordRequest(conn, ev({ ts: now, outputTokens: 10 }), { ...extra, tokenRemark: '笔记本' })
     repo.recordRequest(conn, ev({ ts: now + 1, outputTokens: 20 }), { ...extra, tokenRemark: '脚本' })
-    const s = repo.series(conn, { from: Math.floor(now / 60000) * 60000, to: Math.floor(now / 60000) * 60000 + 60000, granularity: 'minute', metric: 'output', groupBy: 'token', source: 'all' })
+    const s = repo.series(conn, {
+      from: Math.floor(now / 60000) * 60000,
+      to: Math.floor(now / 60000) * 60000 + 60000,
+      granularity: 'minute',
+      metric: 'output',
+      groupBy: 'token',
+      source: 'all'
+    })
     expect(s.series.map((x) => x.key).sort()).toEqual(['笔记本', '脚本'])
     const t = repo.totals(conn, { from: now - 1000, to: now + 1000, groupBy: 'token', source: 'all' })
     expect(t.find((x) => x.key === '笔记本')?.output).toBe(10)
@@ -235,7 +258,14 @@ describe('查询', () => {
     const base = Math.floor(Date.now() / 60000) * 60000
     repo.recordRequest(conn, ev({ ts: base }), extra)
     repo.recordRequest(conn, ev({ ts: base + 120_000 }), extra)
-    const s = repo.series(conn, { from: base, to: base + 180_000, granularity: 'minute', metric: 'requests', groupBy: 'model', source: 'all' })
+    const s = repo.series(conn, {
+      from: base,
+      to: base + 180_000,
+      granularity: 'minute',
+      metric: 'requests',
+      groupBy: 'model',
+      source: 'all'
+    })
     expect(s.buckets).toHaveLength(3)
     expect(s.series[0]?.points).toHaveLength(3)
     expect(s.series[0]?.points[1]).toBe(0)
@@ -277,7 +307,11 @@ describe('日志查询', () => {
     const conn = db as NonNullable<typeof db>
     const now = Date.now()
     repo.recordRequest(conn, ev({ ts: now }), extra)
-    repo.recordRequest(conn, ev({ ts: now + 1, source: 'probe', ok: false, status: 500, errorKind: 'upstream_5xx' }), extra)
+    repo.recordRequest(
+      conn,
+      ev({ ts: now + 1, source: 'probe', ok: false, status: 500, errorKind: 'upstream_5xx' }),
+      extra
+    )
     repo.recordRequest(conn, ev({ ts: now + 2, modelId: 'm2', alias: 'other' }), extra)
 
     const base = { from: now - 1000, to: now + 1000, page: 1, pageSize: 10 }
@@ -341,7 +375,9 @@ describe('旧数据导入', () => {
     const minute = Math.floor(ts / 60_000) * 60_000
     writeFileSync(
       join(data, 'rollup', '2026-11-12.json'),
-      JSON.stringify({ [minute]: { m1: { out: 50, req: 1, err: 0, cost: 0.1, input: 500, cacheRead: 100, cacheInput: 0 } } }),
+      JSON.stringify({
+        [minute]: { m1: { out: 50, req: 1, err: 0, cost: 0.1, input: 500, cacheRead: 100, cacheInput: 0 } }
+      }),
       'utf8'
     )
 

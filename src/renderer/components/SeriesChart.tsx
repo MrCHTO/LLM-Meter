@@ -54,7 +54,9 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
     const ro = new ResizeObserver(() => {
       const r = el.getBoundingClientRect()
       if (r.width < 50 || r.height < 50) return
-      setBox((prev) => (Math.abs(prev.w - r.width) < 1 && Math.abs(prev.h - r.height) < 1 ? prev : { w: r.width, h: r.height }))
+      setBox((prev) =>
+        Math.abs(prev.w - r.width) < 1 && Math.abs(prev.h - r.height) < 1 ? prev : { w: r.width, h: r.height }
+      )
     })
     ro.observe(el)
     roRef.current = ro
@@ -96,103 +98,97 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
   // 气泡贴着悬停桶：水平居中于柱（边缘钳制），垂直贴最高柱上方
   const tipLeftPct = hoverAt === null ? 0 : (center(hoverAt) / W) * 100
   const tipTopRaw =
-    hoverAt === null || visible.length === 0
-      ? base
-      : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
+    hoverAt === null || visible.length === 0 ? base : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
   const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipSize.h - 4))
   const tipPad = tipSize.w / 2 + 4
 
   return (
     <div className="series-wrap">
       <div className="chart-plot" ref={plotRef}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="series-svg"
-        preserveAspectRatio="none"
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect()
-          const ratio = (e.clientX - rect.left) / rect.width
-          const idx = Math.floor((ratio * W - PAD.left) / band)
-          setHover(Number.isFinite(idx) ? Math.min(n - 1, Math.max(0, idx)) : null)
-        }}
-        onMouseLeave={() => setHover(null)}
-      >
-        {ticks.map((t, i) => (
-          <line key={i} x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="grid" />
-        ))}
-
-        {visible.map((s, si) =>
-          s.points.map((v, i) => {
-            // 0 值不画柱，连底线也不留
-            if (v === 0) return null
-            const h = Math.max(1, base - y(v))
-            const gx = center(i) - (barW * visible.length) / 2 + si * barW
-            return (
-              <rect
-                key={`${s.key}-${i}`}
-                x={gx}
-                y={base - h}
-                width={Math.max(1, barW - 1)}
-                height={h}
-                fill={s.color}
-                className="series-bar"
-              />
-            )
-          })
-        )}
-
-        {hoverAt !== null ? (
-          <line x1={center(hoverAt)} x2={center(hoverAt)} y1={PAD.top} y2={base} className="crosshair" />
-        ) : null}
-      </svg>
-
-      {/* 刻度文字放到 HTML 层，SVG 横向拉伸时字不会被压扁 */}
-      <div className="axis-labels y-labels">
-        {ticks.map((t, i) => (
-          <span key={i} className="axis-y" style={{ top: `${(y(t) / H) * 100}%` }}>
-            {format(t)}
-          </span>
-        ))}
-      </div>
-      <div className="axis-labels x-labels">
-        {buckets.map((b, i) =>
-          i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
-            <span key={b} className="axis-x" style={{ left: `${(center(i) / W) * 100}%` }}>
-              {timeFormat(b)}
-            </span>
-          ) : null
-        )}
-      </div>
-
-      {hoverAt !== null ? (
-        <div
-          ref={tipRef}
-          className="series-tip"
-          style={{
-            left: `clamp(${tipPad}px, ${tipLeftPct}%, calc(100% - ${tipPad}px))`,
-            top: `${(tipTop / H) * 100}%`,
-            transform: 'translateX(-50%)'
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="series-svg"
+          preserveAspectRatio="none"
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const ratio = (e.clientX - rect.left) / rect.width
+            const idx = Math.floor((ratio * W - PAD.left) / band)
+            setHover(Number.isFinite(idx) ? Math.min(n - 1, Math.max(0, idx)) : null)
           }}
+          onMouseLeave={() => setHover(null)}
         >
-          <div className="tip-time">{timeFormat(buckets[hoverAt] as number)}</div>
-          {visible.map((s) => (
-            <div key={s.key} className="tip-row">
-              <i style={{ background: s.color }} />
-              <span>{s.label}</span>
-              <b className="mono">{format(s.points[hoverAt] ?? 0)}</b>
-            </div>
+          {ticks.map((t, i) => (
+            <line key={i} x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="grid" />
+          ))}
+
+          {visible.map((s, si) =>
+            s.points.map((v, i) => {
+              // 0 值不画柱，连底线也不留
+              if (v === 0) return null
+              const h = Math.max(1, base - y(v))
+              const gx = center(i) - (barW * visible.length) / 2 + si * barW
+              return (
+                <rect
+                  key={`${s.key}-${i}`}
+                  x={gx}
+                  y={base - h}
+                  width={Math.max(1, barW - 1)}
+                  height={h}
+                  fill={s.color}
+                  className="series-bar"
+                />
+              )
+            })
+          )}
+
+          {hoverAt !== null ? (
+            <line x1={center(hoverAt)} x2={center(hoverAt)} y1={PAD.top} y2={base} className="crosshair" />
+          ) : null}
+        </svg>
+
+        {/* 刻度文字放到 HTML 层，SVG 横向拉伸时字不会被压扁 */}
+        <div className="axis-labels y-labels">
+          {ticks.map((t, i) => (
+            <span key={i} className="axis-y" style={{ top: `${(y(t) / H) * 100}%` }}>
+              {format(t)}
+            </span>
           ))}
         </div>
-      ) : null}
+        <div className="axis-labels x-labels">
+          {buckets.map((b, i) =>
+            i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
+              <span key={b} className="axis-x" style={{ left: `${(center(i) / W) * 100}%` }}>
+                {timeFormat(b)}
+              </span>
+            ) : null
+          )}
+        </div>
+
+        {hoverAt !== null ? (
+          <div
+            ref={tipRef}
+            className="series-tip"
+            style={{
+              left: `clamp(${tipPad}px, ${tipLeftPct}%, calc(100% - ${tipPad}px))`,
+              top: `${(tipTop / H) * 100}%`,
+              transform: 'translateX(-50%)'
+            }}
+          >
+            <div className="tip-time">{timeFormat(buckets[hoverAt] as number)}</div>
+            {visible.map((s) => (
+              <div key={s.key} className="tip-row">
+                <i style={{ background: s.color }} />
+                <span>{s.label}</span>
+                <b className="mono">{format(s.points[hoverAt] ?? 0)}</b>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="legend">
         {series.map((s) => (
-          <button
-            key={s.key}
-            className={s.hidden ? 'legend-item off' : 'legend-item'}
-            onClick={() => onToggle(s.key)}
-          >
+          <button key={s.key} className={s.hidden ? 'legend-item off' : 'legend-item'} onClick={() => onToggle(s.key)}>
             <i style={{ background: s.color }} />
             {s.label}
           </button>

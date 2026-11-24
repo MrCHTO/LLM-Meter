@@ -42,7 +42,12 @@ export function Sparkline({ buckets, tail = 30 }: Props): JSX.Element {
   const area = `${line} L${W},${H} L0,${H} Z`
 
   return (
-    <svg className={empty ? 'spark spark-empty' : 'spark'} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
+    <svg
+      className={empty ? 'spark spark-empty' : 'spark'}
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
       <path className="spark-fill" d={area} />
       <path className="spark-line" d={line} />
     </svg>

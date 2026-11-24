@@ -65,10 +65,7 @@ const render = async () => {
 
   writeFileSync(join(ROOT, 'resources', 'icon.png'), pngs.find((p) => p.size === 256).data)
   writeFileSync(join(ROOT, 'resources', 'icon.ico'), buildIco(pngs))
-  writeFileSync(
-    join(ROOT, 'resources', 'tray.ico'),
-    buildIco(pngs.filter((p) => TRAY_SIZES.includes(p.size)))
-  )
+  writeFileSync(join(ROOT, 'resources', 'tray.ico'), buildIco(pngs.filter((p) => TRAY_SIZES.includes(p.size))))
   win.destroy()
 
   // 自检：两个 ico 都要能读回非空图

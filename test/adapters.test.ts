@@ -90,7 +90,9 @@ describe('openai 适配器', () => {
   })
 
   it('带缓存写入字段时标记已上报', () => {
-    const out = a.parseUsage('{"usage":{"prompt_tokens":10,"completion_tokens":20,"prompt_tokens_details":{"cache_creation_tokens":5}}}')
+    const out = a.parseUsage(
+      '{"usage":{"prompt_tokens":10,"completion_tokens":20,"prompt_tokens_details":{"cache_creation_tokens":5}}}'
+    )
     expect(out?.reportedCacheInput).toBe(true)
     expect(out?.usage.cacheInput).toBe(5)
   })

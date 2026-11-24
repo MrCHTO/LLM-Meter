@@ -1,6 +1,7 @@
 /**
  * 通过 CDP 连上真实窗口，核对界面渲染与关键交互，并截图。
- * 用法：node test/ui-check.mjs
+ * 用法：node scripts/check/ui-check.mjs
+ * 端口可用 LLM_TEST_PORT 覆盖，默认与安装版错开。
  */
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -13,6 +14,7 @@ const PROFILE = mkdtempSync(join(tmpdir(), 'llmmeter-ui-'))
 const DATA = join(PROFILE, 'data')
 const SHOTS = join(ROOT, 'test', 'shots')
 const TOKEN = 'cafebabecafebabecafebabecafebabe'
+const PORT = Number(process.env.LLM_TEST_PORT ?? 18789)
 const KEY = process.env.KEY ?? 'sk-YxfyzJCnbzjFzvFCF3Fd6eE84e414dA1AcEa60B3161fE535'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const results = []
@@ -156,7 +158,7 @@ writeFileSync(
       }
     ],
     settings: {
-      port: 8787,
+      port: PORT,
       localToken: TOKEN,
       retentionDays: 30,
       rollupRetentionDays: 365,

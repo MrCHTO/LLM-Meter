@@ -42,7 +42,16 @@ export interface Adapter {
   errorOf(body: string): string | null
 }
 
-const EMPTY_FRAME: FrameInfo = { chars: 0, cjk: 0, other: 0, firstContent: false, usage: null, error: null, reportedCacheInput: false, reportedCacheRead: false }
+const EMPTY_FRAME: FrameInfo = {
+  chars: 0,
+  cjk: 0,
+  other: 0,
+  firstContent: false,
+  usage: null,
+  error: null,
+  reportedCacheInput: false,
+  reportedCacheRead: false
+}
 
 const CJK_CHAR = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/
 
@@ -127,9 +136,7 @@ const openai: Adapter = {
           'cache_creation_tokens' in (details ?? {}) ||
           'cache_write_tokens' in (details ?? {})
         const written =
-          num(usage.cache_write_tokens) ||
-          num(details?.cache_creation_tokens) ||
-          num(details?.cache_write_tokens)
+          num(usage.cache_write_tokens) || num(details?.cache_creation_tokens) || num(details?.cache_write_tokens)
         info.reportedCacheInput = reported
         // 渠道把 details 置空（GLM 渠道恒 null）时视为未上报缓存读，界面显示 — 而不是误导性的 0.00%
         info.reportedCacheRead = details !== null || num(usage.prompt_cache_hit_tokens) > 0
@@ -170,7 +177,8 @@ const openai: Adapter = {
         input: num(usage.prompt_tokens),
         output: num(usage.completion_tokens),
         cacheRead: num(details?.cached_tokens) || num(usage.prompt_cache_hit_tokens),
-        cacheInput: num(usage.cache_write_tokens) || num(details?.cache_creation_tokens) || num(details?.cache_write_tokens)
+        cacheInput:
+          num(usage.cache_write_tokens) || num(details?.cache_creation_tokens) || num(details?.cache_write_tokens)
       }
     }
   },

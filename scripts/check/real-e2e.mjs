@@ -1,21 +1,29 @@
 /**
  * 真实上游核对：穿过应用代理打两次同前缀请求，确认首字时间、tps、缓存命中确实被记下。
- * 用法：node test/real-e2e.mjs <baseUrl> <key> <model>
+ * 用法：node scripts/check/real-e2e.mjs <baseUrl> <key> <model>
+ * 使用临时档案目录，不碰已安装实例与开发档案。
  */
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+const require = createRequire(import.meta.url)
 
 const [base, key, model] = process.argv.slice(2)
 if (!base || !key || !model) {
-  console.error('usage: node test/real-e2e.mjs <baseUrl> <key> <model>')
+  console.error('usage: node scripts/check/real-e2e.mjs <baseUrl> <key> <model>')
   process.exit(2)
 }
 
 const ROOT = process.cwd()
-const DATA = join(process.env.APPDATA ?? '', 'llm-meter', 'data')
+/** 临时档案目录：不覆盖开发档案，也不与运行中的实例抢单例锁 */
+const PROFILE = mkdtempSync(join(tmpdir(), 'llmmeter-real-'))
+const DATA = join(PROFILE, 'data')
 const TOKEN = 'cafebabecafebabecafebabecafebabe'
-const PROXY = 'http://127.0.0.1:8787'
+const PORT = Number(process.env.LLM_TEST_PORT ?? 18788)
+const PROXY = `http://127.0.0.1:${PORT}`
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const results = []
 const check = (name, pass, detail = '') => {
@@ -63,7 +71,7 @@ writeFileSync(
       }
     ],
     settings: {
-      port: 8787,
+      port: PORT,
       localToken: TOKEN,
       retentionDays: 30,
       rollupRetentionDays: 365,
@@ -79,10 +87,14 @@ writeFileSync(
 const filler = '缓存前缀用于测量命中。The quick brown fox jumps over the lazy dog. 温度、气压与湿度沿着海岸线缓慢变化，'
 const prefix = Array.from({ length: 260 }, (_, i) => `${i} ${filler}`).join(' ')
 
-const electron = spawn(join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'), ['.'], {
-  cwd: ROOT,
-  stdio: ['ignore', 'pipe', 'pipe']
-})
+const electron = spawn(
+  join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'),
+  ['.', `--user-data-dir=${PROFILE}`],
+  {
+    cwd: ROOT,
+    stdio: ['ignore', 'pipe', 'pipe']
+  }
+)
 const log = []
 electron.stdout.on('data', (d) => {
   const text = d.toString()
@@ -135,10 +147,21 @@ try {
   }
   await sleep(1200)
 
-  const rows = readFileSync(join(DATA, 'events', `${day}.jsonl`), 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => JSON.parse(line))
+  const { DatabaseSync } = require('node:sqlite')
+  const conn = new DatabaseSync(join(DATA, 'llm-meter.db'), { readOnly: true })
+  const rows = conn
+    .prepare('select * from requests where day = ? order by ts asc')
+    .all(day)
+    .map((r) => ({
+      ok: Boolean(r.ok),
+      outputTokens: Number(r.output_tokens),
+      inputTokens: Number(r.input_tokens),
+      cacheReadTokens: Number(r.cache_read_tokens),
+      ttftMs: r.ttft_ms,
+      durationMs: Number(r.duration_ms),
+      cost: Number(r.cost)
+    }))
+  conn.close()
   check('请求全部落盘', rows.length === 4, `count=${rows.length}`)
 
   const [a] = rows
@@ -163,7 +186,9 @@ try {
   console.log(log.join('').slice(-2000))
 } finally {
   electron.kill()
-  await sleep(400)
+  await sleep(600)
+  if (process.env.KEEP_PROFILE) console.log('profile:', PROFILE)
+  else rmSync(PROFILE, { recursive: true, force: true })
 }
 
 const failed = results.filter((x) => !x).length

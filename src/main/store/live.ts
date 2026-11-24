@@ -1,11 +1,4 @@
-import type {
-  DayPoint,
-  LiveSnapshot,
-  ModelLive,
-  RequestEvent,
-  SnapshotTotals,
-  TodayTotals
-} from '../../shared/types'
+import type { DayPoint, LiveSnapshot, ModelLive, RequestEvent, SnapshotTotals, TodayTotals } from '../../shared/types'
 import * as cfg from './config'
 import * as db from './db'
 import { tps } from '../metrics/cost'
@@ -124,7 +117,18 @@ function realtimeOf(s: ModelState, now: number): number | null {
 }
 
 function blankToday(): TodayTotals {
-  return { requests: 0, errors: 0, input: 0, uncachedInput: 0, output: 0, cacheRead: 0, cacheInput: 0, cacheInputReported: 0, cacheReadReported: 0, cost: 0 }
+  return {
+    requests: 0,
+    errors: 0,
+    input: 0,
+    uncachedInput: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheInput: 0,
+    cacheInputReported: 0,
+    cacheReadReported: 0,
+    cost: 0
+  }
 }
 
 /** 当前「今天」的日期键，跨日后今日合计要重新起算；首次调用时以当时的日期起算 */
@@ -403,7 +407,10 @@ export function snapshot(
     const tps = tpsOf(s)
     const realtimeTps = realtimeOf(s, now)
     // 渠道具备缓存读计数（有过上报或曾命中过）才显示数值；否则显示 — 而非误导性的 0.00%
-    const hitRate = (s.today.cacheReadReported > 0 || s.today.cacheRead > 0) && s.today.input > 0 ? s.today.cacheRead / s.today.input : null
+    const hitRate =
+      (s.today.cacheReadReported > 0 || s.today.cacheRead > 0) && s.today.input > 0
+        ? s.today.cacheRead / s.today.input
+        : null
     models.push({
       modelId: m.id,
       alias: m.alias,
@@ -429,13 +436,12 @@ export function snapshot(
       ttftP95: ttftPct(s.ttftSamples, 95),
       ttftP99: ttftPct(s.ttftSamples, 99),
       inflight: inflight.get(m.id) ?? 0,
-      active:
-        (inflight.get(m.id) ?? 0) > 0 || (visibleUntil.get(m.id) ?? 0) > now,
+      active: (inflight.get(m.id) ?? 0) > 0 || (visibleUntil.get(m.id) ?? 0) > now,
       probing: s.probing,
       autoProbe: m.autoProbe === true,
       lastProbeAt: s.lastProbeAt,
       lastProbeOk: s.lastProbeOk,
-      probeFails: s.probeFails,
+      probeFails: s.probeFails
     })
     totals.tps += tps
     for (let i = 0; i < BUCKETS; i++) {
@@ -481,7 +487,13 @@ export function emptyDays(days: number): DayPoint[] {
   const out: DayPoint[] = []
   const now = Date.now()
   for (let i = days - 1; i >= 0; i--) {
-    out.push({ ts: new Date(new Date(now - i * 86400_000).setHours(0, 0, 0, 0)).getTime(), out: 0, req: 0, err: 0, cost: 0 })
+    out.push({
+      ts: new Date(new Date(now - i * 86400_000).setHours(0, 0, 0, 0)).getTime(),
+      out: 0,
+      req: 0,
+      err: 0,
+      cost: 0
+    })
   }
   return out
 }

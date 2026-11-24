@@ -98,40 +98,40 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
           </div>
           <div className="access-cols-right">
             <div className="access-split">
-          <div className="access-half">
-            <span className="muted">监听端口</span>
-            <div className="row nowrap" style={{ gap: 8 }}>
-              <input
-                className="mono w-sm"
-                type="number"
-                min={1024}
-                max={65535}
-                value={port}
-                onChange={(e) => setPort(e.target.value)}
-              />
-              <button
-                className="btn sm"
-                onClick={async () => {
-                  const value = Number(port)
-                  if (!value || value < 1024 || value > 65535) {
-                    notify('端口需要在 1024-65535')
-                    return
-                  }
-                  await patch({ port: value })
-                  notify('端口已应用', 'ok')
-                }}
-              >
-                应用
-              </button>
-            </div>
-          </div>
-          <div className="access-half">
-            <span className="muted">允许局域网访问</span>
-            <input
-              type="checkbox"
-              checked={config.settings.allowLan}
-              onChange={(e) => void patch({ allowLan: e.target.checked })}
-            />
+              <div className="access-half">
+                <span className="muted">监听端口</span>
+                <div className="row nowrap" style={{ gap: 8 }}>
+                  <input
+                    className="mono w-sm"
+                    type="number"
+                    min={1024}
+                    max={65535}
+                    value={port}
+                    onChange={(e) => setPort(e.target.value)}
+                  />
+                  <button
+                    className="btn sm"
+                    onClick={async () => {
+                      const value = Number(port)
+                      if (!value || value < 1024 || value > 65535) {
+                        notify('端口需要在 1024-65535')
+                        return
+                      }
+                      await patch({ port: value })
+                      notify('端口已应用', 'ok')
+                    }}
+                  >
+                    应用
+                  </button>
+                </div>
+              </div>
+              <div className="access-half">
+                <span className="muted">允许局域网访问</span>
+                <input
+                  type="checkbox"
+                  checked={config.settings.allowLan}
+                  onChange={(e) => void patch({ allowLan: e.target.checked })}
+                />
               </div>
             </div>
           </div>
@@ -189,7 +189,10 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
               return (
                 <div
                   className="ctxmenu"
-                  style={{ left: Math.min(menu.x, window.innerWidth - 140), top: Math.min(menu.y, window.innerHeight - 90) }}
+                  style={{
+                    left: Math.min(menu.x, window.innerWidth - 140),
+                    top: Math.min(menu.y, window.innerHeight - 90)
+                  }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -217,7 +220,13 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
       </div>
 
       {modal ? (
-        <div className="mask" onClick={() => { setModal(false); setEditing(null) }}>
+        <div
+          className="mask"
+          onClick={() => {
+            setModal(false)
+            setEditing(null)
+          }}
+        >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editing ? '修改备注' : '生成 Token'}</h3>
             <label className="field">
@@ -234,7 +243,13 @@ export function Access({ config, notify, onChanged }: Props): JSX.Element {
               />
             </label>
             <div className="actions">
-              <button className="btn" onClick={() => { setModal(false); setEditing(null) }}>
+              <button
+                className="btn"
+                onClick={() => {
+                  setModal(false)
+                  setEditing(null)
+                }}
+              >
                 取消
               </button>
               <button className="btn primary" disabled={busy} onClick={() => void create()}>

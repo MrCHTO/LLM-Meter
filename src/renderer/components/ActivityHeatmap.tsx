@@ -87,7 +87,9 @@ export function ActivityHeatmap({ daily }: Props): JSX.Element {
     return marks
   }, [days])
 
-  const hovered = hover ? days.find((c) => c.col === hover.col && c.row === hover.row && values.get(c.key) !== undefined) : null
+  const hovered = hover
+    ? days.find((c) => c.col === hover.col && c.row === hover.row && values.get(c.key) !== undefined)
+    : null
   const hoverValue = hovered ? (values.get(hovered.key) ?? 0) : 0
   const weekStart = hovered ? new Date(days.find((c) => c.col === hovered.col)?.ts ?? hovered.ts) : null
   const weekEnd = weekStart ? new Date(weekStart.getTime() + 6 * DAY_MS) : null

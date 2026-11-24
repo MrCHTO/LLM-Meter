@@ -72,7 +72,11 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
       page,
       pageSize: PAGE_SIZE,
       ...(kind === 'request'
-        ? { modelId: modelId || undefined, source: source === 'all' ? undefined : source, ok: result === 'all' ? undefined : result === 'ok' }
+        ? {
+            modelId: modelId || undefined,
+            source: source === 'all' ? undefined : source,
+            ok: result === 'all' ? undefined : result === 'ok'
+          }
         : { level: level === 'all' ? undefined : level })
     }
     const mine = ++seq.current
@@ -112,12 +116,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div className="tabs" role="tablist">
-            <button
-              role="tab"
-              className="tab"
-              aria-selected={kind === 'request'}
-              onClick={() => switchKind('request')}
-            >
+            <button role="tab" className="tab" aria-selected={kind === 'request'} onClick={() => switchKind('request')}>
               请求日志
             </button>
             <button role="tab" className="tab" aria-selected={kind === 'app'} onClick={() => switchKind('app')}>
@@ -145,7 +144,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
 
         <div className="row log-filters">
           <label className="field w-sm">
-                        <select
+            <select
               value={preset}
               onChange={(e) => {
                 setPreset(e.target.value as Preset)
@@ -187,7 +186,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
           {kind === 'request' ? (
             <>
               <label className="field">
-                                <select
+                <select
                   value={modelId}
                   onChange={(e) => {
                     setModelId(e.target.value)
@@ -203,7 +202,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                 </select>
               </label>
               <label className="field w-sm">
-                                <select
+                <select
                   value={source}
                   onChange={(e) => {
                     setSource(e.target.value as typeof source)
@@ -216,7 +215,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                 </select>
               </label>
               <label className="field w-sm">
-                                <select
+                <select
                   value={result}
                   onChange={(e) => {
                     setResult(e.target.value as typeof result)
@@ -231,7 +230,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
             </>
           ) : (
             <label className="field w-sm">
-                            <select
+              <select
                 value={level}
                 onChange={(e) => {
                   setLevel(e.target.value as typeof level)
@@ -246,7 +245,7 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
             </label>
           )}
           <label className="field grow">
-                        <div className="row nowrap">
+            <div className="row nowrap">
               <input
                 type="text"
                 className="grow"
@@ -277,7 +276,10 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
         ) : data.rows.length === 0 ? (
           <div className="empty">没有符合条件的日志</div>
         ) : kind === 'request' ? (
-          <table className={`tbl tbl-flush tbl-log tbl-request${requestCols.fixed ? ' col-fixed' : ''}`} {...requestCols.tableProps}>
+          <table
+            className={`tbl tbl-flush tbl-log tbl-request${requestCols.fixed ? ' col-fixed' : ''}`}
+            {...requestCols.tableProps}
+          >
             {requestCols.colgroup}
             <thead>
               <tr>
@@ -303,7 +305,11 @@ export function Logs({ config, notify, initialModelId }: Props): JSX.Element {
                   <td>{row.providerName}</td>
                   <td>{row.source === 'probe' ? '探针' : '代理'}</td>
                   <td>
-                    {row.ok ? <span className="pill ok">ok</span> : <span className="pill bad">{row.status || 'err'}</span>}
+                    {row.ok ? (
+                      <span className="pill ok">ok</span>
+                    ) : (
+                      <span className="pill bad">{row.status || 'err'}</span>
+                    )}
                   </td>
                   <td className="mono">{fmtTokens(row.uncachedInputTokens)}</td>
                   <td className="mono">{row.cacheReadReported ? fmtTokens(row.cacheReadTokens) : '—'}</td>

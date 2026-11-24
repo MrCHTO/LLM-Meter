@@ -14,7 +14,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const PORT = JSON.parse(readFileSync(join(DATA, 'config.json'), 'utf8')).settings.port
 
-const cmd = existsSync, raw = { existsSync, readdirSync, readFileSync, writeFileSync }
 const evDir = join(DATA, 'events')
 const srcLines = existsSync(evDir)
   ? readdirSync(evDir)

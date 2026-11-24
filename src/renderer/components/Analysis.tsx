@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ConfigView, StatsGranularity, StatsGroup, StatsMetric, StatsSeries } from '../../shared/types'
+import type { StatsGranularity, StatsGroup, StatsMetric, StatsSeries } from '../../shared/types'
 import { fmtMoney, fmtTokens } from '../format'
 import { ActivityHeatmap } from './ActivityHeatmap'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
@@ -7,7 +7,6 @@ import { TrendChart, type TrendSeries } from './TrendChart'
 import { UsageDonut, type UsageRow } from './UsageDonut'
 
 interface Props {
-  config: ConfigView
   notify: (text: string, kind?: 'ok' | 'bad') => void
 }
 
@@ -61,7 +60,7 @@ function dayKeyOf(ts: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-export function Analysis({ config, notify }: Props): JSX.Element {
+export function Analysis({ notify }: Props): JSX.Element {
   const [preset, setPreset] = useState<Preset>('24h')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -213,7 +212,13 @@ export function Analysis({ config, notify }: Props): JSX.Element {
   }, [usage])
 
   const usageRows: UsageRow[] = useMemo(
-    () => usage.map((r) => ({ key: r.key, label: r.label, tokens: r.tokens, color: colorOf.get(r.key) ?? COLORS[0] as string })),
+    () =>
+      usage.map((r) => ({
+        key: r.key,
+        label: r.label,
+        tokens: r.tokens,
+        color: colorOf.get(r.key) ?? (COLORS[0] as string)
+      })),
     [usage, colorOf]
   )
 
@@ -280,121 +285,122 @@ export function Analysis({ config, notify }: Props): JSX.Element {
       }}
     >
       <div className="analysis-body">
-      <ActivityHeatmap daily={activity} />
+        <ActivityHeatmap daily={activity} />
 
-      <div className="card ana-panel">
-        <div className="ana-panel-head">
-          <h2>每日 Token 趋势图</h2>
-          <div className="seg" role="tablist" aria-label="趋势时间范围">
-            {(
-              [
-                { id: 7 as UsageRange, label: '近 7 日' },
-                { id: 30 as UsageRange, label: '近 30 日' }
-              ] as const
-            ).map((r) => (
-              <button
-                key={r.id}
-                role="tab"
-                aria-selected={usageRange === r.id}
-                className={usageRange === r.id ? 'on' : ''}
-                onClick={() => setUsageRange(r.id)}
-              >
-                {r.label}
-              </button>
-            ))}
+        <div className="card ana-panel">
+          <div className="ana-panel-head">
+            <h2>每日 Token 趋势图</h2>
+            <div className="seg" role="tablist" aria-label="趋势时间范围">
+              {(
+                [
+                  { id: 7 as UsageRange, label: '近 7 日' },
+                  { id: 30 as UsageRange, label: '近 30 日' }
+                ] as const
+              ).map((r) => (
+                <button
+                  key={r.id}
+                  role="tab"
+                  aria-selected={usageRange === r.id}
+                  className={usageRange === r.id ? 'on' : ''}
+                  onClick={() => setUsageRange(r.id)}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
           </div>
+          <TrendChart
+            buckets={trend?.buckets ?? []}
+            series={trendSeries}
+            onToggle={(key) => setTrendHidden((h) => ({ ...h, [key]: !h[key] }))}
+          />
         </div>
-        <TrendChart
-          buckets={trend?.buckets ?? []}
-          series={trendSeries}
-          onToggle={(key) => setTrendHidden((h) => ({ ...h, [key]: !h[key] }))}
-        />
-      </div>
 
-      <div className="card ana-panel">
-        <div className="ana-panel-head">
-          <h2>模型用量</h2>
-        </div>
-        <UsageDonut rows={usageRows} />
-      </div>
-
-      <div className="card analysis-card">
-        <div className="row nowrap ana-head">
-          <div className="row nowrap ana-controls">
-            <label className="field">
-              <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
-                <option value="today">今天</option>
-                <option value="24h">近 24 小时</option>
-                <option value="7d">近 7 天</option>
-                <option value="custom">自定义</option>
-              </select>
-            </label>
-            {preset === 'custom' ? (
-              <>
-                <label className="field">
-                  <span>从</span>
-                  <input type="datetime-local" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-                </label>
-                <label className="field">
-                  <span>到</span>
-                  <input type="datetime-local" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
-                </label>
-              </>
-            ) : null}
-            <label className="field">
-              <select value={metric} onChange={(e) => setMetric(e.target.value as StatsMetric)}>
-                {METRICS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
-                <option value="model">按模型</option>
-                <option value="provider">按供应商</option>
-                <option value="token">按Token</option>
-              </select>
-            </label>
+        <div className="card ana-panel">
+          <div className="ana-panel-head">
+            <h2>模型用量</h2>
           </div>
+          <UsageDonut rows={usageRows} />
         </div>
-        <SeriesChart
-          buckets={series?.buckets ?? []}
-          series={items}
-          format={fmt}
-          integer={meta.digits === 0}
-          timeFormat={timeFormat}
-          onToggle={(key) => setHidden((h) => ({ ...h, [key]: !h[key] }))}
-        />
-      </div>
 
-      {menu ? (
-        <div
-          className="ctxmenu"
-          style={{ left: Math.min(menu.x, window.innerWidth - 130), top: Math.min(menu.y, window.innerHeight - 100) }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => {
-              setMenu(null)
-              void load()
-              void loadActivity()
-              void loadUsage()
-            }}
-          >
-            刷新
-          </button>
-          <button
-            onClick={() => {
-              setMenu(null)
-              void exportCsv()
-            }}
-          >
-            导出 CSV
-          </button>
+        <div className="card analysis-card">
+          <div className="row nowrap ana-head">
+            <div className="row nowrap ana-controls">
+              <label className="field">
+                <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
+                  <option value="today">今天</option>
+                  <option value="24h">近 24 小时</option>
+                  <option value="7d">近 7 天</option>
+                  <option value="custom">自定义</option>
+                </select>
+              </label>
+              {preset === 'custom' ? (
+                <>
+                  <label className="field">
+                    <span>从</span>
+                    <input type="datetime-local" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>到</span>
+                    <input type="datetime-local" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                  </label>
+                </>
+              ) : null}
+              <label className="field">
+                <select value={metric} onChange={(e) => setMetric(e.target.value as StatsMetric)}>
+                  {METRICS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as StatsGroup)}>
+                  <option value="model">按模型</option>
+                  <option value="provider">按供应商</option>
+                  <option value="token">按Token</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <SeriesChart
+            buckets={series?.buckets ?? []}
+            series={items}
+            format={fmt}
+            integer={meta.digits === 0}
+            timeFormat={timeFormat}
+            onToggle={(key) => setHidden((h) => ({ ...h, [key]: !h[key] }))}
+          />
         </div>
-      ) : null}
+
+        {menu ? (
+          <div
+            className="ctxmenu"
+            style={{ left: Math.min(menu.x, window.innerWidth - 130), top: Math.min(menu.y, window.innerHeight - 100) }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              disabled={busy}
+              onClick={() => {
+                setMenu(null)
+                void load()
+                void loadActivity()
+                void loadUsage()
+              }}
+            >
+              {busy ? '查询中…' : '刷新'}
+            </button>
+            <button
+              onClick={() => {
+                setMenu(null)
+                void exportCsv()
+              }}
+            >
+              导出 CSV
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 /**
  * 已安装/打包构建的旧数据导入回归：给一个带 events/rollup 的临时档案，起应用，
  * 断言明细进库、旧目录被改名留底、再启动不重复导入。
- * 用法：node test/import-check.mjs [exe] [备份目录]
+ * 用法：node scripts/check/import-check.mjs [exe] [备份目录]
  */
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'

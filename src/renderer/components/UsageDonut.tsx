@@ -38,7 +38,12 @@ export function UsageDonut({ rows }: Props): JSX.Element {
   return (
     <div className="donut-grid">
       <div className="donut-wrap">
-        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="donut-svg" role="img" aria-label={`合计 ${fmtWan(total)} tokens`}>
+        <svg
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          className="donut-svg"
+          role="img"
+          aria-label={`合计 ${fmtWan(total)} tokens`}
+        >
           <circle cx={SIZE / 2} cy={SIZE / 2} r={R} className="donut-track" strokeWidth={STROKE} />
           {segments.map((s) => {
             const len = Math.max(0, s.frac * C - (segments.length > 1 ? GAP : 0))

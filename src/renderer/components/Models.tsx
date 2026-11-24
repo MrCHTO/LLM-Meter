@@ -140,9 +140,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
     const data = res.data
     if (data.cacheWriteProbed) {
       setWriteField(data.cacheWriteReported ? 'yes' : 'no')
-      setPriceNote(
-        data.cacheWriteReported ? data.note : `${data.note}；该通道无缓存输入字段，缓存输入价已禁用`
-      )
+      setPriceNote(data.cacheWriteReported ? data.note : `${data.note}；该通道无缓存输入字段，缓存输入价已禁用`)
     } else {
       setWriteField('unknown')
       setPriceNote(data.note)
@@ -243,9 +241,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
       autoProbe: current?.autoProbe ?? false
     }
     setBusy(true)
-    const res = model.id
-      ? await window.api.updateModel(model.id, payload)
-      : await window.api.createModel(payload)
+    const res = model.id ? await window.api.updateModel(model.id, payload) : await window.api.createModel(payload)
     setBusy(false)
     if (!res.ok) {
       notify(res.error ?? '保存失败')
@@ -403,7 +399,9 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                     <td className="mono">{fmtMoney(m.priceIn, m.currency)}</td>
                     <td className="mono">{fmtMoney(m.priceOut, m.currency)}</td>
                     <td className="mono">{fmtMoney(m.priceCacheRead, m.currency)}</td>
-                    <td className="mono">{m.cacheInputSupported === false ? '—' : fmtMoney(m.priceCacheInput, m.currency)}</td>
+                    <td className="mono">
+                      {m.cacheInputSupported === false ? '—' : fmtMoney(m.priceCacheInput, m.currency)}
+                    </td>
                     <td className="c-center">
                       <button
                         role="switch"
@@ -501,8 +499,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                 <button
                   onClick={async () => {
                     setMenu(null)
-                    const picked =
-                      config.settings.overlay.global !== true && config.settings.overlay.modelId === m.id
+                    const picked = config.settings.overlay.global !== true && config.settings.overlay.modelId === m.id
                     const res = await window.api.updateSettings(
                       picked ? { overlayModelId: null } : { overlayModelId: m.id, overlayGlobal: false }
                     )
@@ -609,10 +606,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
             <div className="section" style={{ gap: 10 }}>
               <label className="field">
                 <span>供应商</span>
-                <select
-                  value={model.providerId}
-                  onChange={(e) => setModel({ ...model, providerId: e.target.value })}
-                >
+                <select value={model.providerId} onChange={(e) => setModel({ ...model, providerId: e.target.value })}>
                   {providers.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}（{FORMAT_LABEL[p.format]}）

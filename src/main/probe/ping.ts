@@ -42,7 +42,11 @@ export async function ping(modelId: string): Promise<boolean> {
         {
           method: 'POST',
           headers,
-          body: JSON.stringify({ model: model.upstreamModel, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+          body: JSON.stringify({
+            model: model.upstreamModel,
+            max_tokens: 1,
+            messages: [{ role: 'user', content: 'hi' }]
+          }),
           signal: controller.signal
         }
       )

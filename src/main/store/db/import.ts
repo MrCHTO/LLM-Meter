@@ -163,14 +163,7 @@ function insertEvent(db: Db, ev: RequestEvent): void {
 }
 
 /** 日聚合累加；分钟桶导入时也走这里 */
-function bumpDay(
-  db: Db,
-  day: string,
-  modelId: string,
-  bucket: LegacyBucket,
-  providerId = '',
-  source = 'proxy'
-): void {
+function bumpDay(db: Db, day: string, modelId: string, bucket: LegacyBucket, providerId = '', source = 'proxy'): void {
   const pid = providerId || cfg.modelById(modelId)?.providerId || ''
   db.run(
     `insert into rollup_day (day, model_id, provider_id, source, requests, errors, input, output, cache_read, cache_input, cost)

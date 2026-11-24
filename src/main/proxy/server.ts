@@ -210,7 +210,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         format: f,
         base_url: `${baseUrl()}${mount}`
       })),
-      models: cfg.listModels().filter((m) => m.enabled).map((m) => m.alias)
+      models: cfg
+        .listModels()
+        .filter((m) => m.enabled)
+        .map((m) => m.alias)
     })
     return
   }
@@ -251,7 +254,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       cfg
         .listModels()
         .find(
-          (m) => m.enabled && cfg.providerById(m.providerId)?.enabled && cfg.providerById(m.providerId)?.format === detected.format
+          (m) =>
+            m.enabled &&
+            cfg.providerById(m.providerId)?.enabled &&
+            cfg.providerById(m.providerId)?.format === detected.format
         )?.alias ?? ''
   }
   if (!requested) {
@@ -274,9 +280,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
   const adapter = adapterFor(provider.format)
   const prepared =
-    method === 'GET' || method === 'HEAD'
-      ? { body: '', stream: false }
-      : adapter.prepare(payload, model.upstreamModel)
+    method === 'GET' || method === 'HEAD' ? { body: '', stream: false } : adapter.prepare(payload, model.upstreamModel)
 
   const headers: Record<string, string> = { ...adapter.baseHeaders(), ...adapter.auth(key) }
   for (const [name, value] of Object.entries(req.headers)) {
@@ -306,7 +310,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   })
 
   let usage: Usage = { ...EMPTY_USAGE }
-    let reportedCacheInput = false
+  let reportedCacheInput = false
   let reportedCacheRead = false
   let ttftMs: number | null = null
   let chars = 0
@@ -329,7 +333,13 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       const safe = { ...headers }
       if (safe.authorization) safe.authorization = `Bearer ${'*'.repeat(8)}`
       console.log('[debug] headers', JSON.stringify(safe))
-      console.log('[debug] bodySha', createHash('sha256').update(prepared.body ?? '').digest('hex').slice(0, 16))
+      console.log(
+        '[debug] bodySha',
+        createHash('sha256')
+          .update(prepared.body ?? '')
+          .digest('hex')
+          .slice(0, 16)
+      )
       if (process.env.TEMP) writeFileSync(join(process.env.TEMP, 'llmmeter-body.json'), prepared.body ?? '', 'utf8')
     }
 
@@ -355,10 +365,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         durationMs: Date.now() - started,
         usage,
         source: 'proxy',
-      cacheInputReported: reportedCacheInput,
-      cacheReadReported: reportedCacheRead,
-      tokenId: matched?.id ?? null,
-      tokenRemark: matched?.remark ?? null,
+        cacheInputReported: reportedCacheInput,
+        cacheReadReported: reportedCacheRead,
+        tokenId: matched?.id ?? null,
+        tokenRemark: matched?.remark ?? null,
         note: upstreamError ?? undefined
       })
       return
@@ -389,10 +399,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
         durationMs: Date.now() - started,
         usage,
         source: 'proxy',
-      cacheInputReported: reportedCacheInput,
-      cacheReadReported: reportedCacheRead,
-      tokenId: matched?.id ?? null,
-      tokenRemark: matched?.remark ?? null,
+        cacheInputReported: reportedCacheInput,
+        cacheReadReported: reportedCacheRead,
+        tokenId: matched?.id ?? null,
+        tokenRemark: matched?.remark ?? null
       })
       return
     }

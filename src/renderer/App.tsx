@@ -30,9 +30,12 @@ export default function App(): JSX.Element {
   const notify = useCallback((text: string, kind: ToastItem['kind'] = 'bad') => {
     const id = ++seq.current
     setToasts((list) => [...list, { id, text, kind }])
-    setTimeout(() => {
-      setToasts((list) => list.filter((t) => t.id !== id))
-    }, kind === 'bad' ? 5200 : 2600)
+    setTimeout(
+      () => {
+        setToasts((list) => list.filter((t) => t.id !== id))
+      },
+      kind === 'bad' ? 5200 : 2600
+    )
   }, [])
 
   const reload = useCallback(async () => {
@@ -116,13 +119,11 @@ export default function App(): JSX.Element {
             }}
           />
         )}
-        {tab === 'analysis' && <Analysis config={config} notify={notify} />}
+        {tab === 'analysis' && <Analysis notify={notify} />}
         {tab === 'models' && <Models config={config} snapshot={snapshot} notify={notify} onChanged={reload} />}
         {tab === 'access' && <Access config={config} notify={notify} onChanged={reload} />}
         {tab === 'logs' && <Logs config={config} notify={notify} initialModelId={logModel} />}
-        {tab === 'settings' && (
-          <SettingsView config={config} notify={notify} onChanged={reload} />
-        )}
+        {tab === 'settings' && <SettingsView config={config} notify={notify} onChanged={reload} />}
       </main>
 
       <Toasts items={toasts} />

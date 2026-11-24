@@ -55,32 +55,34 @@ export function useColumnWidths(
   }, [storageKey, state])
 
   /** 自动态下拖动：按当前渲染宽度定格所有列，再开始改这一列 */
-  const startResize = (index: number) => (event: MouseEvent): void => {
-    event.preventDefault()
-    event.stopPropagation()
-    const table = (event.currentTarget as HTMLElement).closest('table')
-    if (!table) return
-    const cells = Array.from(table.querySelectorAll('thead th'))
-    const snapshot: ColWidth[] = cells.map((th) => Math.round(th.getBoundingClientRect().width))
-    const startX = event.clientX
-    const picked = snapshot[index]
-    const startWidth = typeof picked === 'number' ? picked : 80
-    const apply = (next: number): ColWidth[] =>
-      snapshot.map((w, i) => (i === index ? Math.min(640, Math.max(40, next)) : w))
-    setState({ auto: false, widths: apply(startWidth) })
-    document.body.classList.add('col-resizing')
+  const startResize =
+    (index: number) =>
+    (event: MouseEvent): void => {
+      event.preventDefault()
+      event.stopPropagation()
+      const table = (event.currentTarget as HTMLElement).closest('table')
+      if (!table) return
+      const cells = Array.from(table.querySelectorAll('thead th'))
+      const snapshot: ColWidth[] = cells.map((th) => Math.round(th.getBoundingClientRect().width))
+      const startX = event.clientX
+      const picked = snapshot[index]
+      const startWidth = typeof picked === 'number' ? picked : 80
+      const apply = (next: number): ColWidth[] =>
+        snapshot.map((w, i) => (i === index ? Math.min(640, Math.max(40, next)) : w))
+      setState({ auto: false, widths: apply(startWidth) })
+      document.body.classList.add('col-resizing')
 
-    const move = (e: globalThis.MouseEvent): void => {
-      setState({ auto: false, widths: apply(startWidth + (e.clientX - startX)) })
+      const move = (e: globalThis.MouseEvent): void => {
+        setState({ auto: false, widths: apply(startWidth + (e.clientX - startX)) })
+      }
+      const up = (): void => {
+        document.body.classList.remove('col-resizing')
+        window.removeEventListener('mousemove', move)
+        window.removeEventListener('mouseup', up)
+      }
+      window.addEventListener('mousemove', move)
+      window.addEventListener('mouseup', up)
     }
-    const up = (): void => {
-      document.body.classList.remove('col-resizing')
-      window.removeEventListener('mousemove', move)
-      window.removeEventListener('mouseup', up)
-    }
-    window.addEventListener('mousemove', move)
-    window.addEventListener('mouseup', up)
-  }
 
   const resetColumn = (index: number): void => {
     setState((current) => {

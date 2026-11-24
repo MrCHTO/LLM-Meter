@@ -70,9 +70,10 @@ export function applySettings(): void {
 
 export function create(): BrowserWindow {
   const stored = cfg.get().settings.overlay
-  const base = stored.x === null || stored.y === null
-    ? defaultBounds()
-    : clampBounds({ x: stored.x, y: stored.y, width: stored.width || DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
+  const base =
+    stored.x === null || stored.y === null
+      ? defaultBounds()
+      : clampBounds({ x: stored.x, y: stored.y, width: stored.width || DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
   trackCenter(base)
 
   const win = new BrowserWindow({
@@ -182,7 +183,7 @@ export function moveTo(x: number, y: number): void {
 
 export function bounds(): Rectangle | null {
   return getOverlay()?.getBounds() ?? null
-}/** 渲染层量出胶囊实际宽高后回传，窗口跟着内容走 */
+} /** 渲染层量出胶囊实际宽高后回传，窗口跟着内容走 */
 export function resize(width: number, height: number): void {
   const win = getOverlay()
   if (!win) return

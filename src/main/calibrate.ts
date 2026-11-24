@@ -58,10 +58,7 @@ export async function run(): Promise<void> {
       c.settings.lastCalibrate = { at, rate: r.rate, updated: updates.length, missed }
     })
     send(CH.calibrated, { rate: r.rate, updated: updates.length, missed })
-    applog.info(
-      'calibrate',
-      `校准完成：汇率 ${r.rate.toFixed(4)}，更新 ${updates.length} 个，未匹配 ${missed} 个`
-    )
+    applog.info('calibrate', `校准完成：汇率 ${r.rate.toFixed(4)}，更新 ${updates.length} 个，未匹配 ${missed} 个`)
   } catch (err) {
     applog.error('calibrate', `校准失败：${err instanceof Error ? err.message : String(err)}`)
   } finally {

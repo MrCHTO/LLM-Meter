@@ -138,7 +138,23 @@ export async function run(modelId: string): Promise<ProbeResult> {
 
   const started = Date.now()
   const usage: Usage = { ...EMPTY_USAGE }
-  const run: Run = { status: 0, ok: false, ttftMs: null, tps: null, inputTokens: 0, outputTokens: 0, cacheInputReported: false, cacheReadReported: false }
+  const run: Run = {
+    status: 0,
+    ok: false,
+    ttftMs: null,
+    tps: null,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheInputReported: false,
+    cacheReadReported: false
+  }
+
+  // 超时与手动停止都走 abort，用标志区分，免得超时被记成「已停止」
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, TIMEOUT_MS)
 
   try {
     // 连续点测速时先让开一点，减少自己触发限流
@@ -209,9 +225,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
     run.inputTokens = usage.input
     run.outputTokens = usage.output
     run.tps =
-      run.ttftMs === null || usage.output <= 0
-        ? null
-        : usage.output / Math.max(0.001, (duration - run.ttftMs) / 1000)
+      run.ttftMs === null || usage.output <= 0 ? null : usage.output / Math.max(0.001, (duration - run.ttftMs) / 1000)
 
     persist(model, provider, run, usage, started)
 
@@ -232,10 +246,17 @@ export async function run(modelId: string): Promise<ProbeResult> {
       message
     }
   } catch (err) {
-    run.error = controller.signal.aborted ? '已停止' : err instanceof Error ? err.message : '请求失败'
+    run.error = timedOut
+      ? `超时（${Math.round(TIMEOUT_MS / 1000)} 秒）`
+      : controller.signal.aborted
+        ? '已停止'
+        : err instanceof Error
+          ? err.message
+          : '请求失败'
     persist(model, provider, run, usage, started)
     return { ...base, status: run.status, error: run.error, message: run.error }
   } finally {
+    clearTimeout(timer)
     active.delete(modelId)
     live.setProbing(modelId, false)
     live.end(modelId)

@@ -53,7 +53,14 @@ function importCalibrateLog(conn: Db): void {
       for (const line of lines) {
         const match = /^(\S+)\s+(.*)$/.exec(line)
         const ts = match ? Date.parse(match[1] as string) : Number.NaN
-        insertAppLog(conn, randomUUID(), Number.isNaN(ts) ? Date.now() : ts, 'info', 'calibrate', match ? (match[2] as string) : line)
+        insertAppLog(
+          conn,
+          randomUUID(),
+          Number.isNaN(ts) ? Date.now() : ts,
+          'info',
+          'calibrate',
+          match ? (match[2] as string) : line
+        )
       }
     })
     renameSync(file, `${file}.imported`)

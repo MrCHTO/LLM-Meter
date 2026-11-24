@@ -45,17 +45,30 @@ describe('成本', () => {
 
   it('与手算一致：320M 输入 99.5% 命中、0.296M 输出', () => {
     const m = { priceIn: 2.01, priceOut: 8.02, priceCacheRead: 0.04, priceCacheInput: 0 }
-    const c = cost(m, { input: 320_000_000, uncached: 1_600_000, output: 296_000, cacheRead: 318_400_000, cacheInput: 0 })
+    const c = cost(m, {
+      input: 320_000_000,
+      uncached: 1_600_000,
+      output: 296_000,
+      cacheRead: 318_400_000,
+      cacheInput: 0
+    })
     expect(c).toBeCloseTo(18.32592, 4)
   })
 
   it('缓存价缺失时按输入价兜底', () => {
     const m = { priceIn: 2, priceOut: 0, priceCacheRead: 0, priceCacheInput: 0 }
-    expect(cost(m, { input: 1000, uncached: 0, output: 0, cacheRead: 600, cacheInput: 400 })).toBeCloseTo((1000 * 2) / 1e6)
+    expect(cost(m, { input: 1000, uncached: 0, output: 0, cacheRead: 600, cacheInput: 400 })).toBeCloseTo(
+      (1000 * 2) / 1e6
+    )
   })
 
   it('全零价格得零', () => {
-    expect(cost({ priceIn: 0, priceOut: 0, priceCacheRead: 0, priceCacheInput: 0 }, { input: 1000, uncached: 1000, output: 1000, cacheRead: 0, cacheInput: 0 })).toBe(0)
+    expect(
+      cost(
+        { priceIn: 0, priceOut: 0, priceCacheRead: 0, priceCacheInput: 0 },
+        { input: 1000, uncached: 1000, output: 1000, cacheRead: 0, cacheInput: 0 }
+      )
+    ).toBe(0)
   })
 })
 

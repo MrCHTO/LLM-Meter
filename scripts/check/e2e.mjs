@@ -1,9 +1,10 @@
 /**
  * 端到端核对：起假上游 + 起真实应用，穿过代理发请求，再核对落盘数字。
- * 用法：node test/e2e.mjs
+ * 用法：node scripts/check/e2e.mjs
+ * 端口可用 LLM_TEST_PORT / LLM_TEST_UPSTREAM 覆盖，默认与安装版错开。
  */
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
@@ -15,8 +16,10 @@ const ROOT = process.cwd()
 const PROFILE = mkdtempSync(join(tmpdir(), 'llmmeter-e2e-'))
 const DATA = join(PROFILE, 'data')
 let TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef'
-const PROXY = 'http://127.0.0.1:8787'
-const UPSTREAM = 'http://127.0.0.1:18999'
+const PORT = Number(process.env.LLM_TEST_PORT ?? 18787)
+const UPSTREAM_PORT = Number(process.env.LLM_TEST_UPSTREAM ?? 18999)
+const PROXY = `http://127.0.0.1:${PORT}`
+const UPSTREAM = `http://127.0.0.1:${UPSTREAM_PORT}`
 
 const results = []
 function check(name, pass, detail = '') {
@@ -84,7 +87,7 @@ function seed() {
           }
         ],
         settings: {
-          port: 8787,
+          port: PORT,
           localToken: TOKEN,
           retentionDays: 30,
           rollupRetentionDays: 365,
@@ -140,9 +143,11 @@ async function waitFor(fn, label, timeout = 25_000) {
   throw new Error(`超时：${label}`)
 }
 
-const day = seed()
+seed()
 
-const upstream = spawn(process.execPath, [join(ROOT, 'test', 'fake-upstream.mjs'), '18999'], { stdio: 'inherit' })
+const upstream = spawn(process.execPath, [join(ROOT, 'scripts', 'check', 'fake-upstream.mjs'), String(UPSTREAM_PORT)], {
+  stdio: 'inherit'
+})
 await sleep(600)
 
 const electron = spawn(join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe'), ['.', `--user-data-dir=${PROFILE}`], {

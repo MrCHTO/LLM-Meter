@@ -9,7 +9,14 @@ export type LogLevel = 'info' | 'warn' | 'error'
  */
 export function write(level: LogLevel, scope: string, message: string): void {
   try {
-    db.get().run('insert into app_logs (id, ts, level, scope, message) values (?, ?, ?, ?, ?)', randomUUID(), Date.now(), level, scope, message)
+    db.get().run(
+      'insert into app_logs (id, ts, level, scope, message) values (?, ?, ?, ?, ?)',
+      randomUUID(),
+      Date.now(),
+      level,
+      scope,
+      message
+    )
   } catch {
     /* 库不可用就只留控制台 */
   }

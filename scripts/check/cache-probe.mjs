@@ -1,6 +1,6 @@
 /**
  * 判断是不是某个请求头把上游缓存打散了。
- * 用法：node test/cache-probe.mjs <baseUrl> <key> <model> <变体名>
+ * 用法：node scripts/check/cache-probe.mjs <baseUrl> <key> <model> <变体名>
  * 变体：plain | identity | full
  */
 const [base, key, model, variant = 'plain'] = process.argv.slice(2)
@@ -11,7 +11,6 @@ const marker = noMark ? '' : `variant:${variant}:${Date.now()} `
 
 const filler = '缓存前缀用于测量命中。The quick brown fox jumps over the lazy dog. 温度、气压与湿度沿着海岸线缓慢变化，'
 const prefix = Array.from({ length: Number(process.env.LEN ?? 260) }, (_, i) => `${i} ${filler}`).join(' ')
-const mark = `variant:${variant}:${Date.now()}`
 
 async function once(label) {
   const headers = { 'content-type': 'application/json', authorization: `Bearer ${key}` }

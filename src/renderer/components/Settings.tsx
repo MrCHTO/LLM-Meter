@@ -249,9 +249,7 @@ export function SettingsView({ config, notify, onChanged }: Props): JSX.Element 
         </div>
         <div className="setting-row">
           <span>软件</span>
-          <span className="mono">
-            LLM Meter {config.version}
-          </span>
+          <span className="mono">LLM Meter {config.version}</span>
         </div>
         <div className="setting-row">
           <span>明细保留天数</span>

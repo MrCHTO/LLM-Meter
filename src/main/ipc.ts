@@ -147,7 +147,10 @@ function validateAlias(alias: string, exceptId?: string): string {
 }
 
 export function register(): void {
-  ipcMain.handle(CH.config, wrap(() => view()))
+  ipcMain.handle(
+    CH.config,
+    wrap(() => view())
+  )
 
   ipcMain.handle(
     CH.providerCreate,
@@ -173,18 +176,23 @@ export function register(): void {
 
   ipcMain.handle(
     CH.providerUpdate,
-    wrap((id: string, patch: { name?: string; baseUrl?: string; format?: ApiFormat; apiKey?: string; enabled?: boolean }) => {
-      cfg.mutate((c) => {
-        const p = c.providers.find((x) => x.id === id)
-        if (!p) throw new Error('供应商不存在')
-        if (patch.name !== undefined) p.name = patch.name.trim() || p.name
-        if (patch.baseUrl !== undefined) p.baseUrl = needBaseUrl(patch.baseUrl)
-        if (patch.format !== undefined) p.format = patch.format === 'anthropic' ? 'anthropic' : 'openai'
-        if (patch.enabled !== undefined) p.enabled = patch.enabled
-        if (patch.apiKey !== undefined && patch.apiKey.trim()) p.keyCipher = seal(patch.apiKey.trim())
-      })
-      return true
-    })
+    wrap(
+      (
+        id: string,
+        patch: { name?: string; baseUrl?: string; format?: ApiFormat; apiKey?: string; enabled?: boolean }
+      ) => {
+        cfg.mutate((c) => {
+          const p = c.providers.find((x) => x.id === id)
+          if (!p) throw new Error('供应商不存在')
+          if (patch.name !== undefined) p.name = patch.name.trim() || p.name
+          if (patch.baseUrl !== undefined) p.baseUrl = needBaseUrl(patch.baseUrl)
+          if (patch.format !== undefined) p.format = patch.format === 'anthropic' ? 'anthropic' : 'openai'
+          if (patch.enabled !== undefined) p.enabled = patch.enabled
+          if (patch.apiKey !== undefined && patch.apiKey.trim()) p.keyCipher = seal(patch.apiKey.trim())
+        })
+        return true
+      }
+    )
   )
 
   ipcMain.handle(
@@ -274,7 +282,7 @@ export function register(): void {
         if (patch.enabled !== undefined) m.enabled = patch.enabled
         if (patch.autoProbe !== undefined) m.autoProbe = patch.autoProbe
         if (patch.watch !== undefined) m.watch = patch.watch
-    if (patch.showRate !== undefined) m.showRate = patch.showRate
+        if (patch.showRate !== undefined) m.showRate = patch.showRate
         if (patch.priceIn !== undefined) m.priceIn = Math.max(0, patch.priceIn)
         if (patch.priceOut !== undefined) m.priceOut = Math.max(0, patch.priceOut)
         if (patch.priceCacheRead !== undefined) m.priceCacheRead = Math.max(0, patch.priceCacheRead)
@@ -335,12 +343,15 @@ export function register(): void {
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), 15_000)
         try {
-          const res = await fetch(joinUrl(p.baseUrl, `/v1/${p.format === 'anthropic' ? 'messages' : 'chat/completions'}`), {
-            method: 'POST',
-            headers: { ...adapter.baseHeaders(), ...adapter.auth(key) },
-            body: prepared.body,
-            signal: controller.signal
-          })
+          const res = await fetch(
+            joinUrl(p.baseUrl, `/v1/${p.format === 'anthropic' ? 'messages' : 'chat/completions'}`),
+            {
+              method: 'POST',
+              headers: { ...adapter.baseHeaders(), ...adapter.auth(key) },
+              body: prepared.body,
+              signal: controller.signal
+            }
+          )
           if (!res.ok) return { probed: false, reported: false }
           const parsed = adapter.parseUsage(await res.text())
           return { probed: true, reported: parsed?.reportedCacheInput === true }
@@ -371,10 +382,22 @@ export function register(): void {
       }
     })
   )
-  ipcMain.handle(CH.rateRefresh, wrap(() => rate.refresh()))
-  ipcMain.handle(CH.calibrate, wrap(() => calibrate.run()))
-  ipcMain.handle(CH.probeRun, wrap((id: string): Promise<ProbeResult> => probe.run(id)))
-  ipcMain.handle(CH.probeStop, wrap((id?: string) => probe.stop(id)))
+  ipcMain.handle(
+    CH.rateRefresh,
+    wrap(() => rate.refresh())
+  )
+  ipcMain.handle(
+    CH.calibrate,
+    wrap(() => calibrate.run())
+  )
+  ipcMain.handle(
+    CH.probeRun,
+    wrap((id: string): Promise<ProbeResult> => probe.run(id))
+  )
+  ipcMain.handle(
+    CH.probeStop,
+    wrap((id?: string) => probe.stop(id))
+  )
 
   ipcMain.handle(
     CH.settingsUpdate,
@@ -415,7 +438,8 @@ export function register(): void {
             c.settings.overlayOpacity = Math.min(100, Math.max(10, Math.round(patch.overlayOpacity)))
           }
           if (patch.startMinimized !== undefined) c.settings.startMinimized = patch.startMinimized
-          if (patch.overlayWidth !== undefined) c.settings.overlay.width = Math.min(720, Math.max(240, Math.round(patch.overlayWidth)))
+          if (patch.overlayWidth !== undefined)
+            c.settings.overlay.width = Math.min(720, Math.max(240, Math.round(patch.overlayWidth)))
           if (patch.overlayVisible !== undefined) c.settings.overlay.visible = patch.overlayVisible
           if (patch.overlayModelId !== undefined) c.settings.overlay.modelId = patch.overlayModelId || null
           if (patch.overlayGlobal !== undefined) c.settings.overlay.global = patch.overlayGlobal
@@ -554,8 +578,14 @@ export function register(): void {
     wrap((modelId: string, limit?: number) => live.recentFor(modelId, limit ?? 20))
   )
 
-  ipcMain.handle(CH.logRequests, wrap((input: LogQuery) => repo.queryRequests(db.get(), logQuery(input))))
-  ipcMain.handle(CH.logApps, wrap((input: LogQuery) => repo.queryAppLogs(db.get(), logQuery(input))))
+  ipcMain.handle(
+    CH.logRequests,
+    wrap((input: LogQuery) => repo.queryRequests(db.get(), logQuery(input)))
+  )
+  ipcMain.handle(
+    CH.logApps,
+    wrap((input: LogQuery) => repo.queryAppLogs(db.get(), logQuery(input)))
+  )
 
   const pruneNow = (): number => {
     const s = cfg.get().settings
@@ -594,25 +624,27 @@ export function register(): void {
     return row?.v ?? key
   }
 
-  const mapRow = (group: StatsGroup) => (r: repo.GroupTotals): StatsRow => ({
-    key: r.key,
-    label: labelOf(group, r.key),
-    requests: r.requests,
-    errors: r.errors,
-    input: r.input,
-    uncached: r.uncached,
-    output: r.output,
-    total: r.total,
-    cacheRead: r.cache_read,
-    cacheInput: r.cache_input,
-    cacheInputReported: r.cache_input_reported,
-    cacheReadReported: r.cache_read_reported,
-    cost: r.cost,
-    ttftP50: r.ttft_p50,
-    ttftP95: r.ttft_p95,
-    ttftP99: r.ttft_p99,
-    tps: r.tps
-  })
+  const mapRow =
+    (group: StatsGroup) =>
+    (r: repo.GroupTotals): StatsRow => ({
+      key: r.key,
+      label: labelOf(group, r.key),
+      requests: r.requests,
+      errors: r.errors,
+      input: r.input,
+      uncached: r.uncached,
+      output: r.output,
+      total: r.total,
+      cacheRead: r.cache_read,
+      cacheInput: r.cache_input,
+      cacheInputReported: r.cache_input_reported,
+      cacheReadReported: r.cache_read_reported,
+      cost: r.cost,
+      ttftP50: r.ttft_p50,
+      ttftP95: r.ttft_p95,
+      ttftP99: r.ttft_p99,
+      tps: r.tps
+    })
 
   ipcMain.handle(
     CH.statsSeries,
@@ -627,9 +659,7 @@ export function register(): void {
 
   ipcMain.handle(
     CH.statsTotals,
-    wrap((q: StatsQuery & { groupBy: StatsGroup }): StatsRow[] =>
-      repo.totals(db.get(), q).map(mapRow(q.groupBy))
-    )
+    wrap((q: StatsQuery & { groupBy: StatsGroup }): StatsRow[] => repo.totals(db.get(), q).map(mapRow(q.groupBy)))
   )
 
   ipcMain.handle(
@@ -743,7 +773,11 @@ export function register(): void {
           cacheInputTokens: 0,
           cacheInputReported: false,
           cacheReadReported: cacheRead > 0,
-          cost: (Math.max(0, input - cacheRead) * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) / 1e6,
+          cost:
+            (Math.max(0, input - cacheRead) * model.priceIn +
+              output * model.priceOut +
+              cacheRead * model.priceCacheRead) /
+            1e6,
           currency: model.currency
         }
         repo.recordRequest(db.get(), ev, {
@@ -763,12 +797,30 @@ export function register(): void {
   )
 
   // 悬浮窗
-  ipcMain.handle(CH.overlayDragStart, wrap(() => overlayWin.startDrag()))
-  ipcMain.handle(CH.overlayDragEnd, wrap(() => overlayWin.stopDrag()))
-  ipcMain.handle(CH.overlayHover, wrap((value: boolean) => overlayWin.setHover(value)))
-  ipcMain.handle(CH.overlayMenu, wrap(() => overlayWin.showMenu()))
-  ipcMain.handle(CH.overlayOpenMain, wrap(() => showMain()))
-  ipcMain.handle(CH.overlaySetSize, wrap((width: number, height: number) => overlayWin.resize(width, height)))
+  ipcMain.handle(
+    CH.overlayDragStart,
+    wrap(() => overlayWin.startDrag())
+  )
+  ipcMain.handle(
+    CH.overlayDragEnd,
+    wrap(() => overlayWin.stopDrag())
+  )
+  ipcMain.handle(
+    CH.overlayHover,
+    wrap((value: boolean) => overlayWin.setHover(value))
+  )
+  ipcMain.handle(
+    CH.overlayMenu,
+    wrap(() => overlayWin.showMenu())
+  )
+  ipcMain.handle(
+    CH.overlayOpenMain,
+    wrap(() => showMain())
+  )
+  ipcMain.handle(
+    CH.overlaySetSize,
+    wrap((width: number, height: number) => overlayWin.resize(width, height))
+  )
   ipcMain.handle(
     CH.overlayState,
     wrap(() => {
@@ -777,5 +829,8 @@ export function register(): void {
       return { bounds, area: screen.getDisplayMatching(bounds).workArea, opacity: cfg.get().settings.overlayOpacity }
     })
   )
-  ipcMain.handle(CH.mainOpen, wrap(() => showMain()))
+  ipcMain.handle(
+    CH.mainOpen,
+    wrap(() => showMain())
+  )
 }

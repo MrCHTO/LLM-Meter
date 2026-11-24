@@ -368,7 +368,8 @@ export interface ProviderTestResult {
 
 /* ------------------------------- 分析接口 ------------------------------- */
 
-export type StatsMetric = 'requests' | 'errors' | 'input' | 'uncached' | 'output' | 'total' | 'cache_read' | 'cost' | 'tps'
+export type StatsMetric =
+  'requests' | 'errors' | 'input' | 'uncached' | 'output' | 'total' | 'cache_read' | 'cost' | 'tps'
 export type StatsGranularity = 'minute' | 'hour' | 'day'
 export type StatsGroup = 'model' | 'provider' | 'token'
 export type StatsSource = 'all' | 'proxy' | 'probe'

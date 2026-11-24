@@ -55,7 +55,9 @@ describe('价格查询', () => {
   it('优先取 models.dev 官方价', async () => {
     const catalog = {
       deepseek: {
-        models: { 'deepseek-flash': { name: 'DeepSeek V4.1 Flash 1017', cost: { input: 0.15, output: 0.6, cache_read: 0.003 } } }
+        models: {
+          'deepseek-flash': { name: 'DeepSeek V4.1 Flash 1017', cost: { input: 0.15, output: 0.6, cache_read: 0.003 } }
+        }
       }
     }
     vi.stubGlobal(
@@ -82,7 +84,10 @@ describe('价格查询', () => {
           new Response(
             JSON.stringify({
               data: [
-                { id: 'deepseek/deepseek-v4.1-flash-1017:batch', pricing: { prompt: '0.00000001', completion: '0.0000002' } },
+                {
+                  id: 'deepseek/deepseek-v4.1-flash-1017:batch',
+                  pricing: { prompt: '0.00000001', completion: '0.0000002' }
+                },
                 { id: 'deepseek/deepseek-v4.1-flash-1017', pricing: { prompt: '0.0000003', completion: '0.0000012' } }
               ]
             }),
@@ -137,7 +142,10 @@ describe('价格查询', () => {
   })
 
   it('请求失败也能兜住', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('boom', { status: 502 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('boom', { status: 502 }))
+    )
     const { lookup } = await load()
     const out = await lookup('deepseek/deepseek-v4.1-flash')
     expect(out.found).toBe(false)

@@ -121,8 +121,8 @@ async function fetchCatalog(): Promise<OfficialEntry[]> {
       const models = doc[provider]?.models ?? {}
       for (const [id, m] of Object.entries(models)) {
         const cost = m.cost ?? {}
-        const priceIn = num(cost.input) * 1e0
-        const priceOut = num(cost.output) * 1e0
+        const priceIn = num(cost.input) * 1
+        const priceOut = num(cost.output) * 1
         if (!priceIn && !priceOut) continue
         const name = typeof m.name === 'string' && m.name ? m.name : id
         list.push({

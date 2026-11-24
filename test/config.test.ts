@@ -125,7 +125,15 @@ describe('配置读写', () => {
         providers: [{ id: 'p1', name: 'p', baseUrl: 'https://x.test', format: 'openai', keyCipher: '', createdAt: 1 }],
         models: [
           { id: 'm1', providerId: 'p1', upstreamModel: 'u1', alias: 'a1', createdAt: 1 },
-          { id: 'm2', providerId: 'p1', upstreamModel: 'u2', alias: 'a2', priceSource: 'manual', autoProbe: true, createdAt: 2 }
+          {
+            id: 'm2',
+            providerId: 'p1',
+            upstreamModel: 'u2',
+            alias: 'a2',
+            priceSource: 'manual',
+            autoProbe: true,
+            createdAt: 2
+          }
         ],
         settings: {}
       }),

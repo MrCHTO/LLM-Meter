@@ -44,14 +44,13 @@ export function tps(output: number, durationMs: number, ttftMs: number | null): 
   return output / windowSec
 }
 
-export function cost(model: Pick<ModelCfg, 'priceIn' | 'priceOut' | 'priceCacheRead' | 'priceCacheInput'>, u: Usage): number {
+export function cost(
+  model: Pick<ModelCfg, 'priceIn' | 'priceOut' | 'priceCacheRead' | 'priceCacheInput'>,
+  u: Usage
+): number {
   const readPrice = model.priceCacheRead > 0 ? model.priceCacheRead : model.priceIn
   const writePrice = model.priceCacheInput > 0 ? model.priceCacheInput : model.priceIn
-  const c =
-    u.uncached * model.priceIn +
-    u.output * model.priceOut +
-    u.cacheRead * readPrice +
-    u.cacheInput * writePrice
+  const c = u.uncached * model.priceIn + u.output * model.priceOut + u.cacheRead * readPrice + u.cacheInput * writePrice
   return c / 1_000_000
 }
 

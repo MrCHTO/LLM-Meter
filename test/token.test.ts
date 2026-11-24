@@ -19,7 +19,11 @@ describe('本地 token', () => {
   it('旧版签名票据仍能验签', () => {
     const key = newKey()
     const payload = Buffer.from(JSON.stringify({ v: 1, kid: key.kid, iat: Date.now() }))
-    const sig = sign(null, payload, createPrivateKey({ key: Buffer.from(key.privateKey, 'base64'), format: 'der', type: 'pkcs8' }))
+    const sig = sign(
+      null,
+      payload,
+      createPrivateKey({ key: Buffer.from(key.privateKey, 'base64'), format: 'der', type: 'pkcs8' })
+    )
     const token = `sk-${payload.toString('base64url')}.${sig.toString('base64url')}`
     expect(verifyToken(key, '', token)).toBe(true)
     // kid 不匹配
@@ -39,6 +43,9 @@ describe('本地 token', () => {
 
   it('公钥可从私钥推导', () => {
     const key = newKey()
-    expect(createPublicKey(createPrivateKey({ key: Buffer.from(key.privateKey, 'base64'), format: 'der', type: 'pkcs8' })).asymmetricKeyType).toBe('ed25519')
+    expect(
+      createPublicKey(createPrivateKey({ key: Buffer.from(key.privateKey, 'base64'), format: 'der', type: 'pkcs8' }))
+        .asymmetricKeyType
+    ).toBe('ed25519')
   })
 })

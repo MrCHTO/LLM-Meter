@@ -143,11 +143,7 @@ function normalize(raw: unknown): ConfigFile {
     localKey: keep ? (signed ? storedKey : null) : null,
     tokens: [],
     retentionDays: clamp(Math.round(num(os.retentionDays, DEFAULT_SETTINGS.retentionDays)), 1, 3650),
-    rollupRetentionDays: clamp(
-      Math.round(num(os.rollupRetentionDays, DEFAULT_SETTINGS.rollupRetentionDays)),
-      1,
-      3650
-    ),
+    rollupRetentionDays: clamp(Math.round(num(os.rollupRetentionDays, DEFAULT_SETTINGS.rollupRetentionDays)), 1, 3650),
     overlay: {
       x: typeof ov.x === 'number' ? ov.x : null,
       y: typeof ov.y === 'number' ? ov.y : null,

@@ -5,7 +5,6 @@
 export function joinUrl(base: string, rest: string, search = ''): URL {
   const trimmedBase = base.trim().replace(/\/+$/, '')
   const path = rest.startsWith('/') ? rest : `/${rest}`
-  const deduped =
-    /\/v1$/i.test(trimmedBase) && /^\/v1(\/|$)/i.test(path) ? trimmedBase.slice(0, -3) : trimmedBase
+  const deduped = /\/v1$/i.test(trimmedBase) && /^\/v1(\/|$)/i.test(path) ? trimmedBase.slice(0, -3) : trimmedBase
   return new URL(`${deduped}${path}${search}`)
 }

@@ -112,7 +112,13 @@ function bumpToken(
   )
 }
 
-function bump(db: Db, table: 'rollup_minute' | 'rollup_day', bucket: number | string, ev: RequestEvent, errors: number): void {
+function bump(
+  db: Db,
+  table: 'rollup_minute' | 'rollup_day',
+  bucket: number | string,
+  ev: RequestEvent,
+  errors: number
+): void {
   const keyCol = table === 'rollup_minute' ? 'minute' : 'day'
   db.run(
     `insert into ${table} (${keyCol}, model_id, provider_id, source, requests, errors, input, uncached, output, cache_read, cache_input, cache_input_reported, cache_read_reported, cost)
@@ -167,7 +173,20 @@ export function dayTotals(db: Db, modelId: string, day: string): TotalsRow {
     day,
     modelId
   )
-  return row ?? { requests: 0, errors: 0, input: 0, uncached: 0, output: 0, cache_read: 0, cache_input: 0, cache_input_reported: 0, cache_read_reported: 0, cost: 0 }
+  return (
+    row ?? {
+      requests: 0,
+      errors: 0,
+      input: 0,
+      uncached: 0,
+      output: 0,
+      cache_read: 0,
+      cache_input: 0,
+      cache_input_reported: 0,
+      cache_read_reported: 0,
+      cost: 0
+    }
+  )
 }
 
 /** 今天的 TTFT 样本，供重启后回灌分位数 */
@@ -231,12 +250,12 @@ export function recentFor(db: Db, modelId: string, limit: number): RequestEvent[
     ttftMs: r.ttft_ms,
     durationMs: r.duration_ms,
     inputTokens: r.input_tokens,
-      uncachedInputTokens: r.uncached_input_tokens,
+    uncachedInputTokens: r.uncached_input_tokens,
     outputTokens: r.output_tokens,
     cacheReadTokens: r.cache_read_tokens,
     cacheInputTokens: r.cache_input_tokens,
-      cacheInputReported: r.cache_input_reported === 1,
-      cacheReadReported: r.cache_read_reported === 1,
+    cacheInputReported: r.cache_input_reported === 1,
+    cacheReadReported: r.cache_read_reported === 1,
     cost: r.cost,
     currency: r.currency,
     note: r.note ?? undefined
@@ -244,9 +263,7 @@ export function recentFor(db: Db, modelId: string, limit: number): RequestEvent[
 }
 
 export function replaySince(db: Db, since: number): RequestEvent[] {
-  return recentFor(db, '', 0).length === 0
-    ? []
-    : recentAfter(db, since)
+  return recentFor(db, '', 0).length === 0 ? [] : recentAfter(db, since)
 }
 
 function recentAfter(db: Db, since: number): RequestEvent[] {
@@ -271,12 +288,12 @@ function recentAfter(db: Db, since: number): RequestEvent[] {
     ttftMs: r.ttft_ms,
     durationMs: r.duration_ms,
     inputTokens: r.input_tokens,
-      uncachedInputTokens: r.uncached_input_tokens,
+    uncachedInputTokens: r.uncached_input_tokens,
     outputTokens: r.output_tokens,
     cacheReadTokens: r.cache_read_tokens,
     cacheInputTokens: r.cache_input_tokens,
-      cacheInputReported: r.cache_input_reported === 1,
-      cacheReadReported: r.cache_read_reported === 1,
+    cacheInputReported: r.cache_input_reported === 1,
+    cacheReadReported: r.cache_read_reported === 1,
     cost: r.cost,
     currency: r.currency,
     note: r.note ?? undefined
@@ -377,16 +394,7 @@ export function insertAppLog(db: Db, id: string, ts: number, level: string, scop
 /* ------------------------------- 分析查询 ------------------------------- */
 
 export type Metric =
-  | 'requests'
-  | 'errors'
-  | 'input'
-  | 'uncached'
-  | 'output'
-  | 'total'
-  | 'cache_read'
-  | 'cache_input'
-  | 'cost'
-  | 'tps'
+  'requests' | 'errors' | 'input' | 'uncached' | 'output' | 'total' | 'cache_read' | 'cache_input' | 'cost' | 'tps'
 export type Granularity = 'minute' | 'hour' | 'day'
 export type GroupBy = 'model' | 'provider' | 'token'
 export type SourceFilter = 'all' | 'proxy' | 'probe'
@@ -421,19 +429,10 @@ export function series(
     : granularity === 'day'
       ? 'rollup_day'
       : 'rollup_minute'
-  const bucketExpr =
-    granularity === 'day'
-      ? 'day'
-      : granularity === 'hour'
-        ? `(minute / ${HOUR}) * ${HOUR}`
-        : 'minute'
+  const bucketExpr = granularity === 'day' ? 'day' : granularity === 'hour' ? `(minute / ${HOUR}) * ${HOUR}` : 'minute'
   const timeCol = granularity === 'day' ? 'day' : 'minute'
   const valueExpr =
-    metric === 'tps'
-      ? 'sum(output) * 1.0'
-      : metric === 'total'
-        ? 'sum(input + output)'
-        : `sum(${METRIC_COL[metric]})`
+    metric === 'tps' ? 'sum(output) * 1.0' : metric === 'total' ? 'sum(input + output)' : `sum(${METRIC_COL[metric]})`
 
   const params: SqlValue[] = []
   const where: string[] = []
@@ -531,7 +530,12 @@ export function totals(
   db: Db,
   opts: { from: number; to: number; groupBy: GroupBy; source: SourceFilter }
 ): GroupTotals[] {
-  const keyCol = opts.groupBy === 'model' ? 'model_id' : opts.groupBy === 'provider' ? 'provider_id' : "coalesce(token_remark, '(未记录)')"
+  const keyCol =
+    opts.groupBy === 'model'
+      ? 'model_id'
+      : opts.groupBy === 'provider'
+        ? 'provider_id'
+        : "coalesce(token_remark, '(未记录)')"
   const params: SqlValue[] = [opts.from, opts.to]
   let where = 'ts >= ? and ts < ?'
   if (opts.source !== 'all') {
@@ -613,7 +617,11 @@ export function exportRange(db: Db, from: number, to: number, source: SourceFilt
 }
 
 /** 近 N 天的按日合计（图表用的旧接口） */
-export function daySeries(db: Db, days: number, modelId: string | null): { ts: number; out: number; req: number; err: number; cost: number }[] {
+export function daySeries(
+  db: Db,
+  days: number,
+  modelId: string | null
+): { ts: number; out: number; req: number; err: number; cost: number }[] {
   const from = new Date()
   from.setDate(from.getDate() - (days - 1))
   from.setHours(0, 0, 0, 0)
@@ -636,7 +644,13 @@ export function daySeries(db: Db, days: number, modelId: string | null): { ts: n
   return out
 }
 
-export function prune(db: Db, now: number, detailDays: number, minuteDays: number): { requests: number; minutes: number } {  const detailCut = now - detailDays * 86_400_000
+export function prune(
+  db: Db,
+  now: number,
+  detailDays: number,
+  minuteDays: number
+): { requests: number; minutes: number } {
+  const detailCut = now - detailDays * 86_400_000
   const minuteCut = now - minuteDays * 86_400_000
   const before = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
   db.run('delete from requests where ts < ?', detailCut)

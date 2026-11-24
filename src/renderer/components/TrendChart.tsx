@@ -75,90 +75,84 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
   const hoverAt = hover === null ? null : Math.min(n - 1, Math.max(0, hover))
   const tipLeft = hoverAt === null ? 0 : x(hoverAt)
   const tipTopRaw =
-    hoverAt === null || visible.length === 0
-      ? base
-      : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
+    hoverAt === null || visible.length === 0 ? base : Math.min(...visible.map((s) => y(s.points[hoverAt] ?? 0)))
   const tipTop = Math.max(6, Math.min(tipTopRaw - 12, base - tipSize.h - 4))
   const tipPad = tipSize.w / 2 + 4
 
   return (
     <div className="trend-wrap">
       <div className="chart-plot">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="trend-svg"
-        preserveAspectRatio="none"
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect()
-          const ratio = (e.clientX - rect.left) / rect.width
-          setHover(Math.min(n - 1, Math.max(0, Math.round(ratio * (n - 1)))))
-        }}
-        onMouseLeave={() => setHover(null)}
-      >
-        {[0, 1, 2, 3, 4].map((i) => (
-          <line
-            key={i}
-            x1={PAD.left}
-            x2={W - PAD.right}
-            y1={PAD.top + (plotH * i) / 4}
-            y2={PAD.top + (plotH * i) / 4}
-            className="trend-grid"
-          />
-        ))}
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="trend-svg"
+          preserveAspectRatio="none"
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const ratio = (e.clientX - rect.left) / rect.width
+            setHover(Math.min(n - 1, Math.max(0, Math.round(ratio * (n - 1)))))
+          }}
+          onMouseLeave={() => setHover(null)}
+        >
+          {[0, 1, 2, 3, 4].map((i) => (
+            <line
+              key={i}
+              x1={PAD.left}
+              x2={W - PAD.right}
+              y1={PAD.top + (plotH * i) / 4}
+              y2={PAD.top + (plotH * i) / 4}
+              className="trend-grid"
+            />
+          ))}
 
-        {visible.map((s) => (
-          <path
-            key={s.key}
-            className="trend-line"
-            stroke={s.color}
-            d={smoothPath(
-              s.points.map((v, i) => [x(i), y(v)]),
-              PAD.top,
-              base
-            )}
-          />
-        ))}
+          {visible.map((s) => (
+            <path
+              key={s.key}
+              className="trend-line"
+              stroke={s.color}
+              d={smoothPath(
+                s.points.map((v, i) => [x(i), y(v)]),
+                PAD.top,
+                base
+              )}
+            />
+          ))}
+
+          {hoverAt !== null ? (
+            <line x1={x(hoverAt)} x2={x(hoverAt)} y1={PAD.top} y2={base} className="crosshair" />
+          ) : null}
+        </svg>
+
+        {/* 时间刻度用 HTML 层，避免随 SVG 横向拉伸变形 */}
+        <div className="axis-labels x-labels">
+          {buckets.map((b, i) =>
+            i % labelEvery === 0 || i === n - 1 ? (
+              <span key={b} className="axis-x" style={{ left: `${(x(i) / W) * 100}%` }}>
+                {dayLabel(b)}
+              </span>
+            ) : null
+          )}
+        </div>
 
         {hoverAt !== null ? (
-          <line x1={x(hoverAt)} x2={x(hoverAt)} y1={PAD.top} y2={base} className="crosshair" />
+          <div
+            ref={tipRef}
+            className="series-tip"
+            style={{
+              left: `clamp(${tipPad}px, ${(tipLeft / W) * 100}%, calc(100% - ${tipPad}px))`,
+              top: `${(tipTop / H) * 100}%`,
+              transform: 'translateX(-50%)'
+            }}
+          >
+            <div className="tip-time">{dayLabel(buckets[hoverAt] as number)}</div>
+            {visible.map((s) => (
+              <div key={s.key} className="tip-row">
+                <i style={{ background: s.color }} />
+                <span>{s.label}</span>
+                <b className="mono">{fmtWan(s.points[hoverAt] ?? 0)}</b>
+              </div>
+            ))}
+          </div>
         ) : null}
-      </svg>
-
-      {/* 时间刻度用 HTML 层，避免随 SVG 横向拉伸变形 */}
-      <div className="axis-labels x-labels">
-        {buckets.map((b, i) =>
-          i % labelEvery === 0 || i === n - 1 ? (
-            <span
-              key={b}
-              className="axis-x"
-              style={{ left: `${(x(i) / W) * 100}%` }}
-            >
-              {dayLabel(b)}
-            </span>
-          ) : null
-        )}
-      </div>
-
-      {hoverAt !== null ? (
-        <div
-          ref={tipRef}
-          className="series-tip"
-          style={{
-            left: `clamp(${tipPad}px, ${(tipLeft / W) * 100}%, calc(100% - ${tipPad}px))`,
-            top: `${(tipTop / H) * 100}%`,
-            transform: 'translateX(-50%)'
-          }}
-        >
-          <div className="tip-time">{dayLabel(buckets[hoverAt] as number)}</div>
-          {visible.map((s) => (
-            <div key={s.key} className="tip-row">
-              <i style={{ background: s.color }} />
-              <span>{s.label}</span>
-              <b className="mono">{fmtWan(s.points[hoverAt] ?? 0)}</b>
-            </div>
-          ))}
-        </div>
-      ) : null}
       </div>
 
       <div className="legend">

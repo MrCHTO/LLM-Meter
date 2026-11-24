@@ -1,6 +1,6 @@
 /**
  * 假上游：只为实现端到端核对，不追求拟真。
- * 用法：node test/fake-upstream.mjs [port]
+ * 用法：node scripts/check/fake-upstream.mjs [port]
  */
 import { createServer } from 'node:http'
 
