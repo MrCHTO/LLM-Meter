@@ -14,6 +14,20 @@ const DEFAULT_HEIGHT = 40
 let hovered = false
 let dragTimer: NodeJS.Timeout | null = null
 let dragOffset = { x: 0, y: 0 }
+/**
+ * 中心锚点用浮点保存。窗口宽度随内容频繁变化时，若每次按当前整数边界重新取中心，
+ * 半像素的取整误差会单向累积，胶囊就会一点点往右挪。
+ */
+let centerAnchor: number | null = null
+
+function trackCenter(b: Rectangle): void {
+  centerAnchor = b.x + b.width / 2
+}
+
+function centerOf(b: Rectangle): number {
+  if (centerAnchor === null) centerAnchor = b.x + b.width / 2
+  return centerAnchor
+}
 
 function defaultBounds(): Rectangle {
   const area = screen.getPrimaryDisplay().workArea
@@ -59,6 +73,7 @@ export function create(): BrowserWindow {
   const base = stored.x === null || stored.y === null
     ? defaultBounds()
     : clampBounds({ x: stored.x, y: stored.y, width: stored.width || DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
+  trackCenter(base)
 
   const win = new BrowserWindow({
     ...base,
@@ -88,8 +103,11 @@ export function create(): BrowserWindow {
   win.setIgnoreMouseEvents(stored.locked)
 
   win.on('ready-to-show', () => {
-    const fresh = clampBounds(win.getBounds())
+    const b = win.getBounds()
+    const area = screen.getDisplayMatching(b).workArea
+    const fresh = clampBounds({ ...b, x: anchorX(b, b.width, area, centerOf(b)) })
     win.setBounds(fresh)
+    trackCenter(fresh)
     if (cfg.get().settings.overlay.visible) win.showInactive()
     saveBounds()
   })
@@ -149,6 +167,8 @@ export function startDrag(): void {
 export function stopDrag(): void {
   if (dragTimer) clearInterval(dragTimer)
   dragTimer = null
+  const win = getOverlay()
+  if (win) trackCenter(win.getBounds())
   saveBounds()
 }
 
@@ -159,6 +179,7 @@ export function moveTo(x: number, y: number): void {
   const b = win.getBounds()
   const next = clampBounds({ ...b, x: Math.round(x), y: Math.round(y) })
   win.setPosition(next.x, next.y)
+  trackCenter(next)
   saveBounds()
 }
 
@@ -170,15 +191,18 @@ export function resize(width: number, height: number): void {
   if (!win) return
   const b = win.getBounds()
   const widthNext = Math.max(MIN_WIDTH, Math.round(width))
-  // 贴边的一侧保持不动，否则以中心点为轴左右对称伸缩
+  // 贴边的一侧保持不动，否则按保存的中心点对称伸缩
   const area = screen.getDisplayMatching(b).workArea
+  const wantedX = anchorX(b, widthNext, area, centerOf(b))
   const next = clampBounds({
     ...b,
-    x: anchorX(b, widthNext, area),
+    x: wantedX,
     width: widthNext,
     height: Math.max(MIN_HEIGHT, Math.round(height))
   })
   win.setBounds(next)
+  // 被屏幕边界钳动过就以新位置作为中心，后续仍不会被拉回
+  if (next.x !== wantedX) trackCenter(next)
 }
 
 export function setVisible(visible: boolean): void {
@@ -188,8 +212,9 @@ export function setVisible(visible: boolean): void {
     const b = currentBounds()
     const area = screen.getDisplayMatching(b).workArea
     const widthNext = cfg.get().settings.overlay.width
-    const fresh = clampBounds({ ...b, x: anchorX(b, widthNext, area), width: widthNext })
+    const fresh = clampBounds({ ...b, x: anchorX(b, widthNext, area, centerOf(b)), width: widthNext })
     win.setBounds(fresh)
+    trackCenter(fresh)
     win.showInactive()
   } else {
     win.hide()

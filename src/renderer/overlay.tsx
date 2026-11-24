@@ -18,7 +18,8 @@ function Capsule(): JSX.Element {
     if (!node) return
     const report = (): void => {
       const rect = node.getBoundingClientRect()
-      if (rect.width > 0 && rect.height > 0) void window.api.overlaySetSize(rect.width + 8, rect.height + 8)
+      // 胶囊四周各留 6px 边距，窗口尺寸按内容加 12px，左右上下保持对称
+      if (rect.width > 0 && rect.height > 0) void window.api.overlaySetSize(rect.width + 12, rect.height + 12)
     }
     report()
     const observer = new ResizeObserver(report)

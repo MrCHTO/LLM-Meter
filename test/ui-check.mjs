@@ -1190,6 +1190,15 @@ try {
   )
   await o.eval("(async()=>await window.api.updateSettings({overlayShowProvider:true}))()")
   await sleep(800)
+  // 宽度反复跳动（tok/s、费用数字变化）不应一点点往右挪
+  const beforeDrift = (await stateOf()).bounds
+  const baseW = Math.round(beforeDrift.width)
+  await o.eval(
+    `(async()=>{ for (let i = 0; i < 40; i++) await window.api.overlaySetSize(${baseW} + (i % 2), 40) })()`
+  )
+  await sleep(400)
+  const afterDrift = (await stateOf()).bounds
+  check('宽度反复变化不向右漂移', Math.abs(afterDrift.x - beforeDrift.x) <= 1, `${beforeDrift.x} -> ${afterDrift.x}`)
   const rightX = area.x + area.width - (await stateOf()).bounds.width
   await o.eval(`(async()=>await window.api.updateSettings({overlayX:${rightX}, overlayY:${area.y + 200}}))()`)
   await sleep(500)

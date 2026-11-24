@@ -36,12 +36,12 @@ export function snapToEdges(next: Rect, area: Area, threshold = SNAP): Rect {
 
 /**
  * 宽度变化后 x 的取法：贴着左边就保持左缘、贴着右边就保持右缘，
- * 否则以中心点为轴左右对称伸缩。
+ * 否则按调用方保存的中心点（浮点）反推，避免按整数边界反复取整向右漂。
  */
-export function anchorX(b: Rect, width: number, area: Area, threshold = SNAP): number {
+export function anchorX(b: Rect, width: number, area: Area, center: number, threshold = SNAP): number {
   const leftGap = b.x - area.x
   const rightGap = area.x + area.width - (b.x + b.width)
   if (rightGap <= threshold && rightGap <= leftGap) return area.x + area.width - width
   if (leftGap <= threshold) return area.x
-  return Math.round(b.x + (b.width - width) / 2)
+  return Math.round(center - width / 2)
 }
