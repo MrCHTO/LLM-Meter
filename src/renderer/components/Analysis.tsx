@@ -62,7 +62,7 @@ function dayKeyOf(ts: number): string {
 }
 
 export function Analysis({ config, notify }: Props): JSX.Element {
-  const [preset, setPreset] = useState<Preset>('today')
+  const [preset, setPreset] = useState<Preset>('24h')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [metric, setMetric] = useState<StatsMetric>('requests')

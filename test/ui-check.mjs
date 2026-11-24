@@ -332,6 +332,7 @@ try {
       (await s.eval("document.querySelector('.range-select') ? [...document.querySelector('.range-select').options].map((o) => o.value).join(',') : ''")) ===
         'today,24h,week,month'
   )
+  check('监控区间默认近 24 小时', (await s.eval("document.querySelector('.range-select')?.value")) === '24h')
   // 区间选项要真的换数据：30 小时前的种子只在更长的区间里出现
   const outCellOf = (alias) =>
     s.eval(`(() => { const tr = [...document.querySelectorAll('tbody tr.clickable')].find((r) => r.innerText.includes('${alias}')); return tr ? tr.children[7].innerText : '' })()`)
@@ -343,6 +344,8 @@ try {
     await s.eval(`(() => { const sel = document.querySelector('.range-select'); sel.value = '${value}'; sel.dispatchEvent(new Event('change', { bubbles: true })); })()`)
     await sleep(1200)
   }
+  // 基线固定取「今天」，默认值本身已单独断言
+  await pickRange('today')
   const todayOut = parseTok(await outCellOf('claude-x'))
   await pickRange('month')
   const monthOut = parseTok(await outCellOf('claude-x'))
@@ -654,6 +657,10 @@ try {
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
   await sleep(1500)
   check('分析页有范围与指标控件', (await s.eval("document.querySelectorAll('.card select').length")) === 3)
+  check(
+    '分析区间默认近 24 小时',
+    (await s.eval("[...document.querySelectorAll('.card select')][0]?.value")) === '24h'
+  )
   check('分析筛选没有文字标签', (await s.eval("document.querySelectorAll('.ana-head .field > span').length")) === 0)
   check(
     '图表卡头无标题、控件顶在左上',

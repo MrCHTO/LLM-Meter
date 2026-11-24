@@ -42,7 +42,7 @@ export function Dashboard({ snapshot, config, notify, onChanged, onOpenLogs }: P
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   /** 监控卡统计区间；非今天走库内区间查询 */
-  const [range, setRange] = useState<Range>('today')
+  const [range, setRange] = useState<Range>('24h')
   const [rangeRows, setRangeRows] = useState<Map<string, StatsRow> | null>(null)
   const cols = useColumnWidths('dashboard', [200, 120, 60, 100, 80, 80, 80, 80, 90])
 
