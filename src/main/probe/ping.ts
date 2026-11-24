@@ -4,7 +4,7 @@ import * as cfg from '../store/config'
 import * as db from '../store/db'
 import * as repo from '../store/db/repo'
 import * as live from '../store/live'
-import { dayKey } from '../store/paths'
+import { dayKey } from '../../shared/date'
 import { open as openKey } from '../security/keys'
 import { joinUrl } from '../proxy/url'
 

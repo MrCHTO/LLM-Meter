@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { fmtWan } from '../format'
+import { fmtWan } from '../../shared/format'
 
 export interface TrendSeries {
   key: string

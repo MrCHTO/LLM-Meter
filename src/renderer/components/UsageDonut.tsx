@@ -1,4 +1,4 @@
-import { fmtWan } from '../format'
+import { fmtWan } from '../../shared/format'
 
 export interface UsageRow {
   key: string

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import type { ConfigView, LiveSnapshot, ModelLive, StatsRow } from '../../shared/types'
-import { fmtMoney, fmtPct, fmtTokens } from '../format'
+import { fmtMoney, fmtPct, fmtTokens } from '../../shared/format'
 import { useColumnWidths } from '../columns'
 import { MultiRate, rateColor } from './MultiRate'
 import { Sparkline } from './Sparkline'

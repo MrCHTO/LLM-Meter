@@ -3,7 +3,7 @@ import * as cfg from './config'
 import * as db from './db'
 import { tps } from '../metrics/cost'
 import * as repo from './db/repo'
-import { dayKey } from './paths'
+import { dayKey } from '../../shared/date'
 
 /** 曲线窗口秒数：每格 1 秒，3 分钟 */
 export const BUCKETS = 180

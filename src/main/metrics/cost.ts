@@ -1,4 +1,4 @@
-import type { ModelCfg, RequestEvent } from '../../shared/types'
+import type { ModelCfg } from '../../shared/types'
 
 /**
  * 指标口径集中在这里，别在别处重复实现。
@@ -52,35 +52,4 @@ export function cost(
   const writePrice = model.priceCacheInput > 0 ? model.priceCacheInput : model.priceIn
   const c = u.uncached * model.priceIn + u.output * model.priceOut + u.cacheRead * readPrice + u.cacheInput * writePrice
   return c / 1_000_000
-}
-
-export function fmtTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`
-  return String(Math.round(n))
-}
-
-export function fmtMoney(value: number, currency = 'CNY'): string {
-  const symbol = currency === 'CNY' ? '¥' : currency === 'EUR' ? '€' : '$'
-  return `${symbol}${value.toFixed(1)}`
-}
-
-export function fmtMs(ms: number | null): string {
-  if (ms === null) return '—'
-  if (ms < 1000) return `${Math.round(ms)}ms`
-  return `${(ms / 1000).toFixed(1)}s`
-}
-
-export function fmtPct(v: number | null): string {
-  if (v === null) return '—'
-  return `${Math.round(v * 100)}%`
-}
-
-export function summarize(ev: RequestEvent): string {
-  const bits = [
-    ev.ok ? 'ok' : 'fail',
-    `${ev.inputTokens}/${ev.outputTokens}`,
-    ev.ttftMs === null ? '非流式' : `${Math.round(ev.ttftMs)}ms`
-  ]
-  return bits.join(' · ')
 }

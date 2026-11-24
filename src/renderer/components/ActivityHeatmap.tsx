@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { fmtWan } from '../format'
+import { fmtWan } from '../../shared/format'
+import { dateKey } from '../../shared/date'
 
 export type ActivityMode = 'day' | 'week' | 'total'
 
@@ -11,11 +12,6 @@ interface Props {
 /** 近一年 53 周，列为一周、行为周日到周六 */
 const WEEKS = 53
 const DAY_MS = 86_400_000
-
-function dayKey(d: Date): string {
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
 
 function monthLabel(d: Date): string {
   return `${d.getMonth() + 1}月`
@@ -42,7 +38,7 @@ export function ActivityHeatmap({ daily }: Props): JSX.Element {
     for (let i = 0; ; i++) {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
       if (d.getTime() > today.getTime()) break
-      out.push({ ts: d.getTime(), key: dayKey(d), col: Math.floor(i / 7), row: d.getDay() })
+      out.push({ ts: d.getTime(), key: dateKey(d), col: Math.floor(i / 7), row: d.getDay() })
     }
     return out
   }, [])
@@ -150,7 +146,7 @@ export function ActivityHeatmap({ daily }: Props): JSX.Element {
           >
             <div className="tip-time">
               {mode === 'week' && weekStart && weekEnd && hovered
-                ? `${dayKey(weekStart)} – ${dayKey(weekEnd)}`
+                ? `${dateKey(weekStart)} – ${dateKey(weekEnd)}`
                 : hovered.key}
             </div>
             <div className="tip-row">

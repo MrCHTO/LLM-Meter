@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { StatsGranularity, StatsGroup, StatsMetric, StatsSeries } from '../../shared/types'
-import { fmtMoney, fmtTokens } from '../format'
+import { fmtMoney, fmtTokens } from '../../shared/format'
+import { dayKey, dayStart } from '../../shared/date'
 import { ActivityHeatmap } from './ActivityHeatmap'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
 import { TrendChart, type TrendSeries } from './TrendChart'
@@ -47,18 +48,6 @@ function granularityOf(span: number): StatsGranularity {
 }
 
 const DAY_MS = 86_400_000
-
-function dayStart(ts: number): number {
-  const d = new Date(ts)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
-}
-
-function dayKeyOf(ts: number): string {
-  const d = new Date(ts)
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
 
 export function Analysis({ notify }: Props): JSX.Element {
   const [preset, setPreset] = useState<Preset>('24h')
@@ -158,7 +147,7 @@ export function Analysis({ notify }: Props): JSX.Element {
     res.data.buckets.forEach((bucket, i) => {
       let sum = 0
       for (const s of res.data?.series ?? []) sum += s.points[i] ?? 0
-      map.set(dayKeyOf(bucket), sum)
+      map.set(dayKey(bucket), sum)
     })
     setActivity(map)
   }, [])

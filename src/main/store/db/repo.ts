@@ -1,5 +1,6 @@
 import type { AppLog, AppLogLevel, LogPage, LogQuery, RequestEvent, RequestLog } from '../../../shared/types'
 import type { Db, SqlValue } from './driver'
+import { dayKey } from '../../../shared/date'
 
 const MINUTE = 60_000
 const HOUR = 3_600_000
@@ -438,7 +439,7 @@ export function series(
   const where: string[] = []
   if (granularity === 'day') {
     where.push(`${timeCol} >= ? and ${timeCol} <= ?`)
-    params.push(dayKeyOf(from), dayKeyOf(to))
+    params.push(dayKey(from), dayKey(to))
   } else {
     where.push(`${timeCol} >= ? and ${timeCol} < ?`)
     params.push(from, to)
@@ -462,8 +463,8 @@ export function series(
   // 先把整个区间的桶占满，空时段也占时间轴，曲线不会从一段直接跳到另一段
   if (granularity === 'day') {
     // from/to 是毫秒时间戳，先换成日键再解析
-    const end = Date.parse(`${dayKeyOf(to)}T00:00:00`)
-    let time = Date.parse(`${dayKeyOf(from)}T00:00:00`)
+    const end = Date.parse(`${dayKey(to)}T00:00:00`)
+    let time = Date.parse(`${dayKey(from)}T00:00:00`)
     for (let guard = 0; guard < 5000 && time <= end; guard++) {
       index.set(time, buckets.length)
       buckets.push(time)
@@ -630,14 +631,14 @@ export function daySeries(
             coalesce(sum(errors),0) err, coalesce(sum(cost),0) cost
      from rollup_day where day >= ? ${modelId ? 'and model_id = ?' : ''}
      group by day`,
-    ...(modelId ? [dayKeyOf(from.getTime()), modelId] : [dayKeyOf(from.getTime())])
+    ...(modelId ? [dayKey(from.getTime()), modelId] : [dayKey(from.getTime())])
   )
   const byDay = new Map(rows.map((r) => [r.day, r]))
   const out: { ts: number; out: number; req: number; err: number; cost: number }[] = []
   for (let i = 0; i < days; i++) {
     const d = new Date(from)
     d.setDate(from.getDate() + i)
-    const key = dayKeyOf(d.getTime())
+    const key = dayKey(d.getTime())
     const row = byDay.get(key)
     out.push({ ts: d.getTime(), out: row?.out ?? 0, req: row?.req ?? 0, err: row?.err ?? 0, cost: row?.cost ?? 0 })
   }
@@ -656,7 +657,7 @@ export function prune(
   db.run('delete from requests where ts < ?', detailCut)
   db.run('delete from app_logs where ts < ?', detailCut)
   db.run('delete from rollup_token_minute where minute < ?', minuteCut)
-  db.run('delete from rollup_token_day where day < ?', dayKeyOf(minuteCut))
+  db.run('delete from rollup_token_day where day < ?', dayKey(minuteCut))
   const after = db.get<{ c: number }>('select count(*) as c from requests')?.c ?? 0
   db.run('delete from rollup_minute where minute < ?', minuteCut)
   db.exec('pragma incremental_vacuum')
@@ -699,8 +700,3 @@ export function rebuildTokenRollups(db: Db): void {
   `)
 }
 
-function dayKeyOf(ts: number): string {
-  const d = new Date(ts)
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}

@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync } from 'no
 import { join } from 'node:path'
 import type { RequestEvent } from '../../../shared/types'
 import * as cfg from '../config'
-import { dayKey, eventsDir, rollupDir } from '../paths'
+import { eventsDir, rollupDir } from '../paths'
+import { dayKey } from '../../../shared/date'
 import type { Db } from './driver'
 
 const BATCH = 500

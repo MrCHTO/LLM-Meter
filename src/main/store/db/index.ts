@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, renameSync } from 'node:fs'
 import * as cfg from '../config'
 import { dataDir, ensureDirs } from '../paths'
+import { dayKey } from '../../../shared/date'
 import { open, type Db } from './driver'
 import { ensureMeta, migrate } from './schema'
 import { alreadyImported, importLegacy } from './import'
@@ -72,7 +73,7 @@ function importCalibrateLog(conn: Db): void {
 /** 每小时看一次，只在 04 点之后跑一次当天清理 */
 function runPrune(): void {
   const settings = cfg.get().settings
-  const today = dayKeyNow()
+  const today = dayKey()
   const hour = new Date().getHours()
   if (lastPruneDay === `${today}-${hour}`) return
   if (lastPruneDay === today && hour < 4) return
@@ -85,11 +86,6 @@ function runPrune(): void {
   }
 }
 
-function dayKeyNow(): string {
-  const d = new Date()
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
 
 export function close(): void {
   if (pruneTimer) clearInterval(pruneTimer)

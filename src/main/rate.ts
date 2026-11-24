@@ -1,5 +1,5 @@
 import * as cfg from './store/config'
-import { dayKey } from './store/paths'
+import { dayKey } from '../shared/date'
 
 /**
  * 美元换人民币：每天取一次最新价并记住当天结果，

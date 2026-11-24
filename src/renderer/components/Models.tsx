@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ApiFormat, ConfigView, LiveSnapshot, ModelCfg, ProviderView } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
-import { fmtMoney, fmtMs } from '../format'
+import { fmtMoney, fmtMs } from '../../shared/format'
 import { useColumnWidths } from '../columns'
 
 interface Props {

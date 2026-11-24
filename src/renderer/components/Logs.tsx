@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppLog, ConfigView, LogPage, LogQuery, RequestLog } from '../../shared/types'
-import { fmtClock, fmtMoney, fmtMs, fmtTokens } from '../format'
+import { fmtMoney, fmtMs, fmtTokens } from '../../shared/format'
+import { fmtClock } from '../../shared/date'
 import { useColumnWidths } from '../columns'
 
 interface Props {

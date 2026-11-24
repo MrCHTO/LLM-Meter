@@ -58,10 +58,3 @@ export function ensureDirs(): void {
   mkdirSync(dir, { recursive: true })
   if (app.isPackaged) migrateFromUserData(dir)
 }
-
-/** 本地日期，用于文件名分片：YYYY-MM-DD */
-export function dayKey(ts = Date.now()): string {
-  const d = new Date(ts)
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { cost, hitRate, tps, fmtMoney, fmtTokens } from '../src/main/metrics/cost'
+import { cost, hitRate, tps } from '../src/main/metrics/cost'
+import { fmtMoney, fmtTokens } from '../src/shared/format'
 
 describe('命中率', () => {
   it('缓存读取 / 输入总量', () => {

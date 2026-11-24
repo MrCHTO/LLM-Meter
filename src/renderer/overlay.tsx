@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { LiveSnapshot } from '../shared/types'
-import { fmtMoney } from './format'
+import { fmtMoney } from '../shared/format'
 import './styles.css'
 
 /** 单模型胶囊：供应商 · 模型 | tok/s | 今日费用 */
