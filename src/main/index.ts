@@ -14,7 +14,7 @@ import * as applog from './applog'
 import * as mainWindow from './windows/main-window'
 import * as overlay from './windows/overlay'
 import * as tray from './windows/tray'
-import { send, getMain, setMain } from './windows/registry'
+import { anyVisible, send, getMain, setMain } from './windows/registry'
 
 let pushTimer: NodeJS.Timeout | null = null
 let calTimer: NodeJS.Timeout | null = null
@@ -104,10 +104,14 @@ if (!gotLock) {
       send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
     })
 
-    pushTimer = setInterval(() => {
-      const snap = live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl())
-      send(CH.push, snap)
-    }, 500)
+    // 主窗与胶囊都收起来时不再算快照，省掉每 500ms 的桶复制
+    const tickPush = (): void => {
+      if (anyVisible()) {
+        send(CH.push, live.snapshot(proxy.getState().running, proxyError, proxy.baseUrl()))
+      }
+      pushTimer = setTimeout(tickPush, 500)
+    }
+    tickPush()
 
     // 启动 3 秒后跑一次自动校准，之后每天 00:00 一次
     setTimeout(() => void calibrate.run(), 3000)
@@ -138,7 +142,7 @@ if (!gotLock) {
 
   app.on('before-quit', () => {
     mainWindow.markQuitting()
-    if (pushTimer) clearInterval(pushTimer)
+    if (pushTimer) clearTimeout(pushTimer)
     pushTimer = null
     if (calTimer) clearTimeout(calTimer)
     calTimer = null

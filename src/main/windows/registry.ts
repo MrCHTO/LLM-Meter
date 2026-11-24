@@ -19,6 +19,11 @@ export function getOverlay(): BrowserWindow | null {
   return overlayWindow && !overlayWindow.isDestroyed() ? overlayWindow : null
 }
 
+/** 任一窗口可见：都不可见时不必算快照 */
+export function anyVisible(): boolean {
+  return [getMain(), getOverlay()].some((win) => win?.isVisible() === true)
+}
+
 export function send(channel: string, payload: unknown): void {
   for (const win of [getMain(), getOverlay()]) {
     if (!win) continue
