@@ -3,6 +3,47 @@
   margin-top: 10px;
 }
 
+/* 绘图区：SVG 只画几何，刻度文字走 HTML 覆盖层，拉伸时不变形 */
+.chart-plot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.axis-labels {
+  position: absolute;
+  pointer-events: none;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.y-labels {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6.2%;
+}
+
+.axis-y {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+}
+
+.x-labels {
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 16px;
+  color: var(--text);
+}
+
+.axis-x {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 .series-svg {
   width: 100%;
   height: 260px;
@@ -40,7 +81,7 @@
 }
 
 .tip-time {
-  color: var(--muted);
+  color: var(--text);
   margin-bottom: 4px;
 }
 
@@ -265,11 +306,6 @@
   stroke-linejoin: round;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
-}
-
-/* 时间轴日期用正文色，深色主题下即白色 */
-.trend-svg .trend-axis {
-  fill: var(--text);
 }
 
 /* 模型用量环图 */

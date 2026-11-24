@@ -78,6 +78,7 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
 
   return (
     <div className="series-wrap">
+      <div className="chart-plot">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="series-svg"
@@ -91,22 +92,8 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
         onMouseLeave={() => setHover(null)}
       >
         {ticks.map((t, i) => (
-          <g key={i}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="grid" />
-            <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" className="axis">
-              {format(t)}
-            </text>
-          </g>
+          <line key={i} x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="grid" />
         ))}
-
-        {buckets.map((b, i) => {
-          // 空时段也照常出时间刻度，时间轴不能断
-          return i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
-            <text key={b} x={center(i)} y={H - 6} textAnchor="middle" className="axis">
-              {timeFormat(b)}
-            </text>
-          ) : null
-        })}
 
         {visible.map((s, si) =>
           s.points.map((v, i) => {
@@ -133,12 +120,30 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
         ) : null}
       </svg>
 
+      {/* 刻度文字放到 HTML 层，SVG 横向拉伸时字不会被压扁 */}
+      <div className="axis-labels y-labels">
+        {ticks.map((t, i) => (
+          <span key={i} className="axis-y" style={{ top: `${(y(t) / H) * 100}%` }}>
+            {format(t)}
+          </span>
+        ))}
+      </div>
+      <div className="axis-labels x-labels">
+        {buckets.map((b, i) =>
+          i % Math.ceil(n / 8) === 0 || i === n - 1 ? (
+            <span key={b} className="axis-x" style={{ left: `${(center(i) / W) * 100}%` }}>
+              {timeFormat(b)}
+            </span>
+          ) : null
+        )}
+      </div>
+
       {hoverAt !== null ? (
         <div
           className="series-tip"
           style={{
             left: `clamp(80px, ${tipLeftPct}%, calc(100% - 80px))`,
-            top: `${tipTop}px`,
+            top: `${(tipTop / H) * 100}%`,
             transform: 'translateX(-50%)'
           }}
         >
@@ -152,6 +157,7 @@ export function SeriesChart({ buckets, series, format, timeFormat, integer = fal
           ))}
         </div>
       ) : null}
+      </div>
 
       <div className="legend">
         {series.map((s) => (

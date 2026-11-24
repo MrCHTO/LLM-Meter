@@ -73,6 +73,7 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
 
   return (
     <div className="trend-wrap">
+      <div className="chart-plot">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="trend-svg"
@@ -95,20 +96,6 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
           />
         ))}
 
-        {buckets.map((b, i) =>
-          i % labelEvery === 0 || i === n - 1 ? (
-            <text
-              key={b}
-              x={i === 0 ? PAD.left : i === n - 1 ? W - PAD.right : x(i)}
-              y={H - 6}
-              textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
-              className="axis trend-axis"
-            >
-              {dayLabel(b)}
-            </text>
-          ) : null
-        )}
-
         {visible.map((s) => (
           <path
             key={s.key}
@@ -127,12 +114,27 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
         ) : null}
       </svg>
 
+      {/* 时间刻度用 HTML 层，避免随 SVG 横向拉伸变形 */}
+      <div className="axis-labels x-labels">
+        {buckets.map((b, i) =>
+          i % labelEvery === 0 || i === n - 1 ? (
+            <span
+              key={b}
+              className="axis-x"
+              style={{ left: `${(x(i) / W) * 100}%` }}
+            >
+              {dayLabel(b)}
+            </span>
+          ) : null
+        )}
+      </div>
+
       {hoverAt !== null ? (
         <div
           className="series-tip"
           style={{
             left: `clamp(80px, ${(tipLeft / W) * 100}%, calc(100% - 80px))`,
-            top: `${Math.max(6, Math.min(tipTop - 12, 160))}px`,
+            top: `${(Math.max(6, Math.min(tipTop - 12, 160)) / H) * 100}%`,
             transform: 'translateX(-50%)'
           }}
         >
@@ -146,6 +148,7 @@ export function TrendChart({ buckets, series, onToggle }: Props): JSX.Element {
           ))}
         </div>
       ) : null}
+      </div>
 
       <div className="legend">
         {series.map((s) => (

@@ -693,7 +693,7 @@ try {
     await sleep(300)
   }
   check('分析页画出柱状图', (await s.eval("document.querySelectorAll('rect.series-bar').length")) > 0)
-  check('空时段也保留时间刻度', (await s.eval("document.querySelectorAll('.series-svg text.axis').length")) >= 2)
+  check('空时段也保留时间刻度', (await s.eval("document.querySelectorAll('.analysis-card .x-labels .axis-x').length")) >= 2)
   check(
     '0 值不画柱',
     await s.eval("[...document.querySelectorAll('rect.series-bar')].every((r) => Number(r.getAttribute('height')) > 1)")
@@ -785,7 +785,7 @@ try {
   check('趋势图画出模型线', (await s.eval("document.querySelectorAll('.trend-line').length")) >= 1)
   await s.eval("[...document.querySelectorAll('.seg button')].find((b) => b.innerText === '近 30 日')?.click()")
   await sleep(1600)
-  check('切近 30 日后横轴跨度变长', (await s.eval("document.querySelectorAll('.trend-svg text').length")) >= 5)
+  check('切近 30 日后横轴跨度变长', (await s.eval("document.querySelectorAll('.ana-panel .x-labels .axis-x').length")) >= 5)
   check('模型用量列出占比', /%/.test(await s.eval("[...document.querySelectorAll('.donut-name b')].map((b) => b.innerText).join(',')")))
   check('环图有占比段', (await s.eval("document.querySelectorAll('.donut-seg').length")) >= 1)
   await s.eval("[...document.querySelectorAll('.seg button')].find((b) => b.innerText === '近 7 日')?.click()")
