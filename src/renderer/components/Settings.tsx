@@ -170,7 +170,9 @@ export function SettingsView(): JSX.Element {
           </div>
         </div>
         <div className="setting-row">
-          <span>不透明度（{LIMITS.overlayOpacity.min}–{LIMITS.overlayOpacity.max}）</span>
+          <span>
+            不透明度（{LIMITS.overlayOpacity.min}–{LIMITS.overlayOpacity.max}）
+          </span>
           <div className="row nowrap">
             <input
               className="mono w-sm"
@@ -218,7 +220,9 @@ export function SettingsView(): JSX.Element {
       <div className="card">
         <h2>探针与校准</h2>
         <div className="setting-row">
-          <span>自动探针间隔 / 秒（{LIMITS.autoProbeIntervalSec.min}–{LIMITS.autoProbeIntervalSec.max}）</span>
+          <span>
+            自动探针间隔 / 秒（{LIMITS.autoProbeIntervalSec.min}–{LIMITS.autoProbeIntervalSec.max}）
+          </span>
           <div className="row nowrap">
             <input
               className="mono w-sm"

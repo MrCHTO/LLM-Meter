@@ -41,9 +41,7 @@ export function seed(count: number): number {
       cacheInputReported: false,
       cacheReadReported: cacheRead > 0,
       cost:
-        (Math.max(0, input - cacheRead) * model.priceIn +
-          output * model.priceOut +
-          cacheRead * model.priceCacheRead) /
+        (Math.max(0, input - cacheRead) * model.priceIn + output * model.priceOut + cacheRead * model.priceCacheRead) /
         1e6,
       currency: model.currency
     }

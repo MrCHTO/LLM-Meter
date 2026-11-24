@@ -95,7 +95,6 @@ function persist(model: ModelCfg, provider: Provider, run: Run, usage: Usage, st
   }
 }
 
-
 export function stop(modelId?: string): void {
   if (modelId) {
     active.get(modelId)?.abort()

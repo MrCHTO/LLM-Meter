@@ -64,7 +64,9 @@ export function register(): void {
 
   handle(
     'statsTop',
-    wrap((q: StatsQuery & { by: 'cost' | 'requests' | 'output'; limit: number }) => repo.top(db.get(), q).map(mapRow('model')))
+    wrap((q: StatsQuery & { by: 'cost' | 'requests' | 'output'; limit: number }) =>
+      repo.top(db.get(), q).map(mapRow('model'))
+    )
   )
 
   handle(

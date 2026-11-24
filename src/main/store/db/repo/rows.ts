@@ -54,4 +54,3 @@ export function toEvent(r: RecentRow): RequestEvent {
     note: r.note ?? undefined
   }
 }
-

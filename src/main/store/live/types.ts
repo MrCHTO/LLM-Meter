@@ -46,4 +46,3 @@ export interface ModelState {
   calibObs: number
   calibEst: number
 }
-

@@ -60,7 +60,6 @@ function num(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback
 }
 
-
 function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback
 }
@@ -141,7 +140,10 @@ function normalize(raw: unknown): ConfigFile {
     localKey: keep ? (signed ? storedKey : null) : null,
     tokens: [],
     retentionDays: clampInt('retentionDays', num(os.retentionDays, LIMITS.retentionDays.fallback)),
-    rollupRetentionDays: clampInt('rollupRetentionDays', num(os.rollupRetentionDays, LIMITS.rollupRetentionDays.fallback)),
+    rollupRetentionDays: clampInt(
+      'rollupRetentionDays',
+      num(os.rollupRetentionDays, LIMITS.rollupRetentionDays.fallback)
+    ),
     overlay: {
       x: typeof ov.x === 'number' ? ov.x : null,
       y: typeof ov.y === 'number' ? ov.y : null,
@@ -160,7 +162,10 @@ function normalize(raw: unknown): ConfigFile {
     startAtLogin: os.startAtLogin === true,
     theme: os.theme === 'light' || os.theme === 'dark' ? os.theme : 'system',
     autoCalibrate: os.autoCalibrate !== false,
-    autoProbeIntervalSec: clampInt('autoProbeIntervalSec', num(os.autoProbeIntervalSec, LIMITS.autoProbeIntervalSec.fallback)),
+    autoProbeIntervalSec: clampInt(
+      'autoProbeIntervalSec',
+      num(os.autoProbeIntervalSec, LIMITS.autoProbeIntervalSec.fallback)
+    ),
     lastCalibrate:
       os.lastCalibrate && typeof os.lastCalibrate === 'object'
         ? (os.lastCalibrate as { at: number; rate: number; updated: number; missed: number })

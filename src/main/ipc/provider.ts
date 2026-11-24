@@ -88,7 +88,10 @@ export function register(): void {
   handle(
     'updateProvider',
     wrap(
-      (id: string, patch: { name?: string; baseUrl?: string; format?: ApiFormat; apiKey?: string; enabled?: boolean }) => {
+      (
+        id: string,
+        patch: { name?: string; baseUrl?: string; format?: ApiFormat; apiKey?: string; enabled?: boolean }
+      ) => {
         cfg.mutate((c) => {
           const p = c.providers.find((x) => x.id === id)
           if (!p) throw new Error('供应商不存在')

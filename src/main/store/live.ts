@@ -390,4 +390,3 @@ export function snapshot(
     overlay: settings.overlay
   }
 }
-

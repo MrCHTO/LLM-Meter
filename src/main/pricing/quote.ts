@@ -44,7 +44,8 @@ export async function quote(modelId: string, providerId?: string): Promise<Price
   if (!out.found) return { ...out, ...cached }
   // 价源报的是美元，按当天汇率折成人民币再给界面
   const today = await rate.current()
-  const conv = (v?: number): number | undefined => (v === undefined ? undefined : Math.round(v * today.rate * 1e6) / 1e6)
+  const conv = (v?: number): number | undefined =>
+    v === undefined ? undefined : Math.round(v * today.rate * 1e6) / 1e6
   return {
     ...out,
     ...cached,

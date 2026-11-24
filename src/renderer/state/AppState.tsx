@@ -53,9 +53,7 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
     }
   }, [reload, notify])
 
-  return (
-    <AppContext.Provider value={{ config, snapshot, toasts, notify, reload }}>{children}</AppContext.Provider>
-  )
+  return <AppContext.Provider value={{ config, snapshot, toasts, notify, reload }}>{children}</AppContext.Provider>
 }
 
 /** 配置就绪后的视图：Shell 已经挡住未加载状态 */

@@ -3,7 +3,6 @@ import { useApp, useConfig } from '../state/AppState'
 
 import { LIMITS, clampInt } from '../../shared/limits'
 
-
 export function Access(): JSX.Element {
   const config = useConfig()
   const { notify, reload: onChanged } = useApp()

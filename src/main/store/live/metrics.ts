@@ -36,4 +36,3 @@ export function tpsOf(s: ModelState): number {
   const tail = s.buckets.slice(-TPS_WINDOW)
   return tail.reduce((a, b) => a + b, 0) / TPS_WINDOW
 }
-

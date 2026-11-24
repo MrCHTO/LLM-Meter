@@ -67,4 +67,3 @@ export function queryAppLogs(db: Db, q: LogQuery): LogPage<AppLog> {
 export function insertAppLog(db: Db, id: string, ts: number, level: string, scope: string, message: string): void {
   db.run('insert into app_logs (id, ts, level, scope, message) values (?, ?, ?, ?, ?)', id, ts, level, scope, message)
 }
-

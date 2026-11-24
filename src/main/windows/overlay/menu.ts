@@ -3,7 +3,6 @@ import * as cfg from '../../store/config'
 import * as settingsService from '../../settings/service'
 import { getOverlay } from '../registry'
 
-
 /** 菜单里换胶囊盯的模型 */
 function modelSubmenu(): Electron.MenuItemConstructorOptions[] {
   const current = cfg.get().settings.overlay.modelId

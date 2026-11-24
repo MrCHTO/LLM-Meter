@@ -55,4 +55,3 @@ export function rebuildTokenRollups(db: Db): void {
     from requests group by day, source, coalesce(token_remark, '默认')
   `)
 }
-

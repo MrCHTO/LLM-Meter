@@ -6,8 +6,7 @@ export function smoothPath(points: { x: number; y: number }[], clampTo: { min: n
   if (!first) return ''
   if (points.length === 1) return `M${first.x.toFixed(2)},${first.y.toFixed(2)}`
   const clamp = (v: number): number => Math.min(clampTo.max, Math.max(clampTo.min, v))
-  const at = (i: number): { x: number; y: number } =>
-    points[Math.max(0, Math.min(points.length - 1, i))] ?? first
+  const at = (i: number): { x: number; y: number } => points[Math.max(0, Math.min(points.length - 1, i))] ?? first
   let d = `M${first.x.toFixed(2)},${first.y.toFixed(2)}`
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = at(i - 1)

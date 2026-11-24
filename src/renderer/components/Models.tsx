@@ -10,7 +10,6 @@ import { EMPTY_PROVIDER, emptyModel, type ModelDraft, type ProviderDraft } from 
 import { ModelForm } from './models/ModelForm'
 import { ProviderForm } from './models/ProviderForm'
 
-
 export function Models(): JSX.Element {
   const config = useConfig()
   const { snapshot, notify, reload: onChanged } = useApp()

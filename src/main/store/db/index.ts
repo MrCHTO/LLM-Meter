@@ -87,7 +87,6 @@ function runPrune(): void {
   }
 }
 
-
 export function close(): void {
   if (pruneTimer) clearInterval(pruneTimer)
   pruneTimer = null

@@ -43,7 +43,6 @@ export interface ProxyState {
   error: string | null
 }
 
-
 let server: Server | null = null
 let state: ProxyState = { running: false, port: 0, error: null }
 
