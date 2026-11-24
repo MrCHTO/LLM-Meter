@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ApiFormat, ConfigView, LiveSnapshot, ModelCfg, ProviderView } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney, fmtMs } from '../../shared/format'
+import { Confirm, useConfirm } from './Confirm'
 import { useColumnWidths } from '../columns'
 
 interface Props {
@@ -63,6 +64,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   const [dragId, setDragId] = useState<string | null>(null)
   const cols = useColumnWidths('models', [210, 130, 70, 70, 70, 85, 85, 85, 85, 80])
   const providerCols = useColumnWidths('providers', [150, 220, 110, 140, 80])
+  const { ask, confirmProps } = useConfirm()
 
   useEffect(() => {
     if (!menu && !pmenu) return
@@ -103,7 +105,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
   }
 
   const remove = async (m: ModelCfg): Promise<void> => {
-    if (!confirm(`删除模型 ${m.alias}？`)) return
+    if (!(await ask(`删除模型 ${m.alias}？`))) return
     const res = await window.api.deleteModel(m.id)
     if (!res.ok) notify(res.error ?? '删除失败')
     else {
@@ -467,7 +469,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
                 <button
                   onClick={async () => {
                     setPmenu(null)
-                    if (!confirm(`删除供应商 ${p.name} 及其下所有模型？`)) return
+                    if (!(await ask(`删除供应商 ${p.name} 及其下所有模型？`))) return
                     const res = await window.api.deleteProvider(p.id)
                     if (!res.ok) notify(res.error ?? '删除失败')
                     else {
@@ -735,6 +737,7 @@ export function Models({ config, snapshot, notify, onChanged }: Props): JSX.Elem
           </div>
         </div>
       ) : null}
+      <Confirm {...confirmProps} />
     </div>
   )
 }
