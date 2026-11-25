@@ -355,6 +355,24 @@ button {
   min-width: 0;
   border-left: 1px solid var(--line);
   padding-left: 16px;
+  /* 左列随局域网地址出现变高时，右列保持顶部对齐不跟着跳 */
+  align-self: flex-start;
+  /* 首行下压标题高度，与左侧「本机地址」同一水平线 */
+  padding-top: 32px;
+}
+
+/* 右列两行是上下排列，第二行不再需要左侧竖线 */
+.access-cols-right .access-half + .access-half {
+  border-left: 0;
+}
+
+/* 左侧地址行与右侧控件行同高同距，保证逐行对齐 */
+.access-cols-left .kv {
+  grid-auto-rows: 36px;
+  gap: 10px 12px;
+}
+
+.access-cols-left .kv > * {
   align-self: center;
 }
 
@@ -372,6 +390,8 @@ button {
   align-items: center;
   gap: 10px;
   padding: 0 16px;
+  /* 输入框比开关高，固定行高让开关选中时上下不抖 */
+  min-height: 36px;
 }
 
 .access-half:first-child {
@@ -451,11 +471,6 @@ select {
 input:focus,
 select:focus {
   border-color: var(--accent);
-}
-
-input[type='checkbox'],
-input[type='range'] {
-  accent-color: var(--accent);
 }
 
 .btn {
@@ -544,34 +559,51 @@ table.col-fixed {
   table-layout: fixed;
 }
 
-table.col-fixed thead th {
+thead th {
   position: relative;
 }
 
+/* 可调列宽的表头右侧留白，避免文字压住分隔条 */
+thead th:has(.col-resize) {
+  padding-right: 18px;
+}
+
+/* 14px 可抓取区域：常显细条，悬停变粗变强调色，支持键盘 */
 .col-resize {
   position: absolute;
   top: 0;
-  right: -4px;
-  width: 8px;
+  right: -7px;
+  width: 14px;
   height: 100%;
   cursor: col-resize;
   z-index: 2;
+  outline: none;
 }
 
 .col-resize::after {
   content: '';
   position: absolute;
-  top: 20%;
-  right: 3px;
+  top: 18%;
+  left: 6px;
   width: 2px;
-  height: 60%;
+  height: 64%;
   border-radius: 1px;
-  background: transparent;
+  background: var(--line);
+}
+
+thead:hover .col-resize::after {
+  background: var(--dim);
 }
 
 .col-resize:hover::after,
+.col-resize:focus-visible::after,
 body.col-resizing .col-resize::after {
+  width: 3px;
   background: var(--accent);
+}
+
+.col-resize:focus-visible {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 body.col-resizing {
@@ -808,7 +840,8 @@ body.overlay-body {
   align-items: center;
   gap: 8px;
   height: 32px;
-  margin: 6px;
+  /* 外圈留白随效果走，发光类需要更大窗口，由渲染层写 --pad */
+  margin: var(--pad, 6px);
   padding: 0 12px;
   border-radius: 999px;
   font-size: 12px;
@@ -840,14 +873,16 @@ body.overlay-body {
   cursor: default;
 }
 
-/* 请求进行中：边框彩虹流动；结束后 300ms 淡出 */
+/*
+ * 请求进行中按设置画环或发光。显示与动画分成两层：
+ * lit 只控透明度、结束立刻撤掉；running 控动画、晚 320ms 才撤。
+ * 这样淡出时动画还在跑，相位不会在透明之前瞬跳。
+ */
 .capsule::before {
   content: '';
   position: absolute;
   inset: -2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e891, #4da3ff, #b57bff, #ff5f6d);
-  background-size: 300% 100%;
   padding: 2px;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -862,12 +897,131 @@ body.overlay-body {
   transition: opacity 0.3s ease;
 }
 
-.capsule.inflight::before {
+.capsule.lit::before {
   opacity: 1;
-  animation: rainbow 3s linear infinite;
 }
 
-/* 内容压在彩虹环之上，中间露出本体底色 */
+/* 彩虹流动 */
+.capsule.effect-rainbow.running::before {
+  background: linear-gradient(90deg, #ff5f6d, #ffc371, #47e891, #4da3ff, #b57bff, #ff5f6d);
+  background-size: 300% 100%;
+  animation: rainbow linear infinite;
+  animation-duration: calc(3s / var(--spd, 1));
+}
+
+/* 彗星扫光：一段亮弧扫过，其余留在主题底色 */
+.capsule.effect-comet.running::before {
+  background: linear-gradient(90deg, #101d28 0%, #4da3ff 9%, #bfe0ff 13%, #101d28 26%, #101d28 100%);
+  background-size: 300% 100%;
+  animation: rainbow linear infinite;
+  animation-duration: calc(3.6s / var(--spd, 1));
+}
+
+.capsule.theme-light.effect-comet::before {
+  background: linear-gradient(90deg, #cfdff3 0%, #12479b 9%, #5b8fd8 14%, #cfdff3 30%, #cfdff3 100%);
+}
+
+/* 双色流动 */
+.capsule.effect-duo.running::before {
+  background: linear-gradient(90deg, #22d3ee, #a855f7, #22d3ee);
+  background-size: 200% 100%;
+  animation: rainbow linear infinite;
+  animation-duration: calc(2.4s / var(--spd, 1));
+}
+
+.capsule.theme-light.effect-duo::before {
+  background: linear-gradient(90deg, #2563eb, #a21caf, #2563eb);
+}
+
+/* 外发光：环让位，光晕由独立层承载，靠透明度淡出、阴影明暗呼吸 */
+.capsule.effect-glow::before {
+  display: none;
+}
+
+.capsule.effect-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 0 rgba(77, 163, 255, 0);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.capsule.effect-glow.lit::after {
+  opacity: 1;
+}
+
+.capsule.effect-glow.running::after {
+  animation: glowBreath ease-in-out infinite;
+  animation-duration: calc(3.6s / var(--spd, 1));
+}
+
+.capsule.theme-light.effect-glow.running::after {
+  animation-name: glowBreathLight;
+}
+
+/* 状态点脉冲：绿点不动，只有点周围的光晕明暗 */
+.capsule.effect-dot::before {
+  display: none;
+}
+
+.capsule.effect-dot.lit .capsule-dot {
+  background: var(--dot-on);
+}
+
+.capsule.effect-dot .capsule-dot::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(71, 232, 145, 0);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.capsule.effect-dot.lit .capsule-dot::after {
+  opacity: 1;
+}
+
+.capsule.effect-dot.running .capsule-dot::after {
+  animation: dotGlow ease-in-out infinite;
+  animation-duration: calc(2.4s / var(--spd, 1));
+}
+
+@keyframes glowBreath {
+  0%,
+  100% {
+    box-shadow: 0 0 4px 1px rgba(77, 163, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 10px 2px rgba(77, 163, 255, 0.85);
+  }
+}
+
+@keyframes glowBreathLight {
+  0%,
+  100% {
+    box-shadow: 0 0 4px 1px rgba(31, 95, 191, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 10px 2px rgba(31, 95, 191, 0.6);
+  }
+}
+
+@keyframes dotGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(71, 232, 145, 0);
+  }
+  50% {
+    box-shadow: 0 0 6px 2px rgba(71, 232, 145, 0.9);
+  }
+}
+
+/* 内容压在环与发光之上，中间露出本体底色 */
 .capsule > * {
   position: relative;
   z-index: 1;
@@ -883,6 +1037,7 @@ body.overlay-body {
 }
 
 .capsule-dot {
+  position: relative;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -996,8 +1151,9 @@ body.overlay-body {
   }
 }
 
+/* 行本身不再跳转，只有模型名可点 */
 tr.clickable {
-  cursor: pointer;
+  cursor: default;
 }
 
 tr.open > td {
@@ -1145,6 +1301,20 @@ tr.open > td {
   border-radius: 4px;
   color: var(--text);
   background-image: repeating-linear-gradient(45deg, hsl(var(--mc) / 26%) 0 4px, hsl(var(--mc) / 9%) 4px 8px);
+  cursor: copy;
+}
+
+.model-name:hover {
+  box-shadow: 0 0 0 1px hsl(var(--mc) / 55%);
+}
+
+/* 深色下压低条纹浓度，避免整块底纹发艳 */
+:root[data-theme='dark'] .model-name {
+  background-image: repeating-linear-gradient(45deg, hsl(var(--mc) / 16%) 0 4px, hsl(var(--mc) / 6%) 4px 8px);
+}
+
+:root[data-theme='dark'] .model-name:hover {
+  box-shadow: 0 0 0 1px hsl(var(--mc) / 40%);
 }
 
 .row-name .probe-dot {
@@ -1155,6 +1325,11 @@ tr.open > td {
 /* 停用的模型整行变灰 */
 tr.row-off > td {
   opacity: 0.42;
+}
+
+/* 探活失败的模型整行变灰，状态由行首圆点给出 */
+tr.row-dead > td {
+  opacity: 0.45;
 }
 
 tr.dragging > td {
@@ -1488,4 +1663,93 @@ tr.probing.open > td {
 
 tr.bad-flash.open > td {
   background: var(--toast-bad-bg);
+}
+
+/* ---------- 悬浮窗设置页：效果选择与预览 ---------- */
+
+/* 开关型按钮的选中态 */
+.card .btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.effect-hint {
+  margin: -4px 0 10px;
+  font-size: 12px;
+}
+
+.effect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 10px;
+}
+
+.effect-option {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.effect-option:hover {
+  border-color: var(--accent);
+}
+
+.effect-option.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+/* 预览区留出足够高度，外发光类不被裁切 */
+.effect-stage {
+  display: grid;
+  place-items: center;
+  height: 64px;
+  background: var(--panel-2);
+  overflow: visible;
+}
+
+.effect-option .capsule.mini {
+  height: 24px;
+  padding: 0 10px;
+  gap: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.effect-option .capsule.mini .capsule-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.effect-label {
+  font-size: 12px;
+  text-align: center;
+}
+
+.effect-option.active .effect-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.speed-range {
+  flex: 1;
+  min-width: 120px;
+  max-width: 260px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.speed-value {
+  min-width: 42px;
+  color: var(--muted);
 }

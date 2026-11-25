@@ -4,11 +4,12 @@ import { Access } from './components/Access'
 import { Dashboard } from './components/Dashboard'
 import { Logs } from './components/Logs'
 import { Models } from './components/Models'
+import { OverlayView } from './components/Overlay'
 import { SettingsView } from './components/Settings'
 import { Toasts } from './components/Toasts'
 import { AppProvider, useApp } from './state/AppState'
 
-type Tab = 'dash' | 'analysis' | 'models' | 'access' | 'logs' | 'settings'
+type Tab = 'dash' | 'analysis' | 'models' | 'access' | 'logs' | 'overlay' | 'settings'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dash', label: '仪表盘' },
@@ -16,6 +17,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'models', label: '模型与供应商' },
   { id: 'access', label: '接入' },
   { id: 'logs', label: '日志' },
+  { id: 'overlay', label: '悬浮窗' },
   { id: 'settings', label: '设置' }
 ]
 
@@ -79,6 +81,7 @@ function Shell(): JSX.Element {
         {tab === 'models' && <Models />}
         {tab === 'access' && <Access />}
         {tab === 'logs' && <Logs initialModelId={logModel} />}
+        {tab === 'overlay' && <OverlayView />}
         {tab === 'settings' && <SettingsView />}
       </main>
 

@@ -47,7 +47,10 @@ export function applyPatch(settings: Settings, patch: SettingsPatch): void {
   if (patch.overlayModelId !== undefined) settings.overlay.modelId = patch.overlayModelId || null
   if (patch.overlayGlobal !== undefined) settings.overlay.global = patch.overlayGlobal
   if (patch.overlayTheme !== undefined) settings.overlay.theme = patch.overlayTheme
+  if (patch.overlayEffect !== undefined) settings.overlay.effect = patch.overlayEffect
+  if (patch.overlaySpeed !== undefined) settings.overlay.speed = clampInt('overlaySpeed', patch.overlaySpeed)
   if (patch.overlayLocked !== undefined) settings.overlay.locked = patch.overlayLocked
+  if (patch.overlaySnapCenter !== undefined) settings.overlay.snapCenter = patch.overlaySnapCenter
   if (patch.overlayShowProvider !== undefined) settings.overlay.showProvider = patch.overlayShowProvider
   if (patch.overlayShowModel !== undefined) settings.overlay.showModel = patch.overlayShowModel
   if (patch.overlayShowCost !== undefined) settings.overlay.showCost = patch.overlayShowCost

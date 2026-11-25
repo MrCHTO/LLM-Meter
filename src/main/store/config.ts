@@ -4,6 +4,7 @@ import { configPath, ensureDirs } from './paths'
 import * as token from '../security/token'
 import { LIMITS, clampInt, clampRate } from '../../shared/limits'
 import type { ConfigFile, ModelCfg, Provider, Settings } from '../../shared/types'
+import { isOverlayEffect } from '../../shared/types'
 
 const DEFAULT_SETTINGS: Settings = {
   port: LIMITS.port.fallback,
@@ -23,7 +24,10 @@ const DEFAULT_SETTINGS: Settings = {
     modelId: null,
     global: false,
     locked: false,
+    snapCenter: true,
     theme: 'dark',
+    effect: 'rainbow',
+    speed: LIMITS.overlaySpeed.fallback,
     showProvider: true,
     showModel: true,
     showCost: true
@@ -152,7 +156,10 @@ function normalize(raw: unknown): ConfigFile {
       modelId: typeof ov.modelId === 'string' && ov.modelId ? ov.modelId : null,
       global: ov.global === true,
       locked: ov.locked === true,
+      snapCenter: ov.snapCenter !== false,
       theme: ov.theme === 'light' ? 'light' : 'dark',
+      effect: isOverlayEffect(ov.effect) ? ov.effect : 'rainbow',
+      speed: clampInt('overlaySpeed', num(ov.speed, LIMITS.overlaySpeed.fallback)),
       showProvider: ov.showProvider !== false,
       showModel: ov.showModel !== false,
       showCost: ov.showCost !== false

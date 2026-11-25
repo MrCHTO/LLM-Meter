@@ -2,6 +2,7 @@ import { Menu } from 'electron'
 import * as cfg from '../../store/config'
 import * as settingsService from '../../settings/service'
 import { getOverlay } from '../registry'
+import { OVERLAY_EFFECTS } from '../../../shared/types'
 
 /** 菜单里换胶囊盯的模型 */
 function modelSubmenu(): Electron.MenuItemConstructorOptions[] {
@@ -60,7 +61,14 @@ export function showMenu(): void {
               click: () => {
                 settingsService.update({ overlayTheme: 'light' })
               }
-            }
+            },
+            { type: 'separator' },
+            ...OVERLAY_EFFECTS.map((effect) => ({
+              label: effect.label,
+              type: 'radio' as const,
+              checked: settings.overlay.effect === effect.id,
+              click: () => settingsService.update({ overlayEffect: effect.id })
+            }))
           ]
         },
         {

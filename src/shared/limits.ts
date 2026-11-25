@@ -16,6 +16,8 @@ export const LIMITS = {
   rollupRetentionDays: { min: 1, max: 3650, fallback: 365 },
   overlayOpacity: { min: 10, max: 100, fallback: 100 },
   overlayWidth: { min: 240, max: 720, fallback: 320 },
+  /** 进行中效果的速度，百分比；100 为基准速度 */
+  overlaySpeed: { min: 20, max: 300, fallback: 100 },
   autoProbeIntervalSec: { min: 60, max: 3600, fallback: 300 }
 } as const
 

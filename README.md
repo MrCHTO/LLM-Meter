@@ -8,13 +8,13 @@
 
 真实 API Key 只存在本应用里，客户端只拿本地 token；只有走代理的流量会被记录，网页版直连或未改 Base URL 的工具看不到。
 
-当前版本 `0.14.0`，历史见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本 `1.0.0`，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 目录结构
 
 - `src/main/`：主进程。`proxy/`（转发与协议适配）、`probe/`（测速、自动探活、供应商连通性）、`store/`（配置、实时指标、`db/` 与迁移）、`windows/`（主窗、胶囊、托盘）、`security/`（DPAPI、token、日志脱敏）、`settings/`（设置服务）、`ipc/`（按域拆分的通道注册）、`pricing/`、`export/`、`dev/`。
 - `src/preload/index.ts`：contextBridge 暴露的 `window.api`。
-- `src/renderer/`：React 页面（仪表盘、分析、模型与供应商、接入、日志、设置）、独立胶囊页 `overlay.tsx`、`state/` 应用状态、`components/models/` 表单、`lib/`。
+- `src/renderer/`：React 页面（仪表盘、分析、模型与供应商、接入、日志、悬浮窗、设置）、独立胶囊页 `overlay.tsx`、`state/` 应用状态、`components/models/` 表单、`lib/`。
 - `src/shared/`：跨进程类型、IPC 契约（`ipc/contract.ts`）、边界表（`limits.ts`）、格式化与日期工具。
 - `scripts/make-icons.mjs`：图标生成；`scripts/check/`：端到端、界面、安装版等回归脚本。
 - `test/`：vitest 用例；`resources/`：图标与安装脚本。
@@ -53,7 +53,8 @@ node scripts/check/cache-probe.mjs <baseUrl> <key> <model> identity
 
 - 「模型与供应商」：供应商 Base URL、协议、真实 Key；模型上游名、别名与单价（每百万 token，人民币）。
 - 「接入」：监听端口、局域网开关、本地 token 管理与复制。
-- 「设置」：主题、悬浮窗外观与透明度、保留期、自动校准、开机自启、备份与打开数据目录。
+- 「悬浮窗」：盯住的模型、显示内容、胶囊颜色与进行中效果、位置与透明度。
+- 「设置」：主题、保留期、自动校准、开机自启、备份与打开数据目录。
 
 数据目录：安装版为安装目录下 `data/`（默认 `C:\Program Files\llm meter\data`），开发与测试为 `%APPDATA%\llm-meter\data`；安装目录不可写时自动退回用户目录。数据库 `llm-meter.db` 为单文件 WAL，明细默认保留 30 天、分钟聚合 365 天，启动与每日 04:00 清理，备份用 `VACUUM INTO` 出一致性快照。
 

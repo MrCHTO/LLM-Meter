@@ -1,47 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useApp, useConfig } from '../state/AppState'
 
 import { LIMITS, clampInt } from '../../shared/limits'
+import { Switch } from './Switch'
 
 export function SettingsView(): JSX.Element {
   const config = useConfig()
   const { notify, reload: onChanged } = useApp()
-  const [opacity, setOpacity] = useState<string>(String(config.settings.overlayOpacity))
   const [retention, setRetention] = useState(String(config.settings.retentionDays))
   const [probeInterval, setProbeInterval] = useState(String(config.settings.autoProbeIntervalSec))
-  const [posX, setPosX] = useState(config.settings.overlay.x === null ? '' : String(config.settings.overlay.x))
-  const [posY, setPosY] = useState(config.settings.overlay.y === null ? '' : String(config.settings.overlay.y))
-
-  // 拖动会改坐标，回到设置页时同步显示最新值
-  useEffect(() => {
-    setPosX(config.settings.overlay.x === null ? '' : String(config.settings.overlay.x))
-    setPosY(config.settings.overlay.y === null ? '' : String(config.settings.overlay.y))
-  }, [config.settings.overlay.x, config.settings.overlay.y])
-
-  // 坐标随悬浮窗实时位置走；正在编辑的输入框不被轮询覆盖
-  useEffect(() => {
-    let stopped = false
-    const tick = async (): Promise<void> => {
-      const res = await window.api.overlayState()
-      if (stopped || !res.ok || !res.data) return
-      const active = document.activeElement as HTMLInputElement | null
-      if (active?.dataset.field !== 'posX') setPosX(String(res.data.bounds.x))
-      if (active?.dataset.field !== 'posY') setPosY(String(res.data.bounds.y))
-      if (active?.dataset.field !== 'opacity') setOpacity(String(res.data.opacity))
-    }
-    void tick()
-    const timer = setInterval(() => void tick(), 700)
-    return () => {
-      stopped = true
-      clearInterval(timer)
-    }
-  }, [])
-
-  // 不透明度从别处变化时同步回显
-  useEffect(() => {
-    const active = document.activeElement as HTMLInputElement | null
-    if (active?.dataset.field !== 'opacity') setOpacity(String(config.settings.overlayOpacity))
-  }, [config.settings.overlayOpacity])
 
   const patch = async (values: Parameters<typeof window.api.updateSettings>[0]): Promise<boolean> => {
     try {
@@ -57,14 +24,6 @@ export function SettingsView(): JSX.Element {
       return false
     }
   }
-
-  const applyOpacity = async (): Promise<void> => {
-    const value = clampInt('overlayOpacity', Number(opacity) || LIMITS.overlayOpacity.fallback)
-    setOpacity(String(value))
-    await patch({ overlayOpacity: value })
-  }
-
-  const overlayModel = config.models.find((m) => m.id === config.settings.overlay.modelId)
 
   return (
     <div className="section settings-cards">
@@ -84,137 +43,21 @@ export function SettingsView(): JSX.Element {
       </div>
 
       <div className="card">
-        <h2>悬浮窗</h2>
-        <div className="setting-row">
-          <span>当前模型</span>
-          <span className="muted">
-            {config.settings.overlay.global ? '全局（全部模型）' : overlayModel ? overlayModel.alias : '未选择'}
-          </span>
-        </div>
-        <div className="setting-row">
-          <span>显示状态</span>
-          <button
-            className="btn sm"
-            onClick={async () => {
-              const next = !config.settings.overlay.visible
-              await patch({ overlayVisible: next })
-              notify(next ? '已显示' : '已隐藏', 'ok')
-            }}
-          >
-            {config.settings.overlay.visible ? '隐藏悬浮窗' : '显示悬浮窗'}
-          </button>
-        </div>
-        <div className="setting-row">
-          <span>锁定位置</span>
-          <input
-            type="checkbox"
-            checked={config.settings.overlay.locked}
-            onChange={(e) => void patch({ overlayLocked: e.target.checked })}
-          />
-        </div>
-        <label className="setting-row">
-          <span>显示供应商名称</span>
-          <input
-            type="checkbox"
-            checked={config.settings.overlay.showProvider}
-            onChange={(e) => void patch({ overlayShowProvider: e.target.checked })}
-          />
-        </label>
-        <label className="setting-row">
-          <span>显示模型名称</span>
-          <input
-            type="checkbox"
-            checked={config.settings.overlay.showModel}
-            onChange={(e) => void patch({ overlayShowModel: e.target.checked })}
-          />
-        </label>
-        <label className="setting-row">
-          <span>显示费用</span>
-          <input
-            type="checkbox"
-            checked={config.settings.overlay.showCost}
-            onChange={(e) => void patch({ overlayShowCost: e.target.checked })}
-          />
-        </label>
-        <div className="setting-row">
-          <span>位置 X / Y（像素）</span>
-          <div className="row nowrap">
-            <input
-              className="mono w-sm"
-              data-field="posX"
-              type="number"
-              value={posX}
-              onChange={(e) => setPosX(e.target.value)}
-            />
-            <input
-              className="mono w-sm"
-              data-field="posY"
-              type="number"
-              value={posY}
-              onChange={(e) => setPosY(e.target.value)}
-            />
-            <button
-              className="btn sm"
-              onClick={() => {
-                const x = Math.round(Number(posX))
-                const y = Math.round(Number(posY))
-                if (!Number.isFinite(x) || !Number.isFinite(y)) {
-                  notify('X / Y 需要是数字', 'bad')
-                  return
-                }
-                void patch({ overlayX: x, overlayY: y })
-              }}
-            >
-              应用
-            </button>
-          </div>
-        </div>
-        <div className="setting-row">
-          <span>
-            不透明度（{LIMITS.overlayOpacity.min}–{LIMITS.overlayOpacity.max}）
-          </span>
-          <div className="row nowrap">
-            <input
-              className="mono w-sm"
-              data-field="opacity"
-              type="number"
-              min={LIMITS.overlayOpacity.min}
-              max={LIMITS.overlayOpacity.max}
-              value={opacity}
-              onChange={(e) => setOpacity(e.target.value)}
-              onKeyUp={(e) => {
-                if (e.key === 'Enter') void applyOpacity()
-              }}
-            />
-            <button className="btn sm" onClick={() => void applyOpacity()}>
-              应用
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
         <h2>启动</h2>
-        <label className="setting-row">
+        <div className="setting-row">
           <span>开机自启</span>
-          <input
-            type="checkbox"
+          <Switch
             checked={config.settings.startAtLogin}
-            onChange={(e) => {
-              const on = e.target.checked
-              // 开机自启时顺手勾上只留托盘，避免开机弹窗
+            onChange={(on) => {
+              // 开机自启时顺手打开只留托盘，避免开机弹窗
               void patch(on ? { startAtLogin: true, startMinimized: true } : { startAtLogin: false })
             }}
           />
-        </label>
-        <label className="setting-row">
+        </div>
+        <div className="setting-row">
           <span>启动时只留托盘</span>
-          <input
-            type="checkbox"
-            checked={config.settings.startMinimized}
-            onChange={(e) => void patch({ startMinimized: e.target.checked })}
-          />
-        </label>
+          <Switch checked={config.settings.startMinimized} onChange={(v) => void patch({ startMinimized: v })} />
+        </div>
       </div>
 
       <div className="card">
@@ -242,14 +85,10 @@ export function SettingsView(): JSX.Element {
             </button>
           </div>
         </div>
-        <label className="setting-row">
+        <div className="setting-row">
           <span>启动与每天 00:00 自动校准汇率和自动价</span>
-          <input
-            type="checkbox"
-            checked={config.settings.autoCalibrate}
-            onChange={(e) => void patch({ autoCalibrate: e.target.checked })}
-          />
-        </label>
+          <Switch checked={config.settings.autoCalibrate} onChange={(v) => void patch({ autoCalibrate: v })} />
+        </div>
       </div>
 
       <div className="card">

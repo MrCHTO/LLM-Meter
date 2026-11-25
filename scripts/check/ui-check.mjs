@@ -259,9 +259,9 @@ try {
   check('顶栏左侧不再有文字', (await s.eval("document.querySelectorAll('.brand').length")) === 0)
   check('顶栏不再显示启用模型数', !(await s.eval("document.querySelector('.status')?.innerText ?? ''")).includes('个模型启用'))
   check(
-    '表头五页签齐全',
+    '表头七页签齐全',
     (await s.eval("[...document.querySelectorAll('.topbar .tab')].map((t) => t.innerText).join(',')")) ===
-      '仪表盘,分析,模型与供应商,接入,日志,设置'
+      '仪表盘,分析,模型与供应商,接入,日志,悬浮窗,设置'
   )
   check('汇总条已移除', (await s.eval("document.querySelectorAll('.strip').length")) === 0)
   check('曲线在表格之前', (await s.eval("document.querySelector('.section')?.firstElementChild?.className ?? ''")) === 'charts')
@@ -279,6 +279,11 @@ try {
   const sizes = JSON.parse(chartSizes)
   check('两张曲线同高同版式', sizes.length === 2 && sizes[0].h === sizes[1].h && sizes[0].body === sizes[1].body && sizes[0].body >= 100, chartSizes)
   check('曲线贴近卡片底边', sizes.every((s) => s.gap <= 8), chartSizes)
+  // 曲线与模型行比首屏晚到，等它们画出再断靠内容的部分
+  for (let i = 0; i < 40; i++) {
+    if (await s.eval("!!document.querySelector('.multi-svg .multi-line')")) break
+    await sleep(200)
+  }
   check(
     '速率图 viewBox 宽度等于桶数',
     (await s.eval("document.querySelector('.multi-svg')?.getAttribute('viewBox')?.split(' ')[2]")) === '180'
@@ -289,9 +294,17 @@ try {
       (await s.eval("document.querySelectorAll('.multi-svg .multi-area').length")) >= 2 &&
       (await s.eval("[...document.querySelectorAll('.multi-line')].map((l) => l.getAttribute('stroke')).filter((c, i, a) => a.indexOf(c) === i).length")) >= 2
   )
+  for (let i = 0; i < 40; i++) {
+    if (await s.eval("!!document.querySelector('td.c-model .model-name')")) break
+    await sleep(200)
+  }
   check(
-    '仪表盘模型名前有探活点',
-    (await s.eval("document.querySelector('td.c-model .probe-dot') ? 1 : 0")) === 1
+    '仪表盘模型名前不再有探活点',
+    (await s.eval("document.querySelectorAll('td.c-model .probe-dot').length")) === 0
+  )
+  check(
+    '模型名可点击复制',
+    (await s.eval("getComputedStyle(document.querySelector('td.c-model .model-name')).cursor")) === 'copy'
   )
   check(
     '模型名底纹与曲线同色且为斜纹',
@@ -408,9 +421,8 @@ try {
       (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'fixed',
     String(resetStyle)
   )
-  // 再拖一次供重载验证
+  // 再拖一次供重载验证：列宽只记在本次运行，重载后复位
   await dragCol(70)
-  const widthFixed = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
   await s.eval('location.reload()')
   for (let i = 0; i < 40; i++) {
     try {
@@ -422,14 +434,27 @@ try {
   }
   await sleep(500)
   const widthRestored = await s.eval("document.querySelector('thead th')?.getBoundingClientRect().width ?? 0")
-  check('列宽重载后保留', Math.abs(widthRestored - widthFixed) < 3, `${widthFixed} -> ${widthRestored}`)
-  // 右键表头恢复整表自动并清记录
+  check(
+    '重载后列宽复位',
+    Math.abs(widthRestored - widthBefore) < 3 &&
+      (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'auto',
+    `${widthBefore} -> ${widthRestored}`
+  )
+  // 拖过之后右键表头，菜单里点「自动适应列宽」恢复整表自动；记录不写本地存储
+  await dragCol(70)
   await s.eval("document.querySelector('thead th').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))")
   await sleep(300)
   check(
-    '右键表头恢复自动并清记录',
+    '右键表头弹出自动适应菜单',
+    (await s.eval("[...document.querySelectorAll('.ctxmenu button')].map((b) => b.innerText).join(',')")) ===
+      '自动适应列宽'
+  )
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '自动适应列宽')?.click()")
+  await sleep(300)
+  check(
+    '自动适应列宽恢复整表自动',
     (await s.eval("getComputedStyle(document.querySelector('thead').closest('table')).tableLayout")) === 'auto' &&
-      (await s.eval("localStorage.getItem('cols:dashboard')")) === null
+      (await s.eval("[...Object.keys(localStorage)].filter((k) => k.startsWith('cols:')).length")) === 0
   )
   check('曲线图已渲染', (await s.eval("document.querySelectorAll('svg.spark path.spark-line').length")) > 0)
   check('金额用人民币', /¥/.test(await s.eval("document.querySelector('td.c-cost')?.innerText ?? ''")))
@@ -462,9 +487,11 @@ try {
   await sleep(900)
   check('开启自动探针并写入配置', await s.eval("(async () => (await window.api.config()).data.models[0].autoProbe)()", true))
   check(
-    '模型表不再有探活点',
-    (await s.eval("document.querySelectorAll('.tbl-models .probe-dot').length")) === 0
+    '模型表每行前都有探活点',
+    (await s.eval("document.querySelectorAll('.tbl-models .probe-dot').length")) ===
+      (await s.eval("document.querySelectorAll('.tbl-models tbody tr').length"))
   )
+  check('模型表不再用整行底色标记失败', (await s.eval("document.querySelectorAll('.tbl-models tbody tr.bad-flash').length")) === 0)
   check('模型表别名与模型分两行', (await s.eval("document.querySelectorAll('tbody tr td .cell-model b').length")) > 0 &&
     (await s.eval("document.querySelectorAll('tbody tr td .cell-model small').length")) > 0)
   check(
@@ -641,20 +668,34 @@ try {
     '端口与局域网已并入地址卡右侧',
     (await s.eval("document.querySelectorAll('.access-split .access-half').length")) === 2 &&
       (await s.eval("document.querySelector('.access-cols-right .access-split .access-half:first-child input[type=number]') ? 1 : 0")) === 1 &&
-      (await s.eval("document.querySelector('.access-cols-right .access-split .access-half:last-child input[type=checkbox]') ? 1 : 0")) === 1 &&
+      (await s.eval("document.querySelector('.access-cols-right .access-split .access-half:last-child .switch') ? 1 : 0")) === 1 &&
       (await s.eval("!!document.querySelector('.access-cols-left .copy-text')")) === true
   )
-  await s.eval("document.querySelector('.access-split input[type=checkbox]')?.click()")
+  check(
+    '局域网开关旁有刷新按钮',
+    (await s.eval("(() => { const half = document.querySelector('.access-cols-right .access-split .access-half:last-child'); const sw = half?.querySelector('.switch'); const btn = [...(half?.querySelectorAll('button') ?? [])].find((b) => b.innerText === '刷新'); if (!sw || !btn) return false; return btn.getBoundingClientRect().left >= sw.getBoundingClientRect().right - 1 })()")) === true
+  )
+  await s.eval("[...document.querySelectorAll('.access-half button')].find((b) => b.innerText === '刷新')?.click()")
+  await sleep(800)
+  check('点刷新给出提示', /局域网地址已刷新/.test(await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ')")))
+  check('接入页没有原生勾选框', (await s.eval("document.querySelectorAll('.access-split input[type=checkbox]').length")) === 0)
+  check('关闭时局域网地址占位显示未开启', (await s.eval("document.body.innerText")).includes('未开启'))
+  check('关闭时局域网地址不可复制', (await s.eval("document.querySelectorAll('.copy-text').length")) === 2)
+  await s.eval("document.querySelector('.access-split .switch')?.click()")
   for (let i = 0; i < 20; i++) {
-    if (await s.eval("document.body.innerText.includes('局域网地址')")) break
+    if ((await s.eval("document.querySelectorAll('.copy-text').length")) === 3) break
     await sleep(300)
   }
-  check('开启局域网后接入页出现局域网地址', (await s.eval("document.body.innerText")).includes('局域网地址'))
-  await s.eval("document.querySelector('.access-split input[type=checkbox]')?.click()")
+  check(
+    '开启局域网后显示可复制的地址',
+    /^http:\/\//.test(await s.eval("document.querySelectorAll('.copy-text')[1]?.innerText ?? ''"))
+  )
+  await s.eval("document.querySelector('.access-split .switch')?.click()")
   for (let i = 0; i < 20; i++) {
-    if (!(await s.eval("document.body.innerText.includes('局域网地址')"))) break
+    if ((await s.eval("document.querySelectorAll('.copy-text').length")) === 2) break
     await sleep(300)
   }
+  check('再关闭恢复未开启占位', (await s.eval("document.body.innerText")).includes('未开启'))
 
   await s.eval("document.querySelector('.tab:nth-child(2)')?.click()")
   await sleep(1500)
@@ -814,13 +855,84 @@ try {
   await sleep(600)
   await s.shot('analysis.png')
 
+  // 悬浮窗已独立成页，先在这一页跑悬浮窗设置断言
   await s.eval("document.querySelector('.tab:nth-child(6)')?.click()")
   for (let i = 0; i < 20; i++) {
     if (await s.eval("!!document.querySelector('.settings-cards')")) break
     await sleep(300)
   }
   await sleep(300)
-  check('设置页按职责分成五张卡片', (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) === '外观,悬浮窗,启动,探针与校准,数据')
+  check(
+    '悬浮窗是独立页签',
+    (await s.eval(
+      "[...document.querySelectorAll('.tab')].some((t) => t.innerText === '悬浮窗' && t.getAttribute('aria-selected') === 'true')"
+    )) === true
+  )
+  check(
+    '悬浮窗页分成四张卡片',
+    (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) ===
+      '悬浮窗,外观,进行中的效果,位置与透明度'
+  )
+  check('效果选择有五种', (await s.eval("document.querySelectorAll('.effect-option').length")) === 5)
+  check(
+    '默认选中彩虹流动',
+    (await s.eval("document.querySelector('.effect-option.active .effect-label')?.innerText ?? ''")) === '彩虹流动'
+  )
+  check('每个效果都带预览胶囊', (await s.eval("document.querySelectorAll('.effect-option .capsule.mini').length")) === 5)
+  // 选别的效果：写入配置、选中态转移、胶囊换类，最后切回彩虹
+  const ovFx = await session(await waitTarget('overlay.html'))
+  await ovFx.send('Runtime.enable')
+  const capEffect = () => ovFx.eval("document.querySelector('.capsule')?.className ?? ''")
+  await s.eval("[...document.querySelectorAll('.effect-option')].find((b) => b.innerText.includes('彗星扫光'))?.click()")
+  await sleep(900)
+  check(
+    '选效果写入配置',
+    (await s.eval('(async()=>((await window.api.config()).data?.settings.overlay.effect))()', true)) === 'comet'
+  )
+  check(
+    '选中态跟着切换',
+    (await s.eval("document.querySelector('.effect-option.active .effect-label')?.innerText ?? ''")) === '彗星扫光'
+  )
+  check('胶囊换上对应效果类', (await capEffect()).includes('effect-comet'))
+  await s.shot('overlay-effect.png')
+  await s.eval("[...document.querySelectorAll('.effect-option')].find((b) => b.innerText.includes('彩虹流动'))?.click()")
+  await sleep(700)
+  check('可切回彩虹流动', (await capEffect()).includes('effect-rainbow'))
+  // 效果速度：滑块改值后写进配置，胶囊按倍率拿到 --spd，预览同步
+  check(
+    '有效果速度滑块且默认 100',
+    (await s.eval("document.querySelector('.speed-range')?.value ?? ''")) === '100'
+  )
+  const setSpeed = (value) => s.eval(
+    `(async () => {
+      const i = document.querySelector('.speed-range')
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      setter.call(i, '${value}')
+      i.dispatchEvent(new Event('input', { bubbles: true }))
+      i.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+      await new Promise((r) => setTimeout(r, 700))
+    })()`,
+    true
+  )
+  await setSpeed(200)
+  check(
+    '速度写入配置',
+    (await s.eval('(async()=>((await window.api.config()).data?.settings.overlay.speed))()', true)) === 200
+  )
+  check('速度回显为倍数', (await s.eval("document.querySelector('.speed-value')?.innerText ?? ''")) === '×2.0')
+  check(
+    '胶囊按速度写变量',
+    (await ovFx.eval("document.querySelector('.capsule')?.style.getPropertyValue('--spd')")) === '2'
+  )
+  check(
+    '预览胶囊同步速度',
+    (await s.eval("document.querySelector('.effect-option .capsule')?.style.getPropertyValue('--spd')")) === '2'
+  )
+  await setSpeed(100)
+  check(
+    '速度可复原',
+    (await s.eval('(async()=>((await window.api.config()).data?.settings.overlay.speed))()', true)) === 100
+  )
   // 主题：切成深色后 html 带 data-theme=dark，背景变量变深；切回跟随系统
   await s.eval("(async()=>await window.api.updateSettings({theme:'dark'}))()")
   await sleep(500)
@@ -841,15 +953,15 @@ try {
   check('设置项按行排布', (await s.eval("document.querySelectorAll('.setting-row').length")) >= 7)
   check('端口与局域网已不在设置页', !(await s.eval("document.body.innerText")).includes('监听端口') && !(await s.eval("document.body.innerText")).includes('允许局域网访问'))
   check('右上角不再显示 IP 地址', (await s.eval("document.querySelectorAll('.status .mono').length")) === 0)
-  check('悬浮窗卡片有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
+  check('悬浮窗页有当前模型', (await s.eval("document.body.innerText")).includes('当前模型'))
   check(
-    '设置页当前模型可显示全局',
+    '悬浮窗页当前模型可显示全局',
     (await s.eval(
       `(async () => {
         await window.api.updateSettings({ overlayGlobal: true })
-        // 直接调 API 不会刷新 config prop，借一次复选框点击触发 reload
+        // 直接调 API 不会刷新 config prop，借一次开关点击触发 reload
         const flag = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('显示费用'))
-        const box = flag.querySelector('input[type=checkbox]')
+        const box = flag.querySelector('.switch')
         box.click()
         await new Promise((r) => setTimeout(r, 700))
         const row = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('当前模型'))
@@ -864,17 +976,17 @@ try {
     )) === true
   )
   check(
-    '悬浮窗卡片有显示内容开关',
+    '显示内容开关齐全',
     await s.eval(
       "['显示供应商名称', '显示模型名称', '显示费用'].every((t) => [...document.querySelectorAll('.setting-row')].some((r) => r.innerText.includes(t)))"
     )
   )
   check(
-    '设置页可关费用并持久化',
+    '可关费用并持久化',
     (await s.eval(
       `(async () => {
         const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('显示费用'))
-        const i = f.querySelector('input[type=checkbox]')
+        const i = f.querySelector('.switch')
         i.click()
         await new Promise((r) => setTimeout(r, 600))
         const off = (await window.api.config()).data?.settings.overlay.showCost
@@ -887,7 +999,7 @@ try {
     )) === true
   )
   check(
-    '设置页有位置像素输入并生效',
+    '有位置像素输入并生效',
     (await s.eval(
       `(async () => {
         const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('位置 X / Y'))
@@ -943,12 +1055,36 @@ try {
     (await s.eval(
       `(async () => {
         await window.api.updateSettings({ overlayOpacity: 80 })
-        await new Promise((r) => setTimeout(r, 900))
+        // 直接调 API 不会刷新配置，借一次开关往返触发 reload
+        const pick = () => [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('显示费用'))?.querySelector('.switch')
+        pick()?.click()
+        await new Promise((r) => setTimeout(r, 700))
         const f = [...document.querySelectorAll('.setting-row')].find((n) => n.innerText.includes('不透明度'))
-        return f?.querySelector('input[type=number]')?.value === '80'
+        const value = f?.querySelector('input[type=number]')?.value
+        pick()?.click()
+        await new Promise((r) => setTimeout(r, 400))
+        return value === '80'
       })()`,
       true
     )) === true
+  )
+  // 切到设置页：悬浮窗卡片已搬去独立页
+  await s.eval("document.querySelector('.tab:nth-child(7)')?.click()")
+  for (let i = 0; i < 20; i++) {
+    if (await s.eval("!!document.querySelector('.settings-cards .card h2')")) break
+    await sleep(300)
+  }
+  await sleep(300)
+  check(
+    '设置页按职责分成四张卡片',
+    (await s.eval("[...document.querySelectorAll('.settings-cards .card h2')].map((h) => h.innerText).join(',')")) ===
+      '外观,启动,探针与校准,数据'
+  )
+  check(
+    '设置页不再有悬浮窗内容',
+    !(await s.eval("document.body.innerText")).includes('当前模型') &&
+      !(await s.eval("document.body.innerText")).includes('不透明度') &&
+      (await s.eval("document.querySelectorAll('.effect-option').length")) === 0
   )
   check(
     '开机自启与只留托盘开关存在',
@@ -963,8 +1099,12 @@ try {
   check('设置页没有立即校准按钮', !(await s.eval("document.body.innerText")).includes('立即校准'))
   check(
     '保留自动校准开关',
-    await s.eval("[...document.querySelectorAll('input[type=checkbox]')].some((c) => c.closest('label')?.innerText.includes('自动校准'))")
+    await s.eval(
+      "[...document.querySelectorAll('.setting-row')].some((r) => r.innerText.includes('自动校准') && r.querySelector('.switch'))"
+    )
   )
+  check('设置页没有原生勾选框', (await s.eval("document.querySelectorAll('input[type=checkbox]').length")) === 0)
+  check('设置页开关都是椭圆按钮', (await s.eval("document.querySelectorAll('.switch[role=switch]').length")) >= 3)
   check('设置页展示软件名与版本', /LLM Meter \d+\.\d+\.\d+/.test(await s.eval("document.body.innerText")))
   check('数据卡片有清理入口', (await s.eval("document.body.innerText")).includes('清理过期数据'))
   await s.eval("document.querySelector('.content').scrollTop = 2000")
@@ -1021,13 +1161,47 @@ try {
   )
   await s.shot('probe.png')
 
-  // 点行直接跳日志页并按该模型过滤
-  const clickedAlias = await s.eval("document.querySelector('tbody tr.clickable td.c-model')?.innerText ?? ''")
+  // 点模型名复制别名；点行其他位置不复制也不跳页，进日志改走右键菜单
+  const clickedAlias = (await s.eval("document.querySelector('tbody tr.clickable .model-name')?.innerText ?? ''")).trim()
   const preClick = await s.eval("document.querySelectorAll('tbody tr.clickable').length + '/' + document.querySelector('.content')?.innerText.slice(0, 120)")
   check('测速后行仍在', (await s.eval("document.querySelectorAll('tbody tr.clickable').length")) > 0, preClick)
-  await s.eval("document.querySelector('tbody tr.clickable')?.click()")
+  await s.eval("document.querySelector('tbody tr.clickable .model-name')?.click()")
+  await sleep(600)
+  check(
+    '点模型名有复制提示',
+    (await s.eval("[...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ')")).includes(clickedAlias)
+  )
+  const copied = await s.eval(
+    "(async () => { try { return await navigator.clipboard.readText() } catch { return 'unreadable' } })()",
+    true
+  )
+  check('剪贴板拿到模型名', copied === 'unreadable' || copied === clickedAlias, copied)
+  check('点模型名不跳页', (await s.eval("document.querySelector('.tab:nth-child(1)')?.getAttribute('aria-selected')")) === 'true')
+  const copyToasts = () =>
+    s.eval("[...document.querySelectorAll('.toast')].filter((t) => /已复制|复制失败/.test(t.innerText)).length")
+  for (let i = 0; i < 10; i++) {
+    if ((await copyToasts()) >= 1) break
+    await sleep(100)
+  }
+  check('点模型名留下一条复制提示', (await copyToasts()) === 1)
+  await sleep(300)
+  await s.eval("document.querySelector('tbody tr.clickable td.c-url')?.click()")
+  await sleep(500)
+  check('点行别处不复制', (await copyToasts()) === 1)
+  check('点行别处不跳日志', (await s.eval("document.querySelector('.tab:nth-child(1)')?.getAttribute('aria-selected')")) === 'true')
+  // 仪表盘行随数据刷新重建，等它回来再右键
+  let rowBack = false
+  for (let i = 0; i < 25; i++) {
+    rowBack = await s.eval("!!document.querySelector('tbody tr.clickable')")
+    if (rowBack) break
+    await sleep(200)
+  }
+  check('右键前仪表盘行已就位', rowBack)
+  await s.eval("(() => { const tr = document.querySelector('tbody tr.clickable'); const r = tr.getBoundingClientRect(); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 60, clientY: r.top + 12 })); return true })()")
+  await sleep(300)
+  await s.eval("[...document.querySelectorAll('.ctxmenu button')].find((b) => b.innerText === '查看日志')?.click()")
   await sleep(900)
-  check('点行跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(5)')?.getAttribute('aria-selected')")) === 'true')
+  check('右键查看日志跳到日志页', (await s.eval("document.querySelector('.tab:nth-child(5)')?.getAttribute('aria-selected')")) === 'true')
   const logModel = await s.eval("[...document.querySelectorAll('.log-filters select')].find((x) => x.options[0]?.value === '')?.value ?? ''")
   check('日志页按所点模型过滤', logModel !== '', clickedAlias)
   check('日志筛选没有文字标签', (await s.eval("[...document.querySelectorAll('.field > span')].filter((x) => ['时间范围','模型','来源','结果','级别','关键字'].includes(x.innerText)).length")) === 0)
@@ -1087,6 +1261,16 @@ try {
     if (await s.eval("!!document.querySelector('.modal input[type=\"text\"]')")) break
     await sleep(300)
   }
+  check(
+    '模型弹窗没有原生勾选框',
+    (await s.eval("document.querySelectorAll('.modal input[type=checkbox]').length")) === 0
+  )
+  check(
+    '模型弹窗删去多余说明与占位',
+    (await s.eval("document.querySelector('.modal input.mono')?.getAttribute('placeholder')")) === null &&
+      (await s.eval("[...document.querySelectorAll('.modal .field > span')].some((s) => s.innerText === '别名')")) &&
+      !(await s.eval('document.querySelector(".modal")?.innerText ?? ""')).includes('在悬浮窗显示')
+  )
   await s.eval(`(() => {
     const input = document.querySelector('.modal input[type="text"]')
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
@@ -1117,6 +1301,10 @@ try {
   const ov = await waitTarget('overlay.html')
   const o = await session(ov)
   await o.send('Runtime.enable')
+  for (let i = 0; i < 30; i++) {
+    if (await o.eval("!!document.querySelector('.capsule')")) break
+    await sleep(200)
+  }
   await sleep(1200)
   check('悬浮窗是胶囊且只有一个', (await o.eval("document.querySelectorAll('.capsule').length")) === 1)
   check('胶囊显示供应商与模型', (await o.eval("document.querySelector('.capsule')?.innerText ?? ''")).includes('·'))
@@ -1129,7 +1317,29 @@ try {
   )
   check('胶囊没有多行列表', (await o.eval("document.querySelectorAll('.orow').length")) === 0)
   check('胶囊默认黑色', (await o.eval("document.querySelector('.capsule')?.classList.contains('theme-dark')")) === true)
+  check(
+    '胶囊默认带彩虹效果类',
+    (await o.eval("document.querySelector('.capsule')?.classList.contains('effect-rainbow')")) === true
+  )
+  check(
+    '胶囊速度变量默认为 1',
+    (await o.eval("document.querySelector('.capsule')?.style.getPropertyValue('--spd')")) === '1'
+  )
   await o.shot('overlay-dark.png')
+
+  // 效果可切：外发光要给光晕留出窗口高度，切回彩虹后收回
+  await o.eval("(async()=>await window.api.updateSettings({overlayEffect:'glow'}))()")
+  await sleep(900)
+  check('可切外发光效果', (await o.eval("document.querySelector('.capsule')?.classList.contains('effect-glow')")) === true)
+  check('外发光窗口留出光晕高度', (await o.eval('window.innerHeight')) >= 58)
+  await o.shot('overlay-glow.png')
+  await o.eval("(async()=>await window.api.updateSettings({overlayEffect:'rainbow'}))()")
+  await sleep(900)
+  check(
+    '切回彩虹后窗口收回',
+    (await o.eval("document.querySelector('.capsule')?.classList.contains('effect-rainbow')")) === true &&
+      (await o.eval('window.innerHeight')) < 60
+  )
 
   // 白色外观
   await o.eval("(async()=>await window.api.updateSettings({overlayTheme:'light'}))()")
@@ -1289,7 +1499,7 @@ try {
   if (relayUp) {
     for (let i = 0; i < 30; i++) {
       await sleep(300)
-      if (await o.eval("document.querySelector('.capsule')?.classList.contains('inflight')")) {
+      if (await o.eval("document.querySelector('.capsule')?.classList.contains('lit')")) {
         rainbow = true
         break
       }
@@ -1301,16 +1511,21 @@ try {
   // 结束后不再固定保持 3 秒：请求一停，最迟下一个快照就该灭（最短可见只在开始侧生效）
   if (relayUp) {
     let cleared = false
-    for (let i = 0; i < 120; i++) {
-      await sleep(500)
-      if (!(await o.eval("!!document.querySelector('.capsule.inflight')"))) {
+    let stillRunning = false
+    for (let i = 0; i < 400; i++) {
+      await sleep(150)
+      if (!(await o.eval("!!document.querySelector('.capsule.lit')"))) {
         cleared = true
+        // 显示层撤掉的瞬间动画层还该在，淡出期间才不会看到相位跳回起点
+        stillRunning = await o.eval("!!document.querySelector('.capsule.running')")
         break
       }
     }
     check('请求结束后流光熄灭', cleared)
+    check('熄灭瞬间动画仍在跑，不跳相位', stillRunning)
+    await sleep(600)
   }
-  check('缓冲过后恢复常态', (await o.eval("!!document.querySelector('.capsule.inflight')")) === false)
+  check('缓冲过后恢复常态', (await o.eval("!!document.querySelector('.capsule.running')")) === false)
   check(
     '结束后 tok/s 转灰显示上一条',
     relayUp ? await o.eval("!!document.querySelector('.capsule-metric.last')") : true,

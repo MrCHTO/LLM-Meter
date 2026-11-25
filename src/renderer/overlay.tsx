@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { LiveSnapshot } from '../shared/types'
+import { OVERLAY_EFFECT_PAD } from '../shared/overlay'
 import { fmtMoney } from '../shared/format'
 import './styles.css'
 
@@ -12,20 +14,25 @@ function Capsule(): JSX.Element {
 
   useEffect(() => window.api.onPush(setSnapshot), [])
 
+  const effect = snapshot?.overlay.effect ?? 'rainbow'
+  const pad = OVERLAY_EFFECT_PAD[effect] ?? 6
+  // 速度存百分比，CSS 里按倍数除基准周期
+  const speed = (snapshot?.overlay.speed ?? 100) / 100
+
   // 内容变了就回报尺寸，窗口跟着内容走
   useEffect(() => {
     const node = rootRef.current
     if (!node) return
     const report = (): void => {
       const rect = node.getBoundingClientRect()
-      // 胶囊四周各留 6px 边距，窗口尺寸按内容加 12px，左右上下保持对称
-      if (rect.width > 0 && rect.height > 0) void window.api.overlaySetSize(rect.width + 12, rect.height + 12)
+      // 胶囊四周按效果各留 pad，窗口尺寸按内容加两倍 pad，左右上下保持对称
+      if (rect.width > 0 && rect.height > 0) void window.api.overlaySetSize(rect.width + pad * 2, rect.height + pad * 2)
     }
     report()
     const observer = new ResizeObserver(report)
     observer.observe(node)
     return () => observer.disconnect()
-  }, [])
+  }, [pad])
 
   const onMouseDown = (event: React.MouseEvent): void => {
     if (event.button !== 0) return
@@ -57,6 +64,20 @@ function Capsule(): JSX.Element {
   const models = snapshot?.models ?? []
   const model = isGlobal ? undefined : watched
   const busy = isGlobal ? models.some((m) => m.active) : watched?.active === true || watched?.probing === true
+
+  /**
+   * 显示层（lit）跟着 busy 立即开关，动画层（running）晚 320ms 再停：
+   * 淡出这 300ms 里动画继续跑，相位不会在还看得见时跳回起点。
+   */
+  const [running, setRunning] = useState(false)
+  useEffect(() => {
+    if (busy) {
+      setRunning(true)
+      return
+    }
+    const timer = setTimeout(() => setRunning(false), 320)
+    return () => clearTimeout(timer)
+  }, [busy])
 
   // 速度按「正在生成」实时求和；全部停下后 5 分钟内灰显各自上一条的和
   const withinLast = (m: { lastTps: number | null; lastTpsAt: number | null }): boolean =>
@@ -107,7 +128,17 @@ function Capsule(): JSX.Element {
   return (
     <div
       ref={rootRef}
-      className={['capsule', `theme-${theme}`, busy && 'inflight', locked && 'locked'].filter(Boolean).join(' ')}
+      className={[
+        'capsule',
+        `theme-${theme}`,
+        `effect-${effect}`,
+        busy && 'lit',
+        running && 'running',
+        locked && 'locked'
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{ '--pad': `${pad}px`, '--spd': String(speed) } as CSSProperties}
       title={locked ? '已锁定位置' : undefined}
       onMouseDown={onMouseDown}
       onDoubleClick={() => void window.api.overlayOpenMain()}

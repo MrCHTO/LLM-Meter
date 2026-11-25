@@ -52,6 +52,22 @@ export interface ModelCfg {
   createdAt: number
 }
 
+/** 悬浮窗进行中的边框效果 */
+export type OverlayEffect = 'rainbow' | 'comet' | 'duo' | 'glow' | 'dot'
+
+/** 效果清单：顺序即设置页展示顺序，label 只给界面用 */
+export const OVERLAY_EFFECTS: { id: OverlayEffect; label: string }[] = [
+  { id: 'rainbow', label: '彩虹流动' },
+  { id: 'comet', label: '彗星扫光' },
+  { id: 'duo', label: '双色流动' },
+  { id: 'glow', label: '外发光' },
+  { id: 'dot', label: '状态点脉冲' }
+]
+
+export function isOverlayEffect(value: unknown): value is OverlayEffect {
+  return OVERLAY_EFFECTS.some((e) => e.id === value)
+}
+
 export interface OverlayState {
   x: number | null
   y: number | null
@@ -63,7 +79,14 @@ export interface OverlayState {
   global: boolean
   /** 锁定后拖不动，防误碰 */
   locked: boolean
+  /** 拖到屏幕横/纵中线附近时自动吸附 */
+  snapCenter: boolean
+  /** 胶囊外观：黑色 / 白色 */
   theme: 'dark' | 'light'
+  /** 请求进行中的边框效果 */
+  effect: OverlayEffect
+  /** 效果速度，百分比；100 为基准速度 */
+  speed: number
   /** 胶囊上是否显示供应商名称 */
   showProvider: boolean
   /** 胶囊上是否显示模型名称 */

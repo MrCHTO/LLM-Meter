@@ -7,7 +7,7 @@
  */
 
 import { CH } from '../types/channels'
-import type { ConfigView, ProviderInput, Settings, ModelCfg, ApiFormat } from '../types/config'
+import type { ConfigView, ProviderInput, Settings, ModelCfg, ApiFormat, OverlayEffect } from '../types/config'
 import type { AppInfo, IpcResult } from '../types/misc'
 import type { LiveSnapshot } from '../types/live'
 import type { AppLog, LogPage, LogQuery } from '../types/log'
@@ -31,7 +31,10 @@ export type SettingsPatch = {
   overlayY?: number
   allowLan?: boolean
   overlayTheme?: 'dark' | 'light'
+  overlayEffect?: OverlayEffect
+  overlaySpeed?: number
   overlayLocked?: boolean
+  overlaySnapCenter?: boolean
   overlayShowProvider?: boolean
   overlayShowModel?: boolean
   overlayShowCost?: boolean
