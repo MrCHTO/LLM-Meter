@@ -61,7 +61,6 @@ export function ModelForm({
                 type="text"
                 className="mono"
                 value={draft.upstreamModel}
-                placeholder="deepseek/deepseek-v4.1-flash"
                 onChange={(e) => setName(e.target.value)}
                 onBlur={() => {
                   const empty = !draft.priceIn || Number(draft.priceIn) === 0
@@ -75,7 +74,7 @@ export function ModelForm({
           </label>
           {priceNote ? <p className="hint">{priceNote}</p> : null}
           <label className="field">
-            <span>别名（必填，客户端调用时用这个名字）</span>
+            <span>别名</span>
             <input
               type="text"
               className="mono"
@@ -124,35 +123,23 @@ export function ModelForm({
               />
             </label>
           </div>
-          <div className="row mt" style={{ gap: 8 }}>
-            {draft.id ? (
-              <>
-                <span className="muted">价格来源：{source === 'manual' ? '手动' : '自动校准'}</span>
-                <button
-                  className="btn sm"
-                  disabled={source !== 'manual'}
-                  onClick={async () => {
-                    if (!draft.id) return
-                    const res = await window.api.updateModel(draft.id, { priceSource: 'auto' })
-                    if (!res.ok) notify(res.error ?? '恢复失败')
-                    else await reload()
-                  }}
-                >
-                  恢复自动
-                </button>
-              </>
-            ) : (
-              <span className="muted">新建模型的价格按手动记，之后可「恢复自动」交给每天校准</span>
-            )}
-          </div>
-          <label className="row" style={{ gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={draft.watch}
-              onChange={(e) => onChange({ ...draft, watch: e.target.checked })}
-            />
-            <span>在悬浮窗显示</span>
-          </label>
+          {draft.id ? (
+            <div className="row mt" style={{ gap: 8 }}>
+              <span className="muted">价格来源：{source === 'manual' ? '手动' : '自动校准'}</span>
+              <button
+                className="btn sm"
+                disabled={source !== 'manual'}
+                onClick={async () => {
+                  if (!draft.id) return
+                  const res = await window.api.updateModel(draft.id, { priceSource: 'auto' })
+                  if (!res.ok) notify(res.error ?? '恢复失败')
+                  else await reload()
+                }}
+              >
+                恢复自动
+              </button>
+            </div>
+          ) : null}
         </div>
         <div className="actions">
           <button className="btn" onClick={onClose}>

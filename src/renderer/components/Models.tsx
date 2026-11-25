@@ -5,6 +5,7 @@ import type { ModelCfg, ProviderView } from '../../shared/types'
 import { FORMAT_LABEL } from '../../shared/types'
 import { fmtMoney, fmtMs } from '../../shared/format'
 import { Confirm, useConfirm } from './Confirm'
+import { Switch } from './Switch'
 import { useColumnWidths } from '../columns'
 import { EMPTY_PROVIDER, emptyModel, type ModelDraft, type ProviderDraft } from './models/drafts'
 import { ModelForm } from './models/ModelForm'
@@ -267,13 +268,11 @@ export function Models(): JSX.Element {
                   <td className="c-left">{FORMAT_LABEL[p.format]}</td>
                   <td className="mono c-left">{p.keyMasked}</td>
                   <td className="c-center">
-                    <button
-                      role="switch"
-                      aria-checked={p.enabled}
+                    <Switch
+                      checked={p.enabled}
                       title={p.enabled ? '已启用' : '已停用'}
-                      className={p.enabled ? 'switch on' : 'switch'}
-                      onClick={async () => {
-                        const res = await window.api.updateProvider(p.id, { enabled: !p.enabled })
+                      onChange={async (enabled) => {
+                        const res = await window.api.updateProvider(p.id, { enabled })
                         if (!res.ok) notify(res.error ?? '切换失败')
                         else await onChanged()
                       }}
@@ -329,12 +328,7 @@ export function Models(): JSX.Element {
                 return (
                   <tr
                     key={m.id}
-                    className={[
-                      'row-drag',
-                      m.enabled ? '' : 'row-off',
-                      m.autoProbe && (live?.probeFails ?? 0) >= 3 && 'bad-flash',
-                      dragId === m.id && 'dragging'
-                    ]
+                    className={['row-drag', m.enabled ? '' : 'row-off', dragId === m.id && 'dragging']
                       .filter(Boolean)
                       .join(' ')}
                     onDragOver={(e) => e.preventDefault()}
@@ -349,6 +343,24 @@ export function Models(): JSX.Element {
                   >
                     <td>
                       <div className="row-name">
+                        <span
+                          className={
+                            'probe-dot' +
+                            (live?.lastProbeAt === null || live?.lastProbeAt === undefined
+                              ? ''
+                              : live.lastProbeOk
+                                ? ' on'
+                                : ' off') +
+                            (m.autoProbe || live?.lastProbeAt ? '' : ' idle')
+                          }
+                          title={
+                            live?.lastProbeAt
+                              ? `上次探针：${new Date(live.lastProbeAt).toLocaleTimeString()}`
+                              : m.autoProbe
+                                ? '尚未探测'
+                                : '自动探针未开启'
+                          }
+                        />
                         <div className="cell-model">
                           <b>{m.alias}</b>
                           <small className="mono">{m.upstreamModel}</small>
@@ -366,13 +378,11 @@ export function Models(): JSX.Element {
                       {m.cacheInputSupported === false ? '—' : fmtMoney(m.priceCacheInput, m.currency)}
                     </td>
                     <td className="c-center">
-                      <button
-                        role="switch"
-                        aria-checked={m.enabled}
+                      <Switch
+                        checked={m.enabled}
                         title={m.enabled ? '已启用' : '已停用'}
-                        className={m.enabled ? 'switch on' : 'switch'}
-                        onClick={async () => {
-                          const res = await window.api.updateModel(m.id, { enabled: !m.enabled })
+                        onChange={async (enabled) => {
+                          const res = await window.api.updateModel(m.id, { enabled })
                           if (!res.ok) notify(res.error ?? '切换失败')
                           else await onChanged()
                         }}
@@ -397,6 +407,9 @@ export function Models(): JSX.Element {
           </table>
         )}
       </div>
+
+      {providerCols.menu}
+      {cols.menu}
 
       {pmenu
         ? (() => {

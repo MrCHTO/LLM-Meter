@@ -257,5 +257,7 @@ export async function run(modelId: string): Promise<ProbeResult> {
     live.setProbing(modelId, false)
     live.end(modelId)
     lastFinished = Date.now()
+    // 手动停止不算连通性结论；拿到 HTTP 状态或网络失败都刷新状态点
+    if (run.status !== 0 || (!controller.signal.aborted && run.error)) live.markProbe(modelId, run.ok)
   }
 }

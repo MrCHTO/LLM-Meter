@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useApp, useConfig } from '../state/AppState'
 
 import { LIMITS, clampInt } from '../../shared/limits'
+import { useColumnWidths } from '../columns'
+import { Switch } from './Switch'
 
 export function Access(): JSX.Element {
   const config = useConfig()
@@ -13,6 +15,7 @@ export function Access(): JSX.Element {
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   /** 正在改备注的 token；null 表示新建 */
   const [editing, setEditing] = useState<string | null>(null)
+  const tokenCols = useColumnWidths('access-tokens', [140, 280, 200])
 
   useEffect(() => {
     if (!menu) return
@@ -91,16 +94,16 @@ export function Access(): JSX.Element {
                   {local}
                 </span>
               </dd>
-              {config.settings.allowLan ? (
-                <>
-                  <dt>局域网地址</dt>
-                  <dd>
-                    <span className="copy-text mono" onClick={() => void copy(lan)}>
-                      {lan}
-                    </span>
-                  </dd>
-                </>
-              ) : null}
+              <dt>局域网地址</dt>
+              <dd>
+                {config.settings.allowLan ? (
+                  <span className="copy-text mono" onClick={() => void copy(lan)}>
+                    {lan}
+                  </span>
+                ) : (
+                  <span className="dimmed">未开启</span>
+                )}
+              </dd>
             </dl>
           </div>
           <div className="access-cols-right">
@@ -130,11 +133,21 @@ export function Access(): JSX.Element {
               </div>
               <div className="access-half">
                 <span className="muted">允许局域网访问</span>
-                <input
-                  type="checkbox"
+                <Switch
                   checked={config.settings.allowLan}
-                  onChange={(e) => void patch({ allowLan: e.target.checked })}
+                  title={config.settings.allowLan ? '已允许' : '已禁止'}
+                  onChange={(allowLan) => void patch({ allowLan })}
                 />
+                <button
+                  className="btn sm"
+                  title="重新读取局域网地址"
+                  onClick={async () => {
+                    await onChanged()
+                    notify('局域网地址已刷新', 'ok')
+                  }}
+                >
+                  刷新
+                </button>
               </div>
             </div>
           </div>
@@ -156,12 +169,13 @@ export function Access(): JSX.Element {
           </button>
         </div>
 
-        <table className="tbl tbl-left tbl-access mt">
+        <table className={`tbl tbl-left tbl-access mt${tokenCols.fixed ? ' col-fixed' : ''}`} {...tokenCols.tableProps}>
+          {tokenCols.colgroup}
           <thead>
             <tr>
-              <th>备注</th>
-              <th>Token（点击复制）</th>
-              <th>创建时间</th>
+              <th>备注{tokenCols.resizer(0)}</th>
+              <th>Token{tokenCols.resizer(1)}</th>
+              <th>创建时间{tokenCols.resizer(2)}</th>
             </tr>
           </thead>
           <tbody>
@@ -175,7 +189,7 @@ export function Access(): JSX.Element {
               >
                 <td>{t.remark}</td>
                 <td>
-                  <span className="copy-text mono" onClick={() => void copy(t.token)}>
+                  <span className="copy-text mono" title="点击复制 Token" onClick={() => void copy(t.token)}>
                     {t.masked}
                   </span>
                 </td>
@@ -184,6 +198,8 @@ export function Access(): JSX.Element {
             ))}
           </tbody>
         </table>
+
+        {tokenCols.menu}
 
         {menu
           ? (() => {

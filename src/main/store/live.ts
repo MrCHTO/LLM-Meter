@@ -274,7 +274,7 @@ export function setProbing(modelId: string, value: boolean): void {
   ensure(modelId).probing = value
 }
 
-/** 自动探活结果：成功清零，失败累计 */
+/** 探活与测速结果：成功清零，失败累计 */
 export function markProbe(modelId: string, ok: boolean): void {
   const s = ensure(modelId)
   s.lastProbeAt = Date.now()

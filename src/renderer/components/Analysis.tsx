@@ -3,6 +3,7 @@ import { useApp } from '../state/AppState'
 import type { StatsGranularity, StatsGroup, StatsMetric, StatsSeries } from '../../shared/types'
 import { fmtMoney, fmtTokens } from '../../shared/format'
 import { dayKey, dayStart } from '../../shared/date'
+import { useStoredState } from '../lib/useStoredState'
 import { ActivityHeatmap } from './ActivityHeatmap'
 import { SeriesChart, type SeriesItem } from './SeriesChart'
 import { TrendChart, type TrendSeries } from './TrendChart'
@@ -48,17 +49,17 @@ const DAY_MS = 86_400_000
 
 export function Analysis(): JSX.Element {
   const { notify } = useApp()
-  const [preset, setPreset] = useState<Preset>('24h')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
-  const [metric, setMetric] = useState<StatsMetric>('requests')
-  const [groupBy, setGroupBy] = useState<StatsGroup>('model')
+  const [preset, setPreset] = useStoredState<Preset>('analysis-preset', '24h')
+  const [customFrom, setCustomFrom] = useStoredState('analysis-from', '')
+  const [customTo, setCustomTo] = useStoredState('analysis-to', '')
+  const [metric, setMetric] = useStoredState<StatsMetric>('analysis-metric', 'requests')
+  const [groupBy, setGroupBy] = useStoredState<StatsGroup>('analysis-group', 'model')
   const [hidden, setHidden] = useState<Record<string, boolean>>({})
   const [series, setSeries] = useState<StatsSeries | null>(null)
   const [busy, setBusy] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   // 用量统计：一年活动格、近 7/30 日趋势与模型占比
-  const [usageRange, setUsageRange] = useState<UsageRange>(7)
+  const [usageRange, setUsageRange] = useStoredState<UsageRange>('analysis-usage-range', 7)
   const [activity, setActivity] = useState<Map<string, number>>(new Map())
   const [usage, setUsage] = useState<{ key: string; label: string; tokens: number }[]>([])
   const [trend, setTrend] = useState<StatsSeries | null>(null)

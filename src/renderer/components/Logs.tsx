@@ -4,6 +4,7 @@ import type { AppLog, LogPage, LogQuery, RequestLog } from '../../shared/types'
 import { fmtMoney, fmtMs, fmtTokens } from '../../shared/format'
 import { fmtClock } from '../../shared/date'
 import { useColumnWidths } from '../columns'
+import { useStoredState } from '../lib/useStoredState'
 
 interface Props {
   initialModelId?: string | null
@@ -40,16 +41,16 @@ function localInput(ts: number): string {
 export function Logs({ initialModelId }: Props): JSX.Element {
   const config = useConfig()
   const { notify } = useApp()
-  const [kind, setKind] = useState<Kind>('request')
-  const [preset, setPreset] = useState<Preset>('24h')
-  const [customFrom, setCustomFrom] = useState(() => localInput(Date.now() - 86_400_000))
-  const [customTo, setCustomTo] = useState(() => localInput(Date.now()))
-  const [modelId, setModelId] = useState(initialModelId ?? '')
-  const [source, setSource] = useState<'all' | 'proxy' | 'probe'>('all')
-  const [result, setResult] = useState<'all' | 'ok' | 'fail'>('all')
-  const [level, setLevel] = useState<'all' | 'info' | 'warn' | 'error'>('all')
-  const [keyword, setKeyword] = useState('')
-  const [applied, setApplied] = useState('')
+  const [kind, setKind] = useStoredState<Kind>('logs-kind', 'request')
+  const [preset, setPreset] = useStoredState<Preset>('logs-preset', '24h')
+  const [customFrom, setCustomFrom] = useStoredState('logs-from', localInput(Date.now() - 86_400_000))
+  const [customTo, setCustomTo] = useStoredState('logs-to', localInput(Date.now()))
+  const [modelId, setModelId] = useStoredState('logs-model', initialModelId ?? '')
+  const [source, setSource] = useStoredState<'all' | 'proxy' | 'probe'>('logs-source', 'all')
+  const [result, setResult] = useStoredState<'all' | 'ok' | 'fail'>('logs-result', 'all')
+  const [level, setLevel] = useStoredState<'all' | 'info' | 'warn' | 'error'>('logs-level', 'all')
+  const [keyword, setKeyword] = useStoredState('logs-keyword', '')
+  const [applied, setApplied] = useStoredState('logs-applied', '')
   const [page, setPage] = useState(1)
   const [data, setData] = useState<LogPage<RequestLog> | LogPage<AppLog> | null>(null)
   const [loading, setLoading] = useState(false)
@@ -57,8 +58,9 @@ export function Logs({ initialModelId }: Props): JSX.Element {
   const requestCols = useColumnWidths('log-requests', [90, 120, 110, 60, 60, 70, 70, 70, 70, 70, 70, 80])
   const appCols = useColumnWidths('log-apps', [90, 60, 90, 600])
 
+  // 从别处带模型跳进来时覆盖保留值；普通切页没有入参，继续用上次选择
   useEffect(() => {
-    setModelId(initialModelId ?? '')
+    if (initialModelId) setModelId(initialModelId)
     setPage(1)
   }, [initialModelId])
 
@@ -357,6 +359,9 @@ export function Logs({ initialModelId }: Props): JSX.Element {
             </tbody>
           </table>
         )}
+
+        {requestCols.menu}
+        {appCols.menu}
 
         <div className="row log-pager">
           <span className="muted">

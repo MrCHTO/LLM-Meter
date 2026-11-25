@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { fmtWan } from '../../shared/format'
 import { dateKey } from '../../shared/date'
+import { useStoredState } from '../lib/useStoredState'
 
 export type ActivityMode = 'day' | 'week' | 'total'
 
@@ -26,7 +27,7 @@ interface Cell {
 
 /** GitHub 式年度活动格：按日 / 按周 / 累计三种口径着色，悬停出读数。 */
 export function ActivityHeatmap({ daily }: Props): JSX.Element {
-  const [mode, setMode] = useState<ActivityMode>('day')
+  const [mode, setMode] = useStoredState<ActivityMode>('heat-mode', 'day')
   const [hover, setHover] = useState<{ col: number; row: number } | null>(null)
 
   const days = useMemo<Cell[]>(() => {

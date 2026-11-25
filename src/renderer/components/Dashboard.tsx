@@ -3,6 +3,7 @@ import { useApp, useConfig } from '../state/AppState'
 import type { ModelLive, StatsRow } from '../../shared/types'
 import { fmtMoney, fmtPct, fmtTokens } from '../../shared/format'
 import { useColumnWidths } from '../columns'
+import { useStoredState } from '../lib/useStoredState'
 import { MultiRate, rateColor } from './MultiRate'
 import { Sparkline } from './Sparkline'
 
@@ -41,8 +42,8 @@ export function Dashboard({ onOpenLogs, goLogs }: Props): JSX.Element {
   const [probing, setProbing] = useState<Record<string, boolean>>({})
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
-  /** 监控卡统计区间；非今天走库内区间查询 */
-  const [range, setRange] = useState<Range>('24h')
+  /** 监控卡统计区间；非今天走库内区间查询，切页面后保留 */
+  const [range, setRange] = useStoredState<Range>('dash-range', '24h')
   const [rangeRows, setRangeRows] = useState<Map<string, StatsRow> | null>(null)
   const cols = useColumnWidths('dashboard', [200, 120, 60, 100, 80, 80, 80, 80, 90])
 
@@ -132,6 +133,16 @@ export function Dashboard({ onOpenLogs, goLogs }: Props): JSX.Element {
     },
     [notify]
   )
+
+  /** 点模型名复制别名；行的其他位置不复制也不跳页 */
+  const copyAlias = async (alias: string): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(alias)
+      notify(`已复制「${alias}」`, 'ok')
+    } catch {
+      notify(`复制失败：${alias}`)
+    }
+  }
 
   const models = snapshot?.models ?? []
   // 颜色按完整列表的位置分配，隐藏某条曲线不会让其他模型换色
@@ -278,10 +289,6 @@ export function Dashboard({ onOpenLogs, goLogs }: Props): JSX.Element {
               return (
                 <tr
                   key={m.modelId}
-                  onClick={() => {
-                    onOpenLogs(m.modelId)
-                    goLogs()
-                  }}
                   onDragStart={(e) => {
                     e.dataTransfer?.setData('text/plain', m.modelId)
                     setDragId(m.modelId)
@@ -296,6 +303,7 @@ export function Dashboard({ onOpenLogs, goLogs }: Props): JSX.Element {
                     'clickable',
                     running && 'probing',
                     flash[m.modelId] && 'bad-flash',
+                    m.lastProbeAt !== null && m.lastProbeOk === false && 'row-dead',
                     dragId === m.modelId && 'dragging',
                     'row-drag'
                   ]
@@ -308,20 +316,14 @@ export function Dashboard({ onOpenLogs, goLogs }: Props): JSX.Element {
                 >
                   <td className="c-model">
                     <span
-                      className={
-                        'probe-dot' +
-                        (m.lastProbeAt === null ? '' : m.lastProbeOk ? ' on' : ' off') +
-                        (m.autoProbe ? '' : ' idle')
-                      }
-                      title={
-                        m.lastProbeAt
-                          ? `上次探针：${new Date(m.lastProbeAt).toLocaleTimeString()}`
-                          : m.autoProbe
-                            ? '尚未探测'
-                            : '自动探针未开启'
-                      }
-                    />
-                    <span className="model-name" style={{ '--mc': colors[m.modelId] } as CSSProperties}>
+                      className="model-name"
+                      style={{ '--mc': colors[m.modelId] } as CSSProperties}
+                      title="点击复制模型名称"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void copyAlias(m.alias)
+                      }}
+                    >
                       {m.alias}
                     </span>
                   </td>
@@ -380,6 +382,8 @@ export function Dashboard({ onOpenLogs, goLogs }: Props): JSX.Element {
           </tbody>
         </table>
       </div>
+
+      {cols.menu}
 
       {menu ? (
         <div

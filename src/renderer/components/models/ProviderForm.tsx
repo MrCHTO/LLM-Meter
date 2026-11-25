@@ -16,7 +16,7 @@ export function ProviderForm({ draft, busy, onChange, onSave, onClose }: Props):
         <h3>{draft.id ? '编辑供应商' : '添加供应商'}</h3>
         <div className="section" style={{ gap: 10 }}>
           <label className="field">
-            <span>名称（必填）</span>
+            <span>名称</span>
             <input
               type="text"
               value={draft.name}
@@ -42,7 +42,7 @@ export function ProviderForm({ draft, busy, onChange, onSave, onClose }: Props):
             </select>
           </label>
           <label className="field">
-            <span>API Key {draft.id ? '（留空表示不改）' : ''}</span>
+            <span>API Key</span>
             <input
               type="password"
               className="mono"

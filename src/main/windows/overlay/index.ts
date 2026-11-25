@@ -4,7 +4,7 @@ import type { Rectangle } from 'electron'
 import * as cfg from '../../store/config'
 import { LIMITS } from '../../../shared/limits'
 import { getOverlay, setOverlay } from '../registry'
-import { anchorX } from '../snap'
+import { anchorX, snapCenter } from '../snap'
 export { showMenu } from './menu'
 
 /** 只留状态点时也要能贴住内容，最小宽度按状态点圆点定 */
@@ -161,7 +161,11 @@ export function startDrag(): void {
     const p = screen.getCursorScreenPoint()
     const size = w.getBounds()
     const next = clampBounds({ x: p.x - dragOffset.x, y: p.y - dragOffset.y, width: size.width, height: size.height })
-    w.setPosition(next.x, next.y)
+    // 靠近屏幕中线时吸附，开关在设置里
+    const pos = cfg.get().settings.overlay.snapCenter
+      ? snapCenter(next, screen.getDisplayMatching(next).workArea)
+      : { x: next.x, y: next.y }
+    w.setPosition(pos.x, pos.y)
   }, 16)
 }
 
@@ -178,7 +182,10 @@ export function moveTo(x: number, y: number): void {
   const win = getOverlay()
   if (!win) return
   const b = win.getBounds()
-  const next = clampBounds({ ...b, x: Math.round(x), y: Math.round(y) })
+  const clamped = clampBounds({ ...b, x: Math.round(x), y: Math.round(y) })
+  const next = cfg.get().settings.overlay.snapCenter
+    ? { ...clamped, ...snapCenter(clamped, screen.getDisplayMatching(clamped).workArea) }
+    : clamped
   win.setPosition(next.x, next.y)
   trackCenter(next)
   saveBounds()
