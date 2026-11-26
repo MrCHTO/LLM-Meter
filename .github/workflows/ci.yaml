@@ -1,8 +1,9 @@
 name: CI
 
-# 触发策略：
-# - 推送只覆盖 develop 与临时分支（临时分支形如 type/描述）；main / release 不直推、只经 PR 接收，所以不列在 push 下。
-# - PR 只针对 develop（临时分支合入）与 release（main 发版合入），其余方向不跑。
+# 触发策略（对齐 WorkFlow 规范）：
+# - 推送覆盖 develop 与临时分支（临时分支形如 type/描述）；main / release 不直推、只经 PR 接收。
+# - 版本 tag 只打在 release 分支的发布提交上，故 tag 推送单独触发发版流水线。
+# - PR 覆盖 main、develop、release 三个方向。
 on:
   push:
     branches:
@@ -15,19 +16,23 @@ on:
       - "refactor/*"
       - "test/*"
       - "chore/*"
+    tags:
+      - "v*"
   pull_request:
     branches:
+      - main
       - develop
       - release
 
-# 同一分支连续推送时取消上一轮，避免排队与产物互相覆盖。
+# 同一分支或 tag 连续推送时取消上一轮，避免排队与产物互相覆盖。
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # 常规校验：develop 推送、临时分支推送、任意 PR 到 develop / release 都要过这四项。
+  # 常规校验：所有分支推送与所有 PR 都只跑这六步，不构建、不发布。
   quality:
+    name: 质量检查
     # 项目是 Electron 应用，ui-check、installed-check 等脚本依赖 Windows 特性，不换 Linux。
     runs-on: windows-latest
     timeout-minutes: 20
@@ -57,13 +62,15 @@ jobs:
       - name: 单元测试
         run: npm test
 
-  # 发版构建：只在 main -> release 的 PR 上执行，且依赖 quality 全过。
-  # 临时分支 PR 与 develop 推送都不构建，避免重复产安装包。
+  # 发版构建：只由 release 分支上的 tag 推送触发，复用 quality 的六步后再构建并建草稿发行版。
   release:
-    if: github.event_name == 'pull_request' && github.base_ref == 'release' && github.head_ref == 'main'
+    name: 发版构建
+    if: startsWith(github.ref, 'refs/tags/')
     needs: quality
     runs-on: windows-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,6 +79,17 @@ jobs:
           cache: npm
       - name: 安装依赖
         run: npm ci
+      - name: 格式检查
+        run: npm run format:check
+      - name: 静态代码分析
+        run: npm run lint
+      - name: 类型检查
+        run: npm run typecheck
+      - name: 安全扫描（生产依赖）
+        run: npm audit --omit=dev --audit-level=high
+      - name: 安全扫描（开发依赖）
+        run: npm audit --audit-level=high
+        continue-on-error: true
       # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
       # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
       - name: 下载 Electron 运行时
@@ -87,12 +105,14 @@ jobs:
           if (-not $exe) { throw '未找到安装包' }
           $sha = (Get-FileHash -Path $exe.FullName -Algorithm SHA256).Hash.ToLower()
           [IO.File]::WriteAllText("$($exe.FullName).sha256", "$sha *$($exe.Name)`n")
-      # 产物缺失直接失败，不产出空 artifact 让人误判。
-      - name: 上传构建产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-artifacts
-          path: |
-            dist/*-setup.exe
-            dist/*-setup.exe.sha256
-          if-no-files-found: error
+      # 发行版固定为草稿，标题取 tag，说明由提交记录自动生成，人工确认后自行发布。
+      # pwsh 不展开通配符，先取到实际文件再作为参数展开，避免 gh 收到字面量。
+      - name: 创建草稿发行版并上传产物
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $files = @(Get-ChildItem dist/*-setup.exe, dist/*-setup.exe.sha256 | ForEach-Object FullName)
+          if ($files.Count -eq 0) { throw '未找到发版产物' }
+          gh release create $env:TAG --draft --title $env:TAG --generate-notes @files
