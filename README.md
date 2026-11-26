@@ -62,7 +62,7 @@ node scripts/check/cache-probe.mjs <baseUrl> <key> <model> identity
 
 ## 部署说明
 
-打包走 `electron-builder` 的 NSIS 目标：`npm run dist` 产出 `dist/LLM Meter-<version>-setup.exe`，全机安装到 `C:\Program Files\llm meter`，卸载时保留 `data`。
+打包走 `electron-builder` 的 NSIS 目标：`npm run dist` 产出 `dist/LLM-Meter-<version>-setup.exe`，全机安装到 `C:\Program Files\llm meter`，卸载时保留 `data`。
 
 - 版本一致性：`package.json` 的 `version` 是唯一来源，`app.getVersion()` 直接读取；发版须同步 `CHANGELOG.md` 顶部条目与 README 里出现的版本号。
 - 升级前先让用户退出正在运行的实例，再静默安装，避免覆盖运行中的文件。
