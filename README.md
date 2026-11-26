@@ -8,6 +8,8 @@
 
 真实 API Key 只存在本应用里，客户端只拿本地 token；只有走代理的流量会被记录，网页版直连或未改 Base URL 的工具看不到。
 
+以 MIT 许可证发布，全文见 [LICENSE](LICENSE)。
+
 当前版本 `1.0.0`，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 目录结构

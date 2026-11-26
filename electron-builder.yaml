@@ -11,6 +11,7 @@ files:
   - resources/icon.ico
   - resources/tray.ico
   - package.json
+  - LICENSE
 asar: true
 win:
   icon: resources/icon.ico
