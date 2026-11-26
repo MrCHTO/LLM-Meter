@@ -100,9 +100,8 @@ jobs:
       - name: 下载 Electron 运行时
         run: node node_modules/electron/install.js
       # 前置条件：electron-builder 的 artifactName 已去掉空格，产物形如 LLM-Meter-v1.0.0-win-x64-setup.exe。
-      # tag 推送会让 electron-builder 自行尝试发布，这里由后面的 gh release create 负责，故显式关掉 publish。
       - name: 发版构建
-        run: npm run dist -- --publish never
+        run: npm run dist
       # 校验文件与安装包同名加 .sha256，内容为小写哈希 + 空格星号 + 文件名，可被 sha256sum -c 直接使用。
       - name: 生成 SHA256 校验文件
         shell: pwsh
