@@ -2,7 +2,8 @@ name: CI
 
 # 触发策略（对齐 WorkFlow 规范）：
 # - 推送覆盖 develop 与临时分支（临时分支形如 type/描述）；main / release 不直推、只经 PR 接收。
-# - PR 只覆盖 develop 与 main 两个目标；main -> release 的 PR 不跑 CI，由 tag 阶段的单测与构建兜底。
+# - PR 目标是 develop、main、hotfix；main -> release 的 PR 不跑 CI，由 tag 阶段的归属校验与构建兜底。
+# - hotfix 作为 hotfix 源的 PR 进 develop 或 main 要跑构建，其它分支 PR 到 hotfix 只跑质量检查。
 # - 版本 tag 只打在 release 分支的发布提交上，故 tag 推送单独触发发版流水线。
 on:
   push:
@@ -22,6 +23,7 @@ on:
     branches:
       - main
       - develop
+      - hotfix
 
 # 同一分支或 tag 连续推送时取消上一轮，避免排队与产物互相覆盖。
 concurrency:
@@ -65,7 +67,7 @@ jobs:
   # 单元测试：只在 PR 上跑，推送时省一轮。单独成 job 便于失败时一眼定位。
   unit:
     name: 单元测试
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.base_ref != 'hotfix'
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -83,7 +85,10 @@ jobs:
   # 构建测试：仅 develop -> main 的 PR 执行，质量检查与单元测试都过了才验能否出包。
   build:
     name: 打包检查
-    if: github.event_name == 'pull_request' && github.head_ref == 'develop' && github.base_ref == 'main'
+    # 要出包的两种 PR：hotfix 进 develop 或 main，以及 develop 进 main；PR 到 hotfix 不构建。
+    if: >-
+      github.event_name == 'pull_request' && github.base_ref != 'hotfix' &&
+      (github.head_ref == 'hotfix' || (github.head_ref == 'develop' && github.base_ref == 'main'))
     needs: [quality, unit]
     runs-on: windows-latest
     timeout-minutes: 30
