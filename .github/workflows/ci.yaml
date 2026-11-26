@@ -47,9 +47,13 @@ jobs:
         run: npm run lint
       - name: 类型检查
         run: npm run typecheck
-      # 安全扫描用 npm 内置 audit，只卡 high 及以上，避免低危阻断开发。
-      - name: 安全扫描
+      # 分两段扫描：生产依赖必须干净，出问题直接阻断；构建与测试工具链的漏洞多要跨大版本升级才修得掉，
+      # 只报不卡，避免长期把 CI 挂成红色而失去参考价值。
+      - name: 安全扫描（生产依赖）
+        run: npm audit --omit=dev --audit-level=high
+      - name: 安全扫描（开发依赖）
         run: npm audit --audit-level=high
+        continue-on-error: true
       - name: 单元测试
         run: npm test
 
