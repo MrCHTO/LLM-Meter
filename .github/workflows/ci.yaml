@@ -72,6 +72,10 @@ jobs:
           cache: npm
       - name: 安装依赖
         run: npm ci
+      # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
+      # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
+      - name: 下载 Electron 运行时
+        run: node node_modules/electron/install.js
       # 前置条件：electron-builder 的 artifactName 已去掉空格，产物形如 LLM-Meter-1.0.0-setup.exe。
       - name: 发版构建
         run: npm run dist
