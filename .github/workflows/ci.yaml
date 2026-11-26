@@ -2,8 +2,8 @@ name: CI
 
 # 触发策略（对齐 WorkFlow 规范）：
 # - 推送覆盖 develop 与临时分支（临时分支形如 type/描述）；main / release 不直推、只经 PR 接收。
+# - PR 只覆盖 develop 与 main 两个目标；main -> release 的 PR 不跑 CI，由 tag 阶段的单测与构建兜底。
 # - 版本 tag 只打在 release 分支的发布提交上，故 tag 推送单独触发发版流水线。
-# - PR 覆盖 main、develop、release 三个方向。
 on:
   push:
     branches:
@@ -22,7 +22,6 @@ on:
     branches:
       - main
       - develop
-      - release
 
 # 同一分支或 tag 连续推送时取消上一轮，避免排队与产物互相覆盖。
 concurrency:
@@ -63,6 +62,14 @@ jobs:
       - name: 单元测试
         if: github.event_name == 'pull_request'
         run: npm test
+      # 仅 develop -> main 的 PR 验一次能否出包，避免到 tag 阶段才发现打包链路坏了。
+      # 构建用的 electron 运行时同样只在此时补下载，其余 PR 不承担这部分时间。
+      - name: 下载 Electron 运行时（构建测试用）
+        if: github.event_name == 'pull_request' && github.head_ref == 'develop' && github.base_ref == 'main'
+        run: node node_modules/electron/install.js
+      - name: 构建测试
+        if: github.event_name == 'pull_request' && github.head_ref == 'develop' && github.base_ref == 'main'
+        run: npm run dist
 
   # 发版构建：只由 release 分支上的 tag 推送触发，复用 quality 的六步后再构建并建草稿发行版。
   release:
