@@ -20,7 +20,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,html}\" \"test/**/*.{ts,mjs,cjs}\" \"script*/*.mjs\" \"*.{ts,mjs,json,yml}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,html}\" \"test/**/*.{ts,mjs,cjs}\" \"script*/*.mjs\" \"*.{ts,mjs,json,yml}\"",
     "test": "vitest run",
-    "dist": "electron-vite build && electron-builder --win nsis"
+    "dist": "electron-vite build && electron-builder --win nsis --publish never"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

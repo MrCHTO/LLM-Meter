@@ -100,16 +100,9 @@ jobs:
       - name: 下载 Electron 运行时
         run: node node_modules/electron/install.js
       # 前置条件：electron-builder 的 artifactName 已去掉空格，产物形如 LLM-Meter-v1.0.0-win-x64-setup.exe。
+      # 关闭隐式发布写在 package.json 的 dist 脚本里，这里不必再传 --publish。
       - name: 发版构建
         run: npm run dist
-      # 校验文件与安装包同名加 .sha256，内容为小写哈希 + 空格星号 + 文件名，可被 sha256sum -c 直接使用。
-      - name: 生成 SHA256 校验文件
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem dist/*-setup.exe | Select-Object -First 1
-          if (-not $exe) { throw '未找到安装包' }
-          $sha = (Get-FileHash -Path $exe.FullName -Algorithm SHA256).Hash.ToLower()
-          [IO.File]::WriteAllText("$($exe.FullName).sha256", "$sha *$($exe.Name)`n")
       # 发行版固定为草稿，标题取 tag，说明由提交记录自动生成，人工确认后自行发布。
       # pwsh 不展开通配符，先取到实际文件再作为参数展开，避免 gh 收到字面量。
       - name: 创建草稿发行版并上传产物
@@ -118,6 +111,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          $files = @(Get-ChildItem dist/*-setup.exe, dist/*-setup.exe.sha256 | ForEach-Object FullName)
+          $files = @(Get-ChildItem dist/*-setup.exe | ForEach-Object FullName)
           if ($files.Count -eq 0) { throw '未找到发版产物' }
           gh release create $env:TAG --draft --title $env:TAG --generate-notes @files
