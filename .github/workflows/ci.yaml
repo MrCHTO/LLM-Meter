@@ -1,20 +1,20 @@
 name: CI
 
 # 触发策略：
-# - 推送只覆盖 develop 与临时分支；main / release 不直推、只经 PR 接收，所以不列在 push 下。
+# - 推送只覆盖 develop 与临时分支（临时分支形如 type/描述）；main / release 不直推、只经 PR 接收，所以不列在 push 下。
 # - PR 只针对 develop（临时分支合入）与 release（main 发版合入），其余方向不跑。
 on:
   push:
     branches:
       - develop
-      - "feature-*"
-      - "bugfix-*"
-      - "hotfix-*"
-      - "docs-*"
-      - "revert-*"
-      - "refactor-*"
-      - "test-*"
-      - "chore-*"
+      - "feature/*"
+      - "bugfix/*"
+      - "hotfix/*"
+      - "docs/*"
+      - "revert/*"
+      - "refactor/*"
+      - "test/*"
+      - "chore/*"
   pull_request:
     branches:
       - develop
