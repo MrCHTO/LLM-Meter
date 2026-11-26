@@ -65,9 +65,16 @@ jobs:
         continue-on-error: true
 
   # 单元测试：只在 PR 上跑，推送时省一轮。单独成 job 便于失败时一眼定位。
+  # 来源只认规范授权的几条：临时分支、hotfix、develop，其余来源的 PR 不测。
   unit:
     name: 单元测试
-    if: github.event_name == 'pull_request'
+    if: >-
+      github.event_name == 'pull_request' &&
+      (startsWith(github.head_ref, 'feature/') || startsWith(github.head_ref, 'bugfix/') ||
+       startsWith(github.head_ref, 'hotfix/') || startsWith(github.head_ref, 'docs/') ||
+       startsWith(github.head_ref, 'revert/') || startsWith(github.head_ref, 'refactor/') ||
+       startsWith(github.head_ref, 'test/') || startsWith(github.head_ref, 'chore/') ||
+       github.head_ref == 'develop' || github.head_ref == 'hotfix')
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
