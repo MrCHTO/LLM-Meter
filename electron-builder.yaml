@@ -18,7 +18,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  artifactName: LLM-Meter-${version}-setup.${ext}
+  artifactName: LLM-Meter-v${version}-win-x64-setup.${ext}
 nsis:
   oneClick: false
   perMachine: true
