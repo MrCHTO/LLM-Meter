@@ -2,23 +2,23 @@ name: CI
 
 # 触发策略（对齐 WorkFlow 规范）：
 # - 推送覆盖 develop 与临时分支（临时分支形如 type/描述）；main / release 不直推、只经 PR 接收。
-# - PR 目标是 develop、main、hotfix；main -> release 的 PR 不跑 CI，由 tag 阶段的归属校验与构建兜底。
-# - 会出包的 PR 只有 hotfix -> main 与 develop -> main 两种，其余方向不构建；单元测试对所有 PR 都跑。
+# - PR 目标是 main、develop、hotfix；main → release 的 PR 不跑 CI，由 tag 阶段的归属校验与构建兜底。
+# - 会出包的 PR 只有 hotfix → main 与 develop → main 两种，其余方向不构建；单元测试只对白名单来源的 PR 执行。
 # - 版本 tag 只打在 release 分支的发布提交上，故 tag 推送单独触发发版流水线。
 on:
   push:
     branches:
       - develop
-      - "feature/*"
-      - "bugfix/*"
-      - "hotfix/*"
-      - "docs/*"
-      - "revert/*"
-      - "refactor/*"
-      - "test/*"
-      - "chore/*"
+      - feature/*
+      - bugfix/*
+      - hotfix/*
+      - docs/*
+      - revert/*
+      - refactor/*
+      - test/*
+      - chore/*
     tags:
-      - "v*"
+      - v*
   pull_request:
     branches:
       - main
@@ -30,8 +30,27 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# 各 job 共用的前置步骤，改 Node 版本或安装方式只需动这里。
+x-checkout: &checkout
+  uses: actions/checkout@v5
+x-runtime: &runtime
+  name: 准备运行环境
+  uses: actions/setup-node@v5
+  with:
+    node-version: 24
+    cache: npm
+x-deps: &deps
+  # 用 ci 而非 install，锁 package-lock.json，保证与本地安装结果一致。
+  name: 安装依赖
+  run: npm ci
+x-electron: &electron
+  # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
+  # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
+  name: 下载 Electron 运行时
+  run: node node_modules/electron/install.js
+
 jobs:
-  # 常规校验：所有分支推送与所有 PR 都只跑这六步，不构建、不发布。
+  # 质量检查：所有分支推送与所有 PR 都只跑这六步，不构建、不发布；PR 的追加 job 见下。
   quality:
     name: 质量检查
     # tag 构建走 release job，质量检查在 tag 事件下整体跳过，不白跑一遍。
@@ -40,15 +59,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
-      - name: 准备运行环境
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-      # 用 ci 而非 install，锁 package-lock.json，保证与本地安装结果一致。
-      - name: 安装依赖
-        run: npm ci
+      - *checkout
+      - *runtime
+      - *deps
       - name: 格式检查
         run: npm run format:check
       # 静态代码分析由项目既有 eslint 承担，不引入额外扫描器。
@@ -56,16 +69,15 @@ jobs:
         run: npm run lint
       - name: 类型检查
         run: npm run typecheck
-      # 分两段扫描：生产依赖必须干净，出问题直接阻断；构建与测试工具链的漏洞多要跨大版本升级才修得掉，
-      # 只报不卡，避免长期把 CI 挂成红色而失去参考价值。
-      - name: 安全扫描（生产依赖）
+      # 分两段：生产依赖必须干净、直接阻断；开发依赖的漏洞往往要跨大版本升级才修得掉，只报不卡，
+      # 避免长期把 CI 挂成红色而失去参考价值。
+      - name: 安全扫描（生产依赖，阻断）
         run: npm audit --omit=dev --audit-level=high
-      - name: 安全扫描（开发依赖）
+      - name: 安全扫描（全部依赖，只报）
         run: npm audit --audit-level=high
         continue-on-error: true
 
-  # 单元测试：只在 PR 上跑，推送时省一轮。单独成 job 便于失败时一眼定位。
-  # 来源只认规范授权的几条：临时分支、hotfix、develop，其余来源的 PR 不测。
+  # 单元测试：只在 PR 上跑，来源只认临时分支、hotfix 与 develop，其余 PR 不测。
   unit:
     name: 单元测试
     if: >-
@@ -78,21 +90,15 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
-      - name: 准备运行环境
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-      - name: 安装依赖
-        run: npm ci
+      - *checkout
+      - *runtime
+      - *deps
       - name: 单元测试
         run: npm test
 
-  # 构建测试：仅 develop -> main 的 PR 执行，质量检查与单元测试都过了才验能否出包。
+  # 打包检查：仅进 main 的两条 PR（hotfix、develop）执行，前两个 job 都过了才验能否出包。
   build:
     name: 打包检查
-    # 只有进 main 的两种 PR 出包：hotfix 与 develop。
     if: >-
       github.event_name == 'pull_request' && github.base_ref == 'main' &&
       (github.head_ref == 'hotfix' || github.head_ref == 'develop')
@@ -100,24 +106,16 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
-      - name: 准备运行环境
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-      - name: 安装依赖
-        run: npm ci
-      # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
-      # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
-      - name: 下载 Electron 运行时
-        run: node node_modules/electron/install.js
+      - *checkout
+      - *runtime
+      - *deps
+      - *electron
       # 脚本内已带 --publish never，不会误发；产物仅作门槛，不上传。
       - name: 构建测试
         run: npm run dist
 
-  # 发版构建：只由 release 分支上的 tag 推送触发。
-  # 六步校验与单测已在 PR 阶段做完，这里不重复，只校验 tag 归属再构建并建草稿发行版。
+  # 发版：只由 release 分支上的 tag 推送触发。
+  # 六步校验与单测已在更早的 PR 阶段完成，这里不重复，只校验 tag 归属再构建并建草稿发行版。
   release:
     name: 发版
     if: startsWith(github.ref, 'refs/tags/')
@@ -126,14 +124,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
-      - name: 准备运行环境
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-      - name: 安装依赖
-        run: npm ci
+      - *checkout
+      - *runtime
+      - *deps
       # tag 可以打在任意提交上，先确认它就在 release 头上，否则不构建、不发行版。
       - name: 校验 tag 归属
         shell: pwsh
@@ -142,10 +135,7 @@ jobs:
           $head = (git rev-parse FETCH_HEAD).Trim()
           $tag = (git rev-parse HEAD).Trim()
           if ($head -ne $tag) { throw "tag $tag 不在 release 头 $head 上" }
-      # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
-      # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
-      - name: 下载 Electron 运行时
-        run: node node_modules/electron/install.js
+      - *electron
       # 前置条件：electron-builder 的 artifactName 已去掉空格，产物形如 LLM-Meter-v1.0.0-win-x64-setup.exe。
       # 关闭隐式发布写在 package.json 的 dist 脚本里，这里不必再传 --publish。
       - name: 发版构建
