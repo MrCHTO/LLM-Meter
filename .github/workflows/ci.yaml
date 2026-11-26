@@ -30,25 +30,6 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# 各 job 共用的前置步骤，改 Node 版本或安装方式只需动这里。
-x-checkout: &checkout
-  uses: actions/checkout@v5
-x-runtime: &runtime
-  name: 准备运行环境
-  uses: actions/setup-node@v5
-  with:
-    node-version: 24
-    cache: npm
-x-deps: &deps
-  # 用 ci 而非 install，锁 package-lock.json，保证与本地安装结果一致。
-  name: 安装依赖
-  run: npm ci
-x-electron: &electron
-  # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
-  # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
-  name: 下载 Electron 运行时
-  run: node node_modules/electron/install.js
-
 jobs:
   # 质量检查：所有分支推送与所有 PR 都只跑这六步，不构建、不发布；PR 的追加 job 见下。
   quality:
@@ -59,9 +40,19 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - *checkout
-      - *runtime
-      - *deps
+      # 前三步在四个 job 里重复，此处首次出现即打锚点，其余位置用别名引用。
+      - &checkout
+        uses: actions/checkout@v5
+      - &runtime
+        name: 准备运行环境
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      # 用 ci 而非 install，锁 package-lock.json，保证与本地安装结果一致。
+      - &deps
+        name: 安装依赖
+        run: npm ci
       - name: 格式检查
         run: npm run format:check
       # 静态代码分析由项目既有 eslint 承担，不引入额外扫描器。
@@ -109,7 +100,11 @@ jobs:
       - *checkout
       - *runtime
       - *deps
-      - *electron
+      # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
+      # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
+      - &electron
+        name: 下载 Electron 运行时
+        run: node node_modules/electron/install.js
       # 脚本内已带 --publish never，不会误发；产物仅作门槛，不上传。
       - name: 构建测试
         run: npm run dist
