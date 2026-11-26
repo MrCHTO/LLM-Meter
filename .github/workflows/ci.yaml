@@ -59,7 +59,9 @@ jobs:
       - name: 安全扫描（开发依赖）
         run: npm audit --audit-level=high
         continue-on-error: true
+      # 单元测试只在 PR 上跑，推送时省一轮，加快日常提交反馈。
       - name: 单元测试
+        if: github.event_name == 'pull_request'
         run: npm test
 
   # 发版构建：只由 release 分支上的 tag 推送触发，复用 quality 的六步后再构建并建草稿发行版。
@@ -90,6 +92,9 @@ jobs:
       - name: 安全扫描（开发依赖）
         run: npm audit --audit-level=high
         continue-on-error: true
+      # 发版 job 自己跑一遍单测，不依赖 quality 的阶段（quality 里那条只在 PR 生效）。
+      - name: 单元测试
+        run: npm test
       # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
       # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
       - name: 下载 Electron 运行时
