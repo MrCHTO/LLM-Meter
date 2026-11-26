@@ -64,7 +64,7 @@ jobs:
 
   # 单元测试：只在 PR 上跑，推送时省一轮。单独成 job 便于失败时一眼定位。
   unit:
-    name: 运行单元测试
+    name: 单元测试
     if: github.event_name == 'pull_request'
     runs-on: windows-latest
     timeout-minutes: 20
