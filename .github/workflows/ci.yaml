@@ -32,6 +32,8 @@ jobs:
   # 常规校验：所有分支推送与所有 PR 都只跑这六步，不构建、不发布。
   quality:
     name: 质量检查
+    # tag 构建走 release job，质量检查在 tag 事件下整体跳过，不白跑一遍。
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     # 项目是 Electron 应用，ui-check、installed-check 等脚本依赖 Windows 特性，不换 Linux。
     runs-on: windows-latest
     timeout-minutes: 20
@@ -72,11 +74,11 @@ jobs:
         if: github.event_name == 'pull_request' && github.head_ref == 'develop' && github.base_ref == 'main'
         run: npm run dist
 
-  # 发版构建：只由 release 分支上的 tag 推送触发，复用 quality 的六步后再构建并建草稿发行版。
+  # 发版构建：只由 release 分支上的 tag 推送触发。
+  # 六步校验与单测已在 PR 阶段做完，这里不重复，只校验 tag 归属再构建并建草稿发行版。
   release:
     name: 发版构建
     if: startsWith(github.ref, 'refs/tags/')
-    needs: quality
     runs-on: windows-latest
     timeout-minutes: 30
     permissions:
@@ -90,20 +92,14 @@ jobs:
           cache: npm
       - name: 安装依赖
         run: npm ci
-      - name: 格式检查
-        run: npm run format:check
-      - name: 静态代码分析
-        run: npm run lint
-      - name: 类型检查
-        run: npm run typecheck
-      - name: 安全扫描（生产依赖）
-        run: npm audit --omit=dev --audit-level=high
-      - name: 安全扫描（开发依赖）
-        run: npm audit --audit-level=high
-        continue-on-error: true
-      # 发版 job 自己跑一遍单测，不依赖 quality 的阶段（quality 里那条只在 PR 生效）。
-      - name: 单元测试
-        run: npm test
+      # tag 可以打在任意提交上，先确认它就在 release 头上，否则不构建、不发行版。
+      - name: 校验 tag 归属
+        shell: pwsh
+        run: |
+          git fetch origin release --depth=1
+          $head = (git rev-parse FETCH_HEAD).Trim()
+          $tag = (git rev-parse HEAD).Trim()
+          if ($head -ne $tag) { throw "tag $tag 不在 release 头 $head 上" }
       # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
       # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
       - name: 下载 Electron 运行时
