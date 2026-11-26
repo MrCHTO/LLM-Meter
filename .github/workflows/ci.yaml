@@ -1,0 +1,80 @@
+name: CI
+
+# 触发策略：
+# - 推送只覆盖 develop 与临时分支；main / release 不直推、只经 PR 接收，所以不列在 push 下。
+# - PR 只针对 develop（临时分支合入）与 release（main 发版合入），其余方向不跑。
+on:
+  push:
+    branches:
+      - develop
+      - "feature-*"
+      - "bugfix-*"
+      - "hotfix-*"
+      - "docs-*"
+      - "revert-*"
+      - "refactor-*"
+      - "test-*"
+      - "chore-*"
+  pull_request:
+    branches:
+      - develop
+      - release
+
+# 同一分支连续推送时取消上一轮，避免排队与产物互相覆盖。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 常规校验：develop 推送、临时分支推送、任意 PR 到 develop / release 都要过这四项。
+  quality:
+    # 项目是 Electron 应用，ui-check、installed-check 等脚本依赖 Windows 特性，不换 Linux。
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # 用 ci 而非 install，锁 package-lock.json，保证与本地安装结果一致。
+      - name: 安装依赖
+        run: npm ci
+      - name: 格式检查
+        run: npm run format:check
+      # 静态代码分析由项目既有 eslint 承担，不引入额外扫描器。
+      - name: 静态代码分析
+        run: npm run lint
+      - name: 类型检查
+        run: npm run typecheck
+      # 安全扫描用 npm 内置 audit，只卡 high 及以上，避免低危阻断开发。
+      - name: 安全扫描
+        run: npm audit --audit-level=high
+      - name: 单元测试
+        run: npm test
+
+  # 发版构建：只在 main -> release 的 PR 上执行，且依赖 quality 全过。
+  # 临时分支 PR 与 develop 推送都不构建，避免重复产安装包。
+  release:
+    if: github.event_name == 'pull_request' && github.base_ref == 'release' && github.head_ref == 'main'
+    needs: quality
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      # 前置条件：electron-builder 的 artifactName 已去掉空格，产物形如 LLM-Meter-1.0.0-setup.exe。
+      - name: 发版构建
+        run: npm run dist
+      # 产物缺失直接失败，不产出空 artifact 让人误判。
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/*-setup.exe
+          if-no-files-found: error
