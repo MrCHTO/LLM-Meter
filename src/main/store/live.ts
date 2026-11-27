@@ -1,0 +1,392 @@
+import type { LiveSnapshot, ModelLive, RequestEvent, SnapshotTotals, TodayTotals } from '../../shared/types'
+export { BUCKETS } from './live/types'
+import { BUCKETS, COEF_CJK, COEF_OTHER, RECENT_MAX, type ModelState } from './live/types'
+import { coefOf, pushTtftSample, realtimeOf, tpsOf, ttftPct } from './live/metrics'
+import * as cfg from './config'
+import * as db from './db'
+import { hitRate, tps } from '../metrics/cost'
+import * as repo from './db/repo'
+import { dayKey } from '../../shared/date'
+
+/** 曲线窗口秒数：每格 1 秒，3 分钟 */
+const state = new Map<string, ModelState>()
+const recent: RequestEvent[] = []
+/** 进行中的请求数，驱动胶囊彩虹边框 */
+const inflight = new Map<string, number>()
+/** 请求开始后至少亮这么久，避免连发时频闪；结束后不再额外保持 */
+const visibleUntil = new Map<string, number>()
+const MIN_VISIBLE_MS = 1500
+
+export function begin(modelId: string): void {
+  inflight.set(modelId, (inflight.get(modelId) ?? 0) + 1)
+  visibleUntil.set(modelId, Math.max(visibleUntil.get(modelId) ?? 0, Date.now() + MIN_VISIBLE_MS))
+}
+
+export function end(modelId: string): void {
+  const left = (inflight.get(modelId) ?? 1) - 1
+  if (left > 0) {
+    inflight.set(modelId, left)
+    return
+  }
+  inflight.delete(modelId)
+  const s = state.get(modelId)
+  if (s && left <= 0) s.genStart = null
+}
+
+/** 当前模型的 token 估算系数（字符/token），随完成请求向真实比例收敛 */
+export function noteDelta(modelId: string, cjk: number, other: number): void {
+  if (cjk <= 0 && other <= 0) return
+  const s = ensure(modelId)
+  const now = Date.now()
+  if (s.genStart === null) s.genStart = now
+  const coef = coefOf(s)
+  const tokens = cjk / coef.cjk + other / coef.other
+  s.deltaSamples.push({ ts: now, tokens })
+  s.genCjk += cjk
+  s.genOther += other
+  s.genEst += cjk / COEF_CJK + other / COEF_OTHER
+
+  const second = Math.floor(now / 1000)
+  if (second !== s.deltaSecond) {
+    const shift = Math.min(BUCKETS, Math.max(0, second - s.deltaSecond))
+    s.deltaBuckets = [...s.deltaBuckets.slice(shift), ...new Array<number>(shift).fill(0)]
+    s.deltaSecond = second
+  }
+  const idx = BUCKETS - 1
+  s.deltaBuckets[idx] = (s.deltaBuckets[idx] ?? 0) + tokens
+}
+
+function blankToday(): TodayTotals {
+  return {
+    requests: 0,
+    errors: 0,
+    input: 0,
+    uncachedInput: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheInput: 0,
+    cacheInputReported: 0,
+    cacheReadReported: 0,
+    cost: 0
+  }
+}
+
+/** 当前「今天」的日期键，跨日后今日合计要重新起算；首次调用时以当时的日期起算 */
+let currentDay = ''
+
+function todayOf(t: repo.TotalsRow): TodayTotals {
+  return {
+    requests: t.requests,
+    errors: t.errors,
+    input: t.input,
+    uncachedInput: t.uncached,
+    output: t.output,
+    cacheRead: t.cache_read,
+    cacheInput: t.cache_input,
+    cacheInputReported: t.cache_input_reported,
+    cacheReadReported: t.cache_read_reported,
+    cost: t.cost
+  }
+}
+
+/**
+ * 日期变化时把今日合计与今日 TTFT 样本翻到新的一天。
+ * 跨天挂着或休眠醒来后由 snapshot 触发，不依赖零点定时器。
+ * `allowBack` 为 false 时只向前翻：完成于 0 点前的请求（ev.ts 还是前一天）直接计入当前这一天。
+ */
+function rollDay(now = Date.now(), allowBack = true): void {
+  const day = dayKey(now)
+  if (!currentDay) {
+    currentDay = day
+    return
+  }
+  if (day === currentDay) return
+  if (!allowBack && day < currentDay) return
+  currentDay = day
+  const dayStart = new Date(now)
+  dayStart.setHours(0, 0, 0, 0)
+  for (const [modelId, s] of state) {
+    s.today = blankToday()
+    s.ttftSamples = []
+    // 时钟回拨或跨天休眠后，新的一天可能已有明细，按库回灌而不是从 0 起跳
+    try {
+      s.today = todayOf(repo.dayTotals(db.get(), modelId, day))
+      s.ttftSamples = repo.ttftSamplesSince(db.get(), modelId, dayStart.getTime())
+    } catch {
+      // 单测里没有初始化数据库时保持空值
+    }
+  }
+}
+
+function ensure(modelId: string): ModelState {
+  const found = state.get(modelId)
+  if (found) return found
+  const created: ModelState = {
+    buckets: new Array<number>(BUCKETS).fill(0),
+    reqBuckets: new Array<number>(BUCKETS).fill(0),
+    bucketSecond: Math.floor(Date.now() / 1000),
+    today: blankToday(),
+    lastError: null,
+    lastErrorAt: null,
+    lastTtftMs: null,
+    lastTps: null,
+    lastTpsAt: null,
+    ttftSamples: [],
+    probing: false,
+    probeFails: 0,
+    lastProbeAt: null,
+    lastProbeOk: null,
+    deltaSamples: [],
+    deltaBuckets: new Array<number>(BUCKETS).fill(0),
+    deltaSecond: Math.floor(Date.now() / 1000),
+    genStart: null,
+    genCjk: 0,
+    genOther: 0,
+    genEst: 0,
+    calibObs: 0,
+    calibEst: 0
+  }
+  state.set(modelId, created)
+  return created
+}
+
+function rollBuckets(s: ModelState, now = Date.now()): void {
+  const sec = Math.floor(now / 1000)
+  const shift = sec - s.bucketSecond
+  if (shift <= 0) return
+  if (shift >= BUCKETS) {
+    s.buckets.fill(0)
+    s.reqBuckets.fill(0)
+  } else {
+    s.buckets = [...s.buckets.slice(shift), ...new Array<number>(shift).fill(0)]
+    s.reqBuckets = [...s.reqBuckets.slice(shift), ...new Array<number>(shift).fill(0)]
+  }
+  s.bucketSecond = sec
+}
+
+export function init(): void {
+  const now = Date.now()
+  currentDay = dayKey(now)
+  const dayStart = new Date()
+  dayStart.setHours(0, 0, 0, 0)
+  cfg.mutate((c) => {
+    for (const m of c.models) {
+      const s = ensure(m.id)
+      const t = repo.dayTotals(db.get(), m.id, dayKey(now))
+      s.today = todayOf(t)
+      // 今天的 TTFT 样本从明细回灌，重启后分位数不空；replay 不再补，避免最近窗口被算两遍
+      s.ttftSamples = repo.ttftSamplesSince(db.get(), m.id, dayStart.getTime())
+      rollBuckets(s, now)
+    }
+  })
+}
+
+/**
+ * 回放最近 60 秒，让重启后曲线不空。
+ * 注意每个事件要按「自己的时间」落到对应秒桶里——按到达顺序堆到末尾会堆出一个假尖峰。
+ */
+export function replay(events: RequestEvent[], now = Date.now()): void {
+  for (const ev of events) {
+    // 失败的请求也要计入请求曲线，只是 token 为 0
+    if (ev.ts > now) continue
+    // 输出 token 按完成秒；请求量按「请求开始秒」，与速率的打点口径对齐
+    const ageTokens = Math.floor((now - ev.ts) / 1000)
+    const ageReq = Math.floor((now - (ev.ts - Math.max(0, ev.durationMs))) / 1000)
+    if (ageTokens >= BUCKETS && ageReq >= BUCKETS) continue
+    const s = ensure(ev.modelId)
+    s.bucketSecond = Math.floor(now / 1000)
+    if (ageTokens >= 0 && ageTokens < BUCKETS) {
+      const idxTokens = BUCKETS - 1 - ageTokens
+      s.buckets[idxTokens] = (s.buckets[idxTokens] ?? 0) + ev.outputTokens
+    }
+    if (ageReq >= 0 && ageReq < BUCKETS) {
+      const idxReq = BUCKETS - 1 - ageReq
+      s.reqBuckets[idxReq] = (s.reqBuckets[idxReq] ?? 0) + 1
+    }
+    if (ev.ttftMs !== null) s.lastTtftMs = ev.ttftMs
+  }
+}
+
+export function record(ev: RequestEvent): void {
+  rollDay(ev.ts, false)
+  const s = ensure(ev.modelId)
+  rollBuckets(s, ev.ts)
+  // 请求量按「请求开始秒」打点：速率增量在流式期间逐秒到达，按完成秒打点会整体迟到一段请求耗时
+  const idx = BUCKETS - 1 - Math.min(BUCKETS - 1, Math.floor(Math.max(0, ev.durationMs) / 1000))
+  s.reqBuckets[idx] = (s.reqBuckets[idx] ?? 0) + 1
+  if (ev.ok) {
+    s.today.requests += 1
+    s.today.input += ev.inputTokens
+    s.today.uncachedInput += ev.uncachedInputTokens
+    s.today.output += ev.outputTokens
+    s.today.cacheRead += ev.cacheReadTokens
+    s.today.cacheInput += ev.cacheInputTokens
+    if (ev.cacheInputReported) s.today.cacheInputReported += 1
+    if (ev.cacheReadReported) s.today.cacheReadReported += 1
+    s.today.cost += ev.cost
+    if (ev.ttftMs !== null) {
+      s.lastTtftMs = ev.ttftMs
+      if (ev.source === 'proxy') pushTtftSample(s, ev.ttftMs)
+    }
+    // 最近一次请求的生成速率（tok/s），给胶囊与表格的「上一条」口径用
+    const gen = tps(ev.outputTokens, ev.durationMs, ev.ttftMs)
+    if (gen !== null) {
+      s.lastTps = gen
+      s.lastTpsAt = ev.ts
+    }
+    s.buckets[idx] = (s.buckets[idx] ?? 0) + ev.outputTokens
+    // 用真实 usage 校正本模型的估算系数；只有有真实输出与字符时才采信
+    if (ev.outputTokens > 0 && s.genEst > 0) {
+      s.calibObs += ev.outputTokens
+      s.calibEst += s.genEst
+    }
+    s.genCjk = 0
+    s.genOther = 0
+    s.genEst = 0
+  } else {
+    s.today.requests += 1
+    s.today.errors += 1
+    s.lastError = describe(ev)
+    s.lastErrorAt = ev.ts
+  }
+  recent.unshift(ev)
+  if (recent.length > RECENT_MAX) recent.length = RECENT_MAX
+}
+
+function describe(ev: RequestEvent): string {
+  const label: Record<string, string> = {
+    auth: '本地 token 不对',
+    not_found: '未登记的模型',
+    model_disabled: '模型已停用',
+    timeout: '上游超时',
+    aborted: '客户端取消',
+    upstream_4xx: '上游 4xx',
+    upstream_5xx: '上游 5xx',
+    network: '网络失败',
+    parse: '响应解析失败',
+    unsupported: '不支持的路径'
+  }
+  const b = ev.errorKind ? label[ev.errorKind] : undefined
+  return `${b ?? '失败'}${ev.status ? ` (${ev.status})` : ''}`
+}
+
+export function setProbing(modelId: string, value: boolean): void {
+  ensure(modelId).probing = value
+}
+
+/** 探活与测速结果：成功清零，失败累计 */
+export function markProbe(modelId: string, ok: boolean): void {
+  const s = ensure(modelId)
+  s.lastProbeAt = Date.now()
+  s.lastProbeOk = ok
+  s.probeFails = ok ? 0 : s.probeFails + 1
+}
+
+export function probeFailsOf(modelId: string): number {
+  return state.get(modelId)?.probeFails ?? 0
+}
+
+export function recentFor(modelId: string, limit = 20): RequestEvent[] {
+  try {
+    return repo.recentFor(db.get(), modelId, limit)
+  } catch {
+    return recent.filter((e) => e.modelId === modelId).slice(0, limit)
+  }
+}
+
+export function snapshot(
+  proxyRunning: boolean,
+  proxyError: string | null,
+  baseUrl: string,
+  now = Date.now()
+): LiveSnapshot {
+  rollDay(now)
+  const settings = cfg.get().settings
+  const providers = new Map(cfg.listProviders().map((p) => [p.id, p]))
+
+  const models: ModelLive[] = []
+  const totals: SnapshotTotals = {
+    tps: 0,
+    hitRate: null,
+    todayCost: 0,
+    requests: 0,
+    errors: 0,
+    currency: 'CNY',
+    buckets: new Array<number>(BUCKETS).fill(0),
+    reqBuckets: new Array<number>(BUCKETS).fill(0)
+  }
+
+  for (const m of cfg.listModels()) {
+    const s = ensure(m.id)
+    rollBuckets(s, now)
+    const second = Math.floor(now / 1000)
+    if (second !== s.deltaSecond) {
+      const shift = Math.min(BUCKETS, Math.max(0, second - s.deltaSecond))
+      s.deltaBuckets = [...s.deltaBuckets.slice(shift), ...new Array<number>(shift).fill(0)]
+      s.deltaSecond = second
+    }
+    const provider = providers.get(m.providerId)
+    const rateNow = tpsOf(s)
+    const realtimeTps = realtimeOf(s, now)
+    // 渠道具备缓存读计数（有过上报或曾命中过）才显示数值；否则显示 — 而非误导性的 0.00%
+    const known = s.today.cacheReadReported > 0 || s.today.cacheRead > 0
+    const hit = known ? hitRate(s.today.cacheRead, s.today.input) : null
+    models.push({
+      modelId: m.id,
+      alias: m.alias,
+      providerName: provider?.name ?? '（供应商已删）',
+      baseUrl: provider?.baseUrl ?? '',
+      upstreamModel: m.upstreamModel,
+      format: provider?.format ?? 'openai',
+      currency: m.currency,
+      watch: m.watch,
+      showRate: m.showRate,
+      buckets: [...s.buckets],
+      deltaBuckets: [...s.deltaBuckets],
+      tps: rateNow,
+      realtimeTps,
+      hitRate: hit,
+      today: { ...s.today },
+      lastError: s.lastError,
+      lastErrorAt: s.lastErrorAt,
+      lastTtftMs: s.lastTtftMs,
+      lastTps: s.lastTps,
+      lastTpsAt: s.lastTpsAt,
+      ttftP50: ttftPct(s.ttftSamples, 50),
+      ttftP95: ttftPct(s.ttftSamples, 95),
+      ttftP99: ttftPct(s.ttftSamples, 99),
+      inflight: inflight.get(m.id) ?? 0,
+      active: (inflight.get(m.id) ?? 0) > 0 || (visibleUntil.get(m.id) ?? 0) > now,
+      probing: s.probing,
+      autoProbe: m.autoProbe === true,
+      lastProbeAt: s.lastProbeAt,
+      lastProbeOk: s.lastProbeOk,
+      probeFails: s.probeFails
+    })
+    totals.tps += rateNow
+    for (let i = 0; i < BUCKETS; i++) {
+      totals.buckets[i] = (totals.buckets[i] ?? 0) + (s.buckets[i] ?? 0)
+      totals.reqBuckets[i] = (totals.reqBuckets[i] ?? 0) + (s.reqBuckets[i] ?? 0)
+    }
+    totals.todayCost += s.today.cost
+    totals.requests += s.today.requests
+    totals.errors += s.today.errors
+    totals.currency = m.currency
+  }
+
+  const inputTotal = models.reduce((a, x) => a + x.today.input, 0)
+  const cacheTotal = models.reduce((a, x) => a + x.today.cacheRead, 0)
+  const readKnown = models.some((x) => x.today.cacheReadReported > 0 || x.today.cacheRead > 0)
+  totals.hitRate = readKnown ? hitRate(cacheTotal, inputTotal) : null
+
+  return {
+    ts: now,
+    proxyRunning,
+    proxyError,
+    baseUrl,
+    models: models.filter((m) => cfg.modelById(m.modelId)?.enabled !== false),
+    totals,
+    overlayModelId: settings.overlay.modelId,
+    overlay: settings.overlay
+  }
+}
