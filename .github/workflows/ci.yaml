@@ -1,0 +1,148 @@
+name: CI
+
+# 触发策略（对齐 WorkFlow 规范）：
+# - 推送覆盖 develop 与临时分支（临时分支形如 type/描述）；main / release 不直推、只经 PR 接收。
+# - PR 目标是 main、develop、hotfix；main → release 的 PR 不跑 CI，由 tag 阶段的归属校验与构建兜底。
+# - 会出包的 PR 只有 hotfix → main 与 develop → main 两种，其余方向不构建；单元测试只对白名单来源的 PR 执行。
+# - 版本 tag 只打在 release 分支的发布提交上，故 tag 推送单独触发发版流水线。
+on:
+  push:
+    branches:
+      - develop
+      - feature/*
+      - bugfix/*
+      - hotfix/*
+      - docs/*
+      - revert/*
+      - refactor/*
+      - test/*
+      - chore/*
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+      - develop
+      - hotfix
+
+# 同一分支或 tag 连续推送时取消上一轮，避免排队与产物互相覆盖。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 质量检查：所有分支推送与所有 PR 都只跑这六步，不构建、不发布；PR 的追加 job 见下。
+  quality:
+    name: 质量检查
+    # tag 构建走 release job，质量检查在 tag 事件下整体跳过，不白跑一遍。
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    # 项目是 Electron 应用，ui-check、installed-check 等脚本依赖 Windows 特性，不换 Linux。
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      # 前三步在四个 job 里重复，此处首次出现即打锚点，其余位置用别名引用。
+      - &checkout
+        uses: actions/checkout@v5
+      - &runtime
+        name: 准备运行环境
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      # 用 ci 而非 install，锁 package-lock.json，保证与本地安装结果一致。
+      - &deps
+        name: 安装依赖
+        run: npm ci
+      - name: 格式检查
+        run: npm run format:check
+      # 静态代码分析由项目既有 eslint 承担，不引入额外扫描器。
+      - name: 静态代码分析
+        run: npm run lint
+      - name: 类型检查
+        run: npm run typecheck
+      # 分两段：生产依赖必须干净、直接阻断；开发依赖的漏洞往往要跨大版本升级才修得掉，只报不卡，
+      # 避免长期把 CI 挂成红色而失去参考价值。
+      - name: 安全扫描（生产依赖，阻断）
+        run: npm audit --omit=dev --audit-level=high
+      - name: 安全扫描（全部依赖，只报）
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # 单元测试：只在 PR 上跑，来源只认临时分支、hotfix 与 develop，其余 PR 不测。
+  unit:
+    name: 单元测试
+    if: >-
+      github.event_name == 'pull_request' &&
+      (startsWith(github.head_ref, 'feature/') || startsWith(github.head_ref, 'bugfix/') ||
+       startsWith(github.head_ref, 'hotfix/') || startsWith(github.head_ref, 'docs/') ||
+       startsWith(github.head_ref, 'revert/') || startsWith(github.head_ref, 'refactor/') ||
+       startsWith(github.head_ref, 'test/') || startsWith(github.head_ref, 'chore/') ||
+       github.head_ref == 'develop' || github.head_ref == 'hotfix')
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - *checkout
+      - *runtime
+      - *deps
+      - name: 单元测试
+        run: npm test
+
+  # 打包检查：仅进 main 的两条 PR（hotfix、develop）执行，前两个 job 都过了才验能否出包。
+  build:
+    name: 打包检查
+    if: >-
+      github.event_name == 'pull_request' && github.base_ref == 'main' &&
+      (github.head_ref == 'hotfix' || github.head_ref == 'develop')
+    needs: [quality, unit]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - *checkout
+      - *runtime
+      - *deps
+      # npm ci 会跳过 electron 的 postinstall，node_modules/electron/dist 不存在，
+      # 而 electron-builder.yaml 用 electronDist 指向该目录，故这里手动补下载。
+      - &electron
+        name: 下载 Electron 运行时
+        run: node node_modules/electron/install.js
+      # 脚本内已带 --publish never，不会误发；产物仅作门槛，不上传。
+      - name: 构建测试
+        run: npm run dist
+
+  # 发版：只由 release 分支上的 tag 推送触发。
+  # 六步校验与单测已在更早的 PR 阶段完成，这里不重复，只校验 tag 归属再构建并建草稿发行版。
+  release:
+    name: 发版
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - *checkout
+      - *runtime
+      - *deps
+      # tag 可以打在任意提交上，先确认它就在 release 头上，否则不构建、不发行版。
+      - name: 校验 tag 归属
+        shell: pwsh
+        run: |
+          git fetch origin release --depth=1
+          $head = (git rev-parse FETCH_HEAD).Trim()
+          $tag = (git rev-parse HEAD).Trim()
+          if ($head -ne $tag) { throw "tag $tag 不在 release 头 $head 上" }
+      - *electron
+      # 前置条件：electron-builder 的 artifactName 已去掉空格，产物形如 LLM-Meter-v1.0.0-win-x64-setup.exe。
+      # 关闭隐式发布写在 package.json 的 dist 脚本里，这里不必再传 --publish。
+      - name: 发版构建
+        run: npm run dist
+      # 发行版固定为草稿，标题取 tag，说明由提交记录自动生成，人工确认后自行发布。
+      # pwsh 不展开通配符，先取到实际文件再作为参数展开，避免 gh 收到字面量。
+      - name: 创建草稿发行版并上传产物
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $files = @(Get-ChildItem dist/*-setup.exe | ForEach-Object FullName)
+          if ($files.Count -eq 0) { throw '未找到发版产物' }
+          gh release create $env:TAG --draft --title $env:TAG --generate-notes @files

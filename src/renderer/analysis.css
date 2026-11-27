@@ -1,0 +1,413 @@
+.series-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+/* 绘图区：SVG 只画几何，刻度文字走 HTML 覆盖层，拉伸时不变形 */
+.chart-plot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.axis-labels {
+  position: absolute;
+  pointer-events: none;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.y-labels {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6.2%;
+}
+
+.axis-y {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+}
+
+.x-labels {
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 16px;
+  color: var(--text);
+}
+
+.axis-x {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.series-svg {
+  width: 100%;
+  height: 260px;
+  display: block;
+}
+
+.series-svg .grid {
+  stroke: var(--line-soft);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.series-svg .axis {
+  fill: var(--dim);
+  font-size: 11px;
+}
+
+.series-svg .crosshair {
+  stroke: var(--dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.series-tip {
+  position: absolute;
+  min-width: 150px;
+  max-height: 100%;
+  overflow: hidden;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px var(--shadow);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.tip-time {
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tip-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.tip-row span {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tip-row b {
+  margin-left: auto;
+  flex: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  font-size: 11px;
+}
+
+.legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.legend-item.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.chart-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--dim);
+}
+
+/* 图表卡头：标题与控件同一行，控件贴右 */
+.ana-head {
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ana-controls {
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.ana-sum {
+  margin-left: auto;
+  white-space: nowrap;
+  padding-bottom: 8px;
+}
+
+/* ---------- 用量统计：活动格 / 趋势 / 占比 ---------- */
+
+.ana-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ana-panel-head h2 {
+  margin: 0;
+}
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+}
+
+.seg button {
+  padding: 3px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.seg button.on {
+  background: var(--text);
+  color: var(--panel);
+}
+
+.seg button:not(.on):hover {
+  color: var(--text);
+}
+
+/* 活动格：矩形按列铺满，格子随宽度保持正方形 */
+.heat-wrap {
+  position: relative;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.heat-grid {
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 4px;
+}
+
+.heat-cell {
+  aspect-ratio: 1;
+  min-height: 6px;
+  border-radius: 3px;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.heat-cell[data-lv='1'] {
+  background: color-mix(in srgb, var(--accent) 22%, var(--panel-2));
+}
+
+.heat-cell[data-lv='2'] {
+  background: color-mix(in srgb, var(--accent) 42%, var(--panel-2));
+}
+
+.heat-cell[data-lv='3'] {
+  background: color-mix(in srgb, var(--accent) 62%, var(--panel-2));
+}
+
+.heat-cell[data-lv='4'] {
+  background: color-mix(in srgb, var(--accent) 82%, var(--panel-2));
+}
+
+.heat-cell[data-lv='5'] {
+  background: var(--accent);
+}
+
+.heat-cell.on {
+  box-shadow: inset 0 0 0 2px var(--text);
+}
+
+.heat-tip {
+  position: absolute;
+  bottom: 22px;
+  min-width: 132px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px var(--shadow);
+  font-size: 11px;
+  pointer-events: none;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.heat-months {
+  display: grid;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.heat-months span {
+  font-size: 10px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* 趋势折线 */
+.trend-wrap {
+  position: relative;
+}
+
+.trend-svg {
+  display: block;
+  width: 100%;
+  height: 240px;
+}
+
+.trend-svg .trend-grid {
+  stroke: var(--line-soft);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-svg .trend-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 模型用量环图 */
+.donut-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.donut-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  justify-self: center;
+}
+
+.donut-svg {
+  display: block;
+  width: 100%;
+  transform: rotate(-90deg);
+}
+
+.donut-track {
+  fill: none;
+  stroke: var(--panel-2);
+}
+
+.donut-seg {
+  fill: none;
+  stroke-linecap: butt;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.donut-center b {
+  font-size: 22px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-center span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.donut-list {
+  min-width: 0;
+}
+
+.donut-row + .donut-row {
+  border-top: 1px solid var(--line-soft);
+}
+
+.donut-row-main {
+  padding: 10px 2px;
+}
+
+.donut-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.donut-name i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.donut-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut-name b {
+  margin-left: auto;
+  flex: none;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.donut-tok {
+  margin: 3px 0 0 16px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+@media (max-width: 1040px) {
+  .donut-grid {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}

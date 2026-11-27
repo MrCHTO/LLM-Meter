@@ -1,0 +1,6 @@
+node_modules/
+out/
+dist/
+test/shots/
+package-lock.json
+*.log
